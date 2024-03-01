@@ -84,7 +84,7 @@ The constructs in python I used for this:
 
 I kept these constructs minimal so that I can move to lisp fairly easily.
 
-## How to model lists?
+### How to model lists?
 
 This is the first decision point. Should I just use lists like I did in python? Or move to vectors? Let's see what [py4cl uses for numpy](./python-interop.md):
 
