@@ -1,5 +1,7 @@
 # Interpreter
 
+## Python Implementation
+
 I have written Python based interpreter to test out the ideas behind Llama lisp. Here is it in < 100 lines:
 
 
@@ -68,6 +70,10 @@ print(MM([mat, mat]))
 # [4, -2, -8, -14]]
 ```
 
+## Common Lisp Implementation
+
+That should set the context of my common lisp implementation to do the same. I should use names from FL paper.
+
 The constructs in python I used for this:
 
 1. List comprehensions
@@ -76,4 +82,51 @@ The constructs in python I used for this:
 4. Conditional expressions
 5. Lambda
 
-That should set the context of my common lisp implementation to do the same. I should names from FL paper.
+I kept these constructs minimal so that I can move to lisp fairly easily.
+
+## How to model lists?
+
+This is the first decision point. Should I just use lists like I did in python? Or move to vectors? Let's see what [py4cl uses for numpy](./python-interop.md):
+
+```commonlisp
+* (ql:quickload :py4cl)
+* (py4cl:import-module "numpy" :as "np")
+* (type-of (np:linspace 0.0 (* 2 pi) 20))
+(SIMPLE-VECTOR 20)
+* (type-of (np:diag #(1 2 3 4)))
+(SIMPLE-ARRAY T (4 4))
+```
+
+So what is simple array? Documentation can be found [here](https://lispcookbook.github.io/cl-cookbook/arrays.html). Another way to create arrays is:
+
+```
+(defparameter *a* (make-array '(3 2) :initial-element 1.0))
+(aref *a* 0 1)
+```
+
+Ok this is good enough for me. Let's use simple arrays. Let's write simple matmul in CL:
+
+```commonlisp
+
+(defun matrix-multiply (matrix-a matrix-b)
+  (let* ((m (array-dimension matrix-a 0))
+         (n (array-dimension matrix-b 1))
+         (k (array-dimension matrix-b 0))
+         (matrix-c (make-array (list m n) :initial-element 0)))
+    (dotimes (i m)
+      (dotimes (j n)
+        (dotimes (p k)
+          (incf (aref matrix-c i j)
+            (* (aref matrix-a i p) (aref matrix-b p j))))))
+    matrix-c))
+
+(ql:quickload :py4cl)
+(py4cl:import-module "numpy" :as "np")
+(matrix-multiply (np:diag #(1 2 3 4)) (np:diag #(4 3 2 1)))
+```
+
+Should print
+
+```
+#2A((4 0 0 0) (0 6 0 0) (0 0 6 0) (0 0 0 4))
+```
