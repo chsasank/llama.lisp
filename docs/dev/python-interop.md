@@ -19,7 +19,7 @@ In repl, do
 
 Exit repl and add this to `~/.sbclrc`
 
-```commonlisp
+```common_lisp
 #-quicklisp
   (let ((quicklisp-init (merge-pathnames
                           "quicklisp/setup.lisp"
@@ -30,7 +30,7 @@ Exit repl and add this to `~/.sbclrc`
 
 Open SBCL again and install a library and test it:
 
-```commonlisp
+```common_lisp
 (ql:quickload "str")
 (str:title-case "HELLO LISP!")
 ```
@@ -39,13 +39,13 @@ Open SBCL again and install a library and test it:
 
 Now install py4cl:
 
-```commonlisp
+```common_lisp
 (ql:quickload "py4cl")
 ```
 
 Assuming you have `numpy` installed, try:
 
-```commonlisp
+```common_lisp
 (py4cl:import-module "numpy" :as "np")
 (np:linspace 0.0 (* 2 pi) 20)
 ```

@@ -88,7 +88,7 @@ I kept these constructs minimal so that I can move to lisp fairly easily.
 
 This is the first decision point. Should I just use lists like I did in python? Or move to vectors? Let's see what [py4cl uses for numpy](./python-interop.md):
 
-```commonlisp
+```common_lisp
 * (ql:quickload :py4cl)
 * (py4cl:import-module "numpy" :as "np")
 * (type-of (np:linspace 0.0 (* 2 pi) 20))
@@ -96,6 +96,8 @@ This is the first decision point. Should I just use lists like I did in python? 
 * (type-of (np:diag #(1 2 3 4)))
 (SIMPLE-ARRAY T (4 4))
 ```
+
+
 
 So what is simple array? Documentation can be found [here](https://lispcookbook.github.io/cl-cookbook/arrays.html). Another way to create arrays is:
 
@@ -106,7 +108,7 @@ So what is simple array? Documentation can be found [here](https://lispcookbook.
 
 Ok this is good enough for me. Let's use simple arrays. Let's write simple matmul in CL:
 
-```commonlisp
+```common_lisp
 
 (defun matrix-multiply (matrix-a matrix-b)
   (let* ((m (array-dimension matrix-a 0))
