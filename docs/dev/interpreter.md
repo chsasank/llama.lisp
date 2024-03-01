@@ -172,3 +172,40 @@ That is parse the program directly as a list. And then you use it as
 
 We will use this same general structure for our language. Instead of `interp`, we will use `fl` because we are entering functional level! PAIP is such a great reference -- we will use the same when going to compiler level!
 
+Implemented functions and function forms like so:
+
+```common_lisp
+(defun trans (x)
+  "Transposes a matrix"
+  (apply #'mapcar #'list x))
+
+(defun alpha (fn)
+  "Apply to all
+  (alpha f): <x1 x2 ..> = <f:x1 f:x2 ..>"
+  #'(lambda (x) (mapcar (fl fn) x)))
+```
+
+And interpreter itself is very simple for now. I didn't yet add environment so that we can define intermediate functions. Will need to invent syntax for definitions.
+
+```common_lisp
+(defun fl (x)
+  "Interpreter for llama lisp. FL stands for functional level"
+  (cond
+    ((symbolp x) (get-fn x))
+    ((listp x) (get-fn-form x))
+    (t (error "unkown expression ~a" x))))
+```
+
+Testing is very important part of writing any compiler. Created a test driver to test the use cases. Right now it's a simple function that operates on list like the following. This design is lifted from my [scheme compiler](https://chsasank.com/scheme-compiler-1-integers.html).
+
+```common_lisp
+(defvar *test-cases* '(
+  ; function argument expected
+  (trans
+   ((1 2) (3 4))
+   ((1 3) (2 4)))
+
+   (distl
+    (1 (3 4))
+    ((1 3) (1 4)))))
+```

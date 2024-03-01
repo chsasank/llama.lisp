@@ -17,6 +17,14 @@
     #'(lambda (yi) (cons yi (rest x)))
     (first x)))
 
+(defun add (x)
+  "Addition"
+  (+ (first x) (second x)))
+
+(defun mul (x)
+  "multiplication"
+  (* (first x) (second x)))
+
 ; functional forms
 (defun alpha (fn)
   "Apply to all
@@ -34,6 +42,25 @@
       (mapcar
         #'(lambda (fn) (funcall (fl fn) x))
         fns)))
+
+(defun comp (&rest fns)
+  "composition of functions
+  (comp f1 .. fn):x = f1:(f2:.. (fn: x))"
+  #'(lambda (x)
+      (reduce #'(lambda (f result) (funcall (fl f) result)) 
+        fns :from-end T :initial-value x)))
+
+(defun insert (fn)
+  "insert function (/)
+  /f:(x1, ..  xn) = f:(x1, /f1:(x2 .. xn))"
+  (let ((fl-fn (fl fn)))
+    #'(lambda (x)
+        (reduce 
+          #'(lambda (xi result)
+              (funcall fl-fn (list xi result)))
+          x :from-end T))))
+
+; todo: onecharacter aliases
 
 (defun get-fn (fn)
   ; TODO: work with env to define new functions
@@ -90,7 +117,33 @@
   ((cat (idx 1) (idx 0))
    ((1 2) (3 4))
     ((3 4) (1 2)))
-))
+
+  (add (1 4) 5)
+  (mul (2 4) 8)
+
+  ((comp add (alpha mul))
+   ((2 3) (4 5))
+   26)
+
+  ((insert add)
+   (1 2 3 4)
+   10)
+
+  ; inner product
+  ((comp (insert add) (alpha mul) trans)
+   ((1 2 3 4) (-1 2 3 -4))
+   -4)
+  
+  ; matrix multiplication
+  ((comp
+      (alpha (alpha
+        (comp (insert add) (alpha mul) trans)))
+      (alpha distl)
+      distr
+      (cat (idx 0) (comp trans (idx 1))))
+   (((1 2) (3 4))
+    ((1 -2) (-3 4)))
+   ((5 6) (-9 10)))))
 
 (defun test-driver ()
   "Run all test cases"
@@ -102,8 +155,8 @@
              (actual (funcall (fl fn) input)))
         (if (equal actual expected)
           (format T "~a passed~%" fn)
-          (format T "~a failed: expected ~a but got ~a~%"
-            fn expected actual))))
+          (format T "failed: expected ~a but got ~a~%"
+            expected actual))))
     *test-cases*))
 
 (test-driver)
