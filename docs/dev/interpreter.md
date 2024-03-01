@@ -109,7 +109,6 @@ So what is simple array? Documentation can be found [here](https://lispcookbook.
 Ok this is good enough for me. Let's use simple arrays. Let's write simple matmul in CL:
 
 ```common_lisp
-
 (defun matrix-multiply (matrix-a matrix-b)
   (let* ((m (array-dimension matrix-a 0))
          (n (array-dimension matrix-b 1))
@@ -132,3 +131,44 @@ Should print
 ```
 #2A((4 0 0 0) (0 6 0 0) (0 0 6 0) (0 0 0 4))
 ```
+
+> Note: While array makes lot of sense, let's just use simple lists to do the stuff - just like in python. It will also force me to do actual reshapes and strides better.
+
+### Entry Point
+
+I was confused a bit on writing DSL in common lisp. Then I remembered that I have written a simple scheme interpreter based on [PAIP chapter 22](https://github.com/norvig/paip-lisp/blob/main/docs/chapter22.md). My implementation of this is at [chsasank/paip](https://github.com/chsasank/paip/tree/main/ch22). Basic structure looks like this:
+
+```common_lisp
+(defun interp (x &optional env)
+    "Interpret (evaluate) the expression x in the environment env."
+    (cond
+        ((symbolp x) (get-var x env))
+        ((atom x) x)
+        ((scheme-macro (first x))
+            (interp (scheme-macro-expand x) env))
+        ((case (first x)
+            (QUOTE (second x))
+            (BEGIN (last1 (mapcar #'(lambda (y) (interp y env))
+                            (rest x))))
+            (SET! (set-var! (second x) (interp (third x) env) env))
+            (IF (if (interp (second x) env) 
+                    (interp (third x) env)
+                    (interp (fourth x) env)))
+            (LAMBDA (let ((params (second x))
+                          (code (maybe-add 'begin (rest2 x))))
+                        #'(lambda (&rest args)
+                            (interp code (extend-env params args env)))))
+            (t ;; a procedure application
+                (apply 
+                    (interp (first x) env)
+                    (mapcar #'(lambda (v) (interp v env)) (rest x))))))))
+```
+
+That is parse the program directly as a list. And then you use it as 
+
+```
+(interp '(+ 2 2))
+```
+
+We will use this same general structure for our language. Instead of `interp`, we will use `fl` because we are entering functional level! PAIP is such a great reference -- we will use the same when going to compiler level!
+
