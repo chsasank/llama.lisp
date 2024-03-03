@@ -223,6 +223,20 @@ Now on to implementing the functional forms and here's where fun starts. To impl
 
 This renaming is sort of core of what lambda or at least how I implemented it in scheme.
 
+### Naming: Setting
+
+This is the hardest pill to swallow because this means I have side effects or something like that. I needed to do this for `comp`. I can do 'SSA' and create temporary variables for each of the steps, but I feel I will loose the semantics later when I optimize. So here's what I did:
+
+```common_lisp
+(defun comp (&rest fns)
+  "composition"
+  `(let ((inp inp))
+      ,@(loop for fn in (reverse fns) collect
+          (list 'setf 'inp (code-gen fn)))))
+```
+
+Note that I have had to do let at the start because I needed to rename. I feel this is clearer construct to optimize later than when with simple SSA. If I do SSA on this, I should be able to do linear scan and assign same register to all, but I am not very comfortable with that.
+
 ## Bootstrapping the compiler
 
 It would be so nice if I could implement the compiler directly in our language and use previously written interpreter to bootstrap. May be with that I can avoid naming variables and writing loops. Instead of naming variables I will need to name functions.

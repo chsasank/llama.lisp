@@ -143,7 +143,7 @@
       (cat (idx 0) (comp trans (idx 1))))
    (((1 2) (3 4))
     ((1 -2) (-3 4)))
-   ((5 6) (-9 10)))))
+   ((-5 6) (-9 10)))))
 
 (defun test-driver ()
   "Run all test cases"

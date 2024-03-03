@@ -48,6 +48,21 @@
   `(list ,@(loop for fn in fns collect
     (code-gen fn))))
 
+(defun comp (&rest fns)
+  "code gen for composition"
+  `(let ((inp inp))
+      ,@(loop for fn in (reverse fns) collect
+          (list 'setf 'inp (code-gen fn)))))
+
+(defun insert (fn)
+  "code gen for insertion"
+  `(let ((rev (rest (reverse inp)))
+         (inp (first (last inp))))
+    (loop for xi in rev do
+      (setf inp (list xi inp))
+      (setf inp ,(code-gen fn)))
+    inp))
+
 (defun get-fn (fn)
   ; TODO: work with env to define new functions
   (symbol-function fn))
@@ -123,7 +138,34 @@
   ((cat (idx 1) (idx 0))
    ((1 2) (3 4))
     ((3 4) (1 2)))
-))
+  
+  ((comp add (alpha mul))
+   ((2 3) (4 5))
+   26)
+   
+  ((comp (cat (comp add) (idx 0)) (alpha mul))
+    ((2 3) (4 5))
+    (26 6))
+
+  ((insert add)
+   (1 2 3 4)
+   10)
+
+  ; inner product
+  ((comp (insert add) (alpha mul) trans)
+   ((1 2 3 4) (-1 2 3 -4))
+   -4)
+    
+  ; matrix multiplication
+  ((comp
+      (alpha (alpha
+        (comp (insert add) (alpha mul) trans)))
+      (alpha distl)
+      distr
+      (cat (idx 0) (comp trans (idx 1))))
+   (((1 2) (3 4))
+    ((1 -2) (-3 4)))
+   ((-5 6) (-9 10)))))
 
 ; test driver
 (defun test-driver ()
