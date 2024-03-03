@@ -68,7 +68,15 @@
               (funcall fl-fn (list xi result)))
           x :from-end T))))
 
-; todo: onecharacter aliases
+(defun for-loop (body-form start end)
+  "Loop form
+    [E(i) i = f, g]: x = [E(f:x), E(f:x + 1) .. E(g:x)]:x
+    E = body-form, f = start, g = end"
+  #'(lambda (x)
+      (loop for idx
+          from (funcall (fl start) x)
+          below (funcall (fl end) x)
+        collect (funcall (fl (list body-form idx)) x))))
 
 (defun get-fn (fn)
   ; TODO: work with env to define new functions
@@ -167,6 +175,10 @@
   
   (len (1 2 3 4) 4)
   (len ((1 2) 3) 2)
+
+  ((for-loop idx (const 0) len)
+   (12 23 45)
+   (12 23 45))
 
 ))
 
