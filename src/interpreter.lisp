@@ -1,7 +1,15 @@
 ; functional primitives
-(defun trans (x)
-  "Transposes a matrix"
-  (apply #'mapcar #'list x))
+(defun add (x)
+  "Addition"
+  (+ (first x) (second x)))
+
+(defun mul (x)
+  "multiplication"
+  (* (first x) (second x)))
+
+(defun len (x)
+  "length"
+  (length x))
 
 (defun distl (x)
   "Distrbute from left
@@ -17,13 +25,9 @@
     #'(lambda (yi) (cons yi (rest x)))
     (first x)))
 
-(defun add (x)
-  "Addition"
-  (+ (first x) (second x)))
-
-(defun mul (x)
-  "multiplication"
-  (* (first x) (second x)))
+(defun trans (x)
+  "Transposes a matrix"
+  (apply #'mapcar #'list x))
 
 ; functional forms
 (defun alpha (fn)
@@ -34,6 +38,10 @@
 (defun idx (i)
   "Index data at i. Indexing starts at 0"
   #'(lambda (x) (nth i x)))
+
+(defun const (c)
+  "code gen for constant x no matter input"
+  #'(lambda (x) c))
 
 (defun cat (&rest fns)
   "Construction.
@@ -143,7 +151,24 @@
       (cat (idx 0) (comp trans (idx 1))))
    (((1 2) (3 4))
     ((1 -2) (-3 4)))
-   ((-5 6) (-9 10)))))
+   ((-5 6) (-9 10)))
+   
+  ((const 10)
+   (20 30)
+   10)
+
+  ((comp (const -1) add (alpha mul))
+   ((2 3) (4 5))
+   -1)
+  
+  ((comp add (cat (comp add (alpha mul)) (const 10)))
+   ((2 3) (4 5))
+   36)
+  
+  (len (1 2 3 4) 4)
+  (len ((1 2) 3) 2)
+
+))
 
 (defun test-driver ()
   "Run all test cases"

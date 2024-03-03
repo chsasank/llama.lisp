@@ -9,6 +9,10 @@
   "code gen for mul"
   '(* (first inp) (second inp)))
 
+(defun len ()
+  "code gen for length"
+  '(length inp))
+
 (defun distl ()
   "distribute from left
   in == (y (z1 z2 ... zn)) -> ((y z1) (y z2) ...)"
@@ -33,6 +37,7 @@
       (loop for row in inp collect
         (nth i row)))))
 
+; functional forms
 (defun alpha (fn)
   "Code gen for alpha.
   (alpha f): <x1 x2 ..> = <f:x1 f:x2 ..>"
@@ -42,6 +47,10 @@
 (defun idx (i)
   "code gen for index"
   `(nth ,i inp))
+
+(defun const (x)
+  "code gen for constant x no matter input"
+  x)
 
 (defun cat (&rest fns)
   "code gen for construction"
@@ -62,6 +71,17 @@
       (setf inp (list xi inp))
       (setf inp ,(code-gen fn)))
     inp))
+
+; (defun for-loop (body-form start end)
+;   "code gen for loop form
+;   [E(i) i = f, g]: x = [E(f:x), E(f:x + 1) .. E(g:x)]:x
+;   E = body-form, f = start, g = end"
+;   ; need to implement this is a mix of interpreter
+;   ; and compiler. weird - come back to it later.
+;   `(let ((start-idx ,(code-gen start))
+;          (end-idx ,(code-gen end)))
+;     (loop for idx from start-idx below end-idx collect
+;       ,(code-gen (list body-form idx)))))
 
 (defun get-fn (fn)
   ; TODO: work with env to define new functions
@@ -165,7 +185,27 @@
       (cat (idx 0) (comp trans (idx 1))))
    (((1 2) (3 4))
     ((1 -2) (-3 4)))
-   ((-5 6) (-9 10)))))
+   ((-5 6) (-9 10)))
+
+  ((const 10)
+   (20 30)
+   10)
+
+  ((comp (const -1) add (alpha mul))
+   ((2 3) (4 5))
+   -1)
+  
+  ((comp add (cat (comp add (alpha mul)) (const 10)))
+   ((2 3) (4 5))
+   36)
+  
+  (len (1 2 3 4) 4)
+  (len ((1 2) 3) 2)
+
+  ; ((for-loop idx (const 1) len)
+  ;  (12 23 45)
+  ;  (12 23 45))
+))
 
 ; test driver
 (defun test-driver ()
