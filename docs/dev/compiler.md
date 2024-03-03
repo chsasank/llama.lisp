@@ -125,15 +125,15 @@ This should get us started on the path of lowering.
 
 ## Intermediate language
 
-For the sake of sanity, let's keep track of the constructs we actually emit during the generation of one single giant function.
+For the sake of sanity, let's keep track of the constructs we actually emit during the generation of one single giant function. Let's think critically the constructs we use and why.
 
 ### Loops
 
 Let's not use `map` or `lambda` for the time-being and stick to simple `loop` construct in CL. Here's how it works
 
 ```
-* (loop for x in '(1 2 3)
-  collect (* x 10))
+* (loop for x in '(1 2 3) collect
+    (* x 10))
 (10 20 30)
 ```
 
@@ -178,19 +178,64 @@ I just used a `let` for naming a variable beyond this `in` parameter. Specifical
   "distribute from left
   in == (y (z1 z2 ... zn)) -> ((y z1) (y z2) ...)"
   '(let ((y (first in)))
-      (loop for zi in (second in)
-        collect (list y zi))))
+      (loop for zi in (second in) collect
+        (list y zi))))
 ```
 
 I could have written it as
 
 ```common_lisp
 (defun distl ()
-  (loop for zi in (second in)
-    collect (list (first in) zi)))
+  (loop for zi in (second in) collect
+    (list (first in) zi)))
 ```
 
-But this would have computed that `(first in)` over and over. That seemed wasteful and that's why I 'named' it. This is a perfect example of 'register allocation' as I called it. I 'cached' the results so that I don't have to recompute them. Could this caching me done [automatically](https://github.com/norvig/paip-lisp/blob/main/docs/chapter9.md#91-caching-results-of-previous-computations-memoization)?
+But this would have computed `(first in)` over and over. That seemed wasteful and that's why I 'named' it. This is a perfect example of 'register allocation' as I called it earlier. I 'cached' the results so that I don't have to recompute them. Could this caching me done [automatically](https://github.com/norvig/paip-lisp/blob/main/docs/chapter9.md#91-caching-results-of-previous-computations-memoization)?
+
+### Loop: Range and Indexing
+
+For implementing transpose, I unfortunately had to use more constructs. Specifically I had to use loops with index and range like in python implementation. I think I can replace earlier loops with range and index later may be instead of just variables. I also used the function `length`. No matter, I don't like my implementation of `trasn` here:
+
+```common_lisp
+(defun trans()
+  "Transpose a matrix
+  in == ((x11 .. xm1) .. (xn1 .. xmn)) ->
+    (x11 .. x1m) .. (x1n .. xnm))
+  "
+  '(let ((m (length (first in))))
+    (loop for i from 0 below m collect
+      (loop for row in in collect
+        (nth i row)))))
+```
+
+### Naming: Renaming
+
+Now on to implementing the functional forms and here's where fun starts. To implement `alpha`, I needed to implement renaming/scope whatever you wanna call. This is a bit ugly but it works. I renamed `in` to `inp` because it gets confusing with `in` of `for`
+
+```common_lisp
+(defun alpha (fn)
+  "Code gen for alpha.
+  (alpha f): <x1 x2 ..> = <f:x1 f:x2 ..>"
+  `(loop for xi in inp
+    (let ((inp xi))
+      (collect (code-gen x)))))
+```
+
+This renaming is sort of core of what lambda or at least how I implemented it in scheme.
+
+## Bootstrapping the compiler
+
+It would be so nice if I could implement the compiler directly in our language and use previously written interpreter to bootstrap. May be with that I can avoid naming variables and writing loops. Instead of naming variables I will need to name functions.
+
+For example, here's a recursive implementation of factorial (in the original notation)
+
+```
+def ! = eq0 -> ~1, x.[id, !.sub1]
+def eq0 = eq . [id, ~0]
+def sub1 = -.[id, ~1]
+```
+
+I have not yet implemented definitions (i.e environment), conditionals and other functions used here. But in general, bootstrapping is a good test for usability of the language.
 
 References:
 
