@@ -28,10 +28,173 @@ Let's design a basic register allocation mechanism for this:
 (comp (insert add) (alpha mul) trans)
 ```
 
-I would like to read the original reference on register allocation. I know of this paper about red-blue ball game [3] that tries to find optimal allocation. 
+I would like to read the original reference on register allocation. I know of this paper about red-blue ball game [3] that tries to find optimal allocation. A good reference/overview can be found in these slides[4].
+
+## Immediate Goal: Compile to Lisp
+
+Let's get started on a compiler. Our goal is 'inline' everything into one giant function in common lisp. We will generate this in common lisp using the homoiconicity property of it[5]. Since a program itself is a list in common lisp, our problem statement is to simply construct a list. Our aim to generate single function is valid because we don't definitions yet - neither for variables nor for functions. Let's use the PAIP book as reference. Relevant sections include 
+
+1. Section 9.2: [Compiling one language to another](https://github.com/norvig/paip-lisp/blob/main/docs/chapter9.md#92-compiling-one-language-into-another)
+2. Chapter 12: [Compiling logic programs](https://github.com/norvig/paip-lisp/blob/main/docs/chapter12.md#121-a-prolog-compiler)
+
+Let's take the example program from Section 9.2 and get inspired by it. Here is a compiler for a generator of BNF grammar (an interpreter is found in Section 2.3)
+
+```common_lisp
+; helper functions
+(defun rule-lhs (rule)
+  "The left-hand side of a rule."
+  (first rule))
+
+(defun rule-rhs (rule)
+  "The right-hand side of a rule."
+  (rest (rest rule)))
+
+(defun one-of (set)
+  "Pick one element of set, and make a list of it."
+  (list (random-elt set)))
+
+(defun random-elt (seq)
+  "Pick a random element out of a sequence."
+  (elt seq (random (length seq))))
+
+; compile the rules
+(defun compile-rule (rule)
+    "Translate a grammar rule into a LISP function definition"
+    (let ((rhs (rule-rhs rule)))
+        `(defun ,(rule-lhs rule) ()
+            ,(cond 
+                ((every #'atom rhs) `(one-of ',rhs))
+                ((length=1 rhs) (build-code (first rhs)))
+                (t `(case (random ,(length rhs))
+                        ,@(build-cases 0 rhs)))))))
+
+(defun build-cases (number choices)
+    "Return a list of case-clauses"
+    (when choices
+        (cons (list number (build-code (first choices)))
+            (build-cases (+ number 1) (rest choices)))))
+
+(defun build-code (choice)
+    "Append together multiple constituents"
+    (cond 
+        ((null choice) nil)
+        ((atom choice) (list choice))
+        ((length=1 choice) choice)
+        (t `(append ,@(mapcar #'build-code choice)))))
+
+(defun length=1 (x)
+    "Is x a list of length 1"
+    (and (consp x) (null (cdr x))))
+
+; english grammar
+(compile-rule '(Sentence -> (NP VP)))
+; ==> (DEFUN SENTENCE () (APPEND (NP) (VP)))
+```
+
+In this code the most important common lisp construct is somewhat similar to string formatting in python:
+
+```
+$ python
+>>> a = "alice"
+>>> f"{a} says hello world"
+'alice says hello world'
+```
+
+In common lisp, we can use backtick (`), comma (,) to make list construction easy:
+
+```
+$ sbcl
+* (setf a 'alice)
+ALICE
+* `(,a says hello world)
+(ALICE SAYS HELLO WORLD)
+```
+
+Note that in lisp version, we used symbols instead of strings. Another convenience we have is `,@` to make appending to lists easy
+
+```
+* (setf ab '(alice and bob))
+(ALICE AND BOB)
+* `(,ab says hello world)
+((ALICE AND BOB) SAYS HELLO WORLD)
+* `(,@ab says hello world)
+(ALICE AND BOB SAYS HELLO WORLD)
+```
+
+This should get us started on the path of lowering.
+
+## Intermediate language
+
+For the sake of sanity, let's keep track of the constructs we actually emit during the generation of one single giant function.
+
+### Loops
+
+Let's not use `map` or `lambda` for the time-being and stick to simple `loop` construct in CL. Here's how it works
+
+```
+* (loop for x in '(1 2 3)
+  collect (* x 10))
+(10 20 30)
+```
+
+Why I use loop is because ultimately we have to transform our language into something that runs on von Neumann machines. Implementing tail recursion like in scheme is an option but that's a bit of work and doesn't translate nicely enough to lower level. If we keep on seeing similar loop construct being used everywhere, let's macro it as well.
+
+### Names: Input
+
+In my code gen, I assumed `in` means input to a code-gen. For example, check this out:
+
+```common_lisp
+(defun add ()
+  "code gen for addition"
+  ; we assume everywhere that `x` is the variable
+  ; defined 'earlier'
+  '(+ (first in) (second in)))
+```
+
+Note how `in` is not an input parameter to `add` function itself. Code-gen assumes `in` is defined 'earlier' whatever that means. Our code-gen and runtime looks like this:
+
+```common_lisp
+; compiler
+(defun code-gen(x)
+  "Compiler for llama lisp. FL stands for function level."
+  (cond
+    ((symbolp x)
+      (funcall (get-fn x)))
+    (t (error "unkown expression ~a" (type-of x)))))
+
+; runtime
+(defun fl (x)
+  (eval `(lambda (in) ,(code-gen x))))
+```
+
+code-gen creates lisp code and `eval` evaluates it into a lambda where `in` is a parameter. And that's how `in` is evaluated in above `add`.
+
+### Names: Intermediate Variables
+
+I just used a `let` for naming a variable beyond this `in` parameter. Specifically check this function:
+
+```common_lisp
+(defun distl ()
+  "distribute from left
+  in == (y (z1 z2 ... zn)) -> ((y z1) (y z2) ...)"
+  '(let ((y (first in)))
+      (loop for zi in (second in)
+        collect (list y zi))))
+```
+
+I could have written it as
+
+```common_lisp
+(defun distl ()
+  (loop for zi in (second in)
+    collect (list (first in) zi)))
+```
+
+But this would have computed that `(first in)` over and over. That seemed wasteful and that's why I 'named' it. This is a perfect example of 'register allocation' as I called it. I 'cached' the results so that I don't have to recompute them. Could this caching me done [automatically](https://github.com/norvig/paip-lisp/blob/main/docs/chapter9.md#91-caching-results-of-previous-computations-memoization)?
 
 References:
 
 1. Numba todo
 2. Private correspondence on compiler group - document for later.
 3. H T Kung paper todo.
+4. https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/17/Slides17.pdf
