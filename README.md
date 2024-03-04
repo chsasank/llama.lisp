@@ -4,4 +4,5 @@ Lisp dialect designed for HPC and AI.
 
 TODO:
 
-- [] Movce to mdbooks for documentation
+- [] Move to mdbooks for documentation
+- [] Follow more common style guide

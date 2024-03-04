@@ -95,6 +95,8 @@ This is my rule. How am I gonna represent it? I will take inspiration and code f
 
 And then we will apply search on this. We'll come back to it later. First, let's implement pattern matching. My code from this chapter is in [here](https://github.com/chsasank/paip/blob/main/ch6/pattern-matching.cl).
 
+I implemented pattern matching and rule system. 
+
 
 References:
 1. Backus Turing

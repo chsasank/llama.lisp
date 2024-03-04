@@ -126,4 +126,4 @@
             pattern expected actual))))
     *test-cases*))
 
-(test-driver)
+; (test-driver)
