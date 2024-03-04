@@ -68,15 +68,18 @@
               (funcall fl-fn (list xi result)))
           x :from-end T))))
 
-(defun for-loop (body-form start end)
+(defun for-loop (i start end body-form)
   "Loop form
     [E(i) i = f, g]: x = [E(f:x), E(f:x + 1) .. E(g:x)]:x
-    E = body-form, f = start, g = end"
+    E = body-form, f = start, g = end, i = i
+    i is substituted literally"
   #'(lambda (x)
-      (loop for idx
+      (loop for actual-i
           from (funcall (fl start) x)
-          below (funcall (fl end) x)
-        collect (funcall (fl (list body-form idx)) x))))
+          below (funcall (fl end) x) collect
+        (funcall
+            (fl (sublis (list (cons i actual-i)) body-form))
+            x))))
 
 (defun get-fn (fn)
   ; TODO: work with env to define new functions
@@ -176,9 +179,15 @@
   (len (1 2 3 4) 4)
   (len ((1 2) 3) 2)
 
-  ((for-loop idx (const 0) len)
+  ((for-loop i (const 0) len (idx i))
    (12 23 45)
    (12 23 45))
+
+  ((for-loop j (const 0) len
+    (for-loop i (const 0) (comp len (idx 0))
+        (comp (idx i) (idx j))))
+   ((1 2) (3 4))
+   ((1 2) (3 4)))
 
 ))
 
