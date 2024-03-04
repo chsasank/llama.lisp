@@ -21,10 +21,10 @@
 ))
 
 (defun lhs (rule)
-  (first rule))
+  (list '(?* ?start-rule) (first rule) '(?* ?end-rule)))
 
 (defun rhs (rule)
-  (second rule))
+  (list '(?* ?start-rule) (second rule) '(?* ?end-rule)))
 
 (defun program-rewrite (prog rule)
   (let ((bindings (pat-match (lhs rule) prog)))
