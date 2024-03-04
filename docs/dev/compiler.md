@@ -251,6 +251,8 @@ def sub1 = -.[id, ~1]
 
 I have not yet implemented definitions (i.e environment), conditionals and other functions used here. But in general, bootstrapping is a good test for usability of the language.
 
+Consider generating C Code: https://github.com/kiselgra/c-mera
+
 References:
 
 1. Numba todo

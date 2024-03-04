@@ -79,6 +79,23 @@ for i = 1, len:a
     r = r + (a[i] * b[i])
 ```
 
+## Optimization
+
+Let's get started on optimization. I have a list of rules something like this:
+
+```
+(comp (alpha f) (for-loop E g h)) ==
+(for-loop (comp f E) g h)
+```
+
+This is my rule. How am I gonna represent it? I will take inspiration and code from Chapter 5: Eliza. It simply does what I am looking for:
+1. Find relevant rules to apply to present conversation
+2. Apply one of the rules
+3. Repeat
+
+And then we will apply search on this. We'll come back to it later. First, let's implement pattern matching. My code from this chapter is in [here](https://github.com/chsasank/paip/blob/main/ch6/pattern-matching.cl).
+
+
 References:
 1. Backus Turing
 2. PAip
