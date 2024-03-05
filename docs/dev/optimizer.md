@@ -103,6 +103,8 @@ So having comp made things more complicated for rewrites because `(comp x* y z*)
 
 Besides, the pattern matcher used so far was not good enough anymore. So I moved the code to more improved pattern matcher from Chapter 6.
 
+Algorithm for normalization is iterate until convergence paradigm I have seen shown in CS6120 course[4]
+
 ### Recursive rules
 
 Any rule I wrote can be matched in any part of subtree.
@@ -111,3 +113,4 @@ References:
 1. Backus Turing
 2. PAip
 3. https://link.springer.com/chapter/10.1007/3-540-15198-2_5
+4. CS 6120 course

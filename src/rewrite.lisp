@@ -7,36 +7,39 @@
 (load "macros.lisp")
 
 ;; Helper functions for FL rules
-(defparameter *fl-rules* nil
+(defparameter *fl-equations* nil
   "A list of all rules available for rewrite")
 
-(defun add-fl-rule (&key lhs rhs ref)
-  (pushnew (cons ref (list lhs rhs)) *fl-rules*))
+(defun reverse-ref (ref)
+  (concatenate 'string ref "-rev"))
 
-(defun fl-rule (ref)
-  (assoc ref *fl-rules*))
+(defun add-fl-equation (&key lhs rhs ref)
+  "Add reference and its reverse to the rulebase"
+  (pushnew (cons (intern ref) (list lhs rhs)) *fl-equations*)
+  (pushnew (cons (intern (reverse-ref ref)) (list rhs lhs))
+            *fl-equations*))
 
-(defun lhs (rule)
-  (second (assoc rule *fl-rules*)))
+(defun fl-equation (ref)
+  (assoc (intern ref) *fl-equations*))
 
-(defun rhs (rule)
-  (third (assoc rule *fl-rules*)))
+(defun fl-rewrite (ref)
+  (cdr (fl-equation ref)))
 
 ;; Add rules
-(add-fl-rule
-  :ref '2-49
+(add-fl-equation
+  :ref "2-49"
   :lhs '(comp trans
           (for-loop ?j ?r ?s
             (for-loop ?i ?f ?g ?E)))
   :rhs '(for-loop ?i ?f ?g
           (for-loop ?j ?r ?s ?E)))
 
-(add-fl-rule
-  :ref '2-53
+(add-fl-equation
+  :ref "2-53"
   :lhs '(comp (alpha ?f) (for-loop ?i ?g ?h ?E))
   :rhs '(for-loop ?i ?g ?h (comp ?f ?E)))
 
-;; Normalize comps for faster convergence
+;; Normalize comps for faster converge`nce
 (defun normalize-comps-step (prog)
   "Heuristic to make further analysis easy.
   Ideally should be derivable from above."
@@ -62,31 +65,24 @@
       do (setf new-prog (normalize-comps-step old-prog)))
     new-prog))
 
-(defun apply-comp-based-rule (comp-rule prog)
+(defun apply-comp-based-rule (rule prog)
   "Apply composition based rules.
-  Assumes prog is normalized
-  "
-  (if (not (eq (first (lhs rule) 'comp)))
-    (error "rule ~a doesn't start with comp" comp-rule))
+   Heursitic to speed up search.
+   Normalize prog for best performance"
+  (if (not (eq (first (first rule)) 'comp))
+    (error "rule ~a doesn't start with comp" rule))
 
   (let* ((comp-pat `(comp (?* ?start-comp)
-                          ,@(rest (lhs rule))
+                          ,@(rest (first rule))
                           (?* ?end-comp)))
          (binding (pat-match comp-pat prog)))
     (if binding
       `(comp ,@(cdr (assoc '?start-comp binding))
-             ,@(sublis binding (rhs rule))
+             ,(sublis binding (second rule))
              ,@(cdr (assoc '?end-comp binding)))
         prog)))
 
-; (defun generate-rewrite-rules (rule)
-;   "Sort of like meta rules of each rule"
-;   ; lhs = rhs => rhs = lhs
-;   (list
-;     (list (lhs rule) (rhs rule))
-;     (list (rhs rule) (lhs rule))))
-
-(defun rewrite-program (prog rewrite-rule)
+(defun rewrite-program (prog rule)
   (let ((bindings (pat-match (first rewrite-rule) prog)))
     (if bindings
       (sublis bindings (second rewrite-rule)))))

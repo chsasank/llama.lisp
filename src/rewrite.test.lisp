@@ -22,20 +22,25 @@
   ((normalize-comps '(alpha (comp f1 f2 (comp f3 f4) f5)))
    (alpha (comp f1 f2 f3 f4 f5)))
 
-   ((normalize-comps '(comp f1 (comp f2 (comp f3 f4) f5)))
-    (comp f1 f2 f3 f4 f5))
+  ((normalize-comps '(comp f1 (comp f2 (comp f3 f4) f5)))
+   (comp f1 f2 f3 f4 f5))
 
-   ((normalize-comps '(comp g (alpha (comp f1 (comp f2 (comp f3 f4) f5)))))
-    (comp g (alpha (comp f1 f2 f3 f4 f5))))
+  ((normalize-comps '(comp g (alpha (comp f1 (comp f2 (comp f3 f4) f5)))))
+   (comp g (alpha (comp f1 f2 f3 f4 f5))))
 
-    ((normalize-comps (fl-expand '(comp IP C-IP)))
-     (comp (insert add) (alpha mul) trans
-        (for-loop i1 (const 0) (const 2)
-            (for-loop i2 (const 0) (comp len (idx 0))
-                (comp (idx i2) (idx i1))))))
+  ((normalize-comps (fl-expand '(comp IP C-IP)))
+    (comp (insert add) (alpha mul) trans
+      (for-loop i1 (const 0) (const 2)
+        (for-loop i2 (const 0) (comp len (idx 0))
+          (comp (idx i2) (idx i1))))))
 
-;    ((apply-comp-based-rule '2-53))
-  
+   ((apply-comp-based-rule (fl-rewrite "2-53") 
+      '(comp (insert add) (alpha mul)
+          (for-loop i1 (const 0)
+            len (idx i1))))
+    (comp (insert add)
+      (for-loop i1 (const 0) len
+        (comp mul (idx i1)))))
 ))
 
 (defun test-driver ()
