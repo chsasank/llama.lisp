@@ -40,36 +40,45 @@
   :rhs '(for-loop ?i ?g ?h (comp ?f ?E)))
 
 ;; Normalize comps for faster converge`nce
-(defun normalize-comps-step (prog)
+(defun normalize-comp-step (prog)
   "Heuristic to make further analysis easy.
   Ideally should be derivable from above."
   (if (not (listp prog))
     prog
-    (let* ((comp-pat '(comp (?* ?start-comp)
-                          (comp (?* ?inside-comp))
-                          (?* ?end-comp)))
-           (binding (pat-match comp-pat prog)))
-    (if binding
-      `(comp ,@(cdr (assoc '?start-comp binding))
-             ,@(cdr (assoc '?inside-comp binding))
-             ,@(cdr (assoc '?end-comp binding)))
-        ; try recursively if failed
-        (mapcar #'normalize-comps prog)))))
+    (let ((binding-simple (pat-match '(comp ?inside-comp) prog)))
+      (if binding-simple
+        (cdr (assoc 'inside-comp binding-simple))
+        ; try yet another pattern
+        (let* ((comp-pat '(comp (?* ?start-comp)
+                              (comp (?* ?inside-comp))
+                              (?* ?end-comp)))
+               (binding (pat-match comp-pat prog)))
+          (if binding
+            `(comp ,@(cdr (assoc '?start-comp binding))
+                  ,@(cdr (assoc '?inside-comp binding))
+                  ,@(cdr (assoc '?end-comp binding)))
+            
+            ; try recursively if this too failed
+            (mapcar #'normalize-comp-step prog)))))))
 
-(defun normalize-comps (prog)
+(defun normalize-comp (prog)
   "Iteratively apply normalize step until prog converges"
   (let ((old-prog prog)
-        (new-prog (normalize-comps-step prog)))
+        (new-prog (normalize-comp-step prog)))
     (loop while (not (equal new-prog old-prog))
       do (setf old-prog new-prog)
-      do (setf new-prog (normalize-comps-step old-prog)))
+      do (setf new-prog (normalize-comp-step old-prog)))
     new-prog))
+
+(defun check-if-comp-based-rule (rule)
+  "Check if rule is comp based"
+  (eq (first (first rule)) 'comp))
 
 (defun apply-comp-based-rule (rule prog)
   "Apply composition based rules.
    Heursitic to speed up search.
    Normalize prog for best performance"
-  (if (not (eq (first (first rule)) 'comp))
+  (if (not (check-if-comp-based-rule rule))
     (error "rule ~a doesn't start with comp" rule))
 
   (let* ((comp-pat `(comp (?* ?start-comp)
@@ -82,7 +91,21 @@
              ,@(cdr (assoc '?end-comp binding)))
         prog)))
 
-(defun rewrite-program (prog rule)
-  (let ((bindings (pat-match (first rewrite-rule) prog)))
-    (if bindings
-      (sublis bindings (second rewrite-rule)))))
+(defun apply-rule (rule prog)
+  (if (check-if-comp-based-rule rule)
+    (apply-comp-based-rule rule prog)
+    (let ((bindings (pat-match (first rewrite-rule) prog)))
+      (if bindings
+        (sublis bindings (second rewrite-rule)))
+        prog)))
+
+(defun apply-rule-recursively (rule prog)
+  (if (not (listp prog))
+    prog
+    (let ((new-prog (apply-rule rule prog)))
+      (if (equal new-prog prog)
+        ; don't give up yet
+        (mapcar #'(lambda (subprog)
+                    (apply-rule-recursively rule subprog))
+          prog)
+        new-prog))))

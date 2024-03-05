@@ -8,39 +8,61 @@
         (for-loop i2 (const 0) (comp len (idx 0))
                     (comp (idx i2) (idx i1)))))
 
-(defvar *test-cases* '(
+(trace normalize-comp)
+
+(defvar *test-cases* `(
   ; function, expected value
-  ((normalize-comps '(alpha g))
+  ((normalize-comp '(alpha g))
    (alpha g))
 
-  ((normalize-comps '(comp (comp f g) h))
+  ((normalize-comp '(comp (comp f g) h))
    (comp f g h))
 
-  ((normalize-comps '(comp f1 f2 (comp f3 f4) f5))
+  ((normalize-comp '(comp f1 f2 (comp f3 f4) f5))
    (comp f1 f2 f3 f4 f5))
 
-  ((normalize-comps '(alpha (comp f1 f2 (comp f3 f4) f5)))
+  ((normalize-comp '(alpha (comp f1 f2 (comp f3 f4) f5)))
    (alpha (comp f1 f2 f3 f4 f5)))
 
-  ((normalize-comps '(comp f1 (comp f2 (comp f3 f4) f5)))
+  ((normalize-comp '(comp f1 (comp f2 (comp f3 f4) f5)))
    (comp f1 f2 f3 f4 f5))
 
-  ((normalize-comps '(comp g (alpha (comp f1 (comp f2 (comp f3 f4) f5)))))
+  ((normalize-comp '(comp g (alpha 
+                      (comp f1 (comp f2 (comp f3 f4) f5)))))
    (comp g (alpha (comp f1 f2 f3 f4 f5))))
 
-  ((normalize-comps (fl-expand '(comp IP C-IP)))
-    (comp (insert add) (alpha mul) trans
-      (for-loop i1 (const 0) (const 2)
-        (for-loop i2 (const 0) (comp len (idx 0))
-          (comp (idx i2) (idx i1))))))
+  ((normalize-comp (fl-expand '(comp IP C-IP)))
+   (comp (insert add) (alpha mul) trans
+    (for-loop i1 (const 0) (const 2)
+      (for-loop i2 (const 0) (comp len (idx 0))
+        (comp (idx i2) (idx i1))))))
 
-   ((apply-comp-based-rule (fl-rewrite "2-53") 
-      '(comp (insert add) (alpha mul)
-          (for-loop i1 (const 0)
-            len (idx i1))))
-    (comp (insert add)
-      (for-loop i1 (const 0) len
-        (comp mul (idx i1)))))
+  ((apply-comp-based-rule (fl-rewrite "2-53") 
+    '(comp (insert add) (alpha mul)
+        (for-loop i1 (const 0)
+          len (idx i1))))
+   (comp (insert add)
+     (for-loop i1 (const 0) len
+      (comp mul (idx i1)))))
+  
+  ; without recursion, this rule should fail
+  ((apply-rule (fl-rewrite "2-53")
+    '(comp (insert add) (comp (alpha f) (for-loop i g h E))))
+   (comp (insert add) (comp (alpha f) (for-loop i g h E))))
+
+  ((normalize-comp '(comp (insert add) (comp 
+                     (for-loop i g h (comp f E)))))
+    (comp (insert add) (for-loop i g h (comp f E))))
+  
+  ((normalize-comp (apply-rule-recursively (fl-rewrite "2-53")
+    '(comp (insert add) (comp (alpha f) (for-loop i g h E)))))
+   (comp (insert add) (for-loop i g h (comp f E))))
+
+  ; ((apply-rule-recursively (fl-rewrite "2-53")
+  ;   (normalize-comp (fl-expand '(comp IP C-IP))))
+  ;  ,(normalize-comp (fl-expand '(comp IP C-IP))))
+
+
 ))
 
 (defun test-driver ()
@@ -60,7 +82,7 @@
 ; (let ((prog (fl-expand '(comp IP HY))))
 ;   (print prog)
 ;   (print "Original program")
-;   (print (normalize-comps prog))
+;   (print (normalize-comp prog))
 ;   ; (print 
 ;   ;   (mapcar
 ;   ;     #'(lambda (x) (rewrite-program prog x))
