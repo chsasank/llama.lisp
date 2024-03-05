@@ -6,4 +6,4 @@ TODO:
 
 - [] Move to mdbooks for documentation
 - [] Follow more common style guide
-- [] Move to ASDF system
+- [] Move to ASDF system (https://lispcookbook.github.io/cl-cookbook/systems.html)

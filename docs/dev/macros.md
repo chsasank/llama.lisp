@@ -12,7 +12,7 @@ We just store the mapping from function names to their expression in a simple a-
 (defvar *fl-env* nil
   "A list of all functions avialable for rewrite.")
 
-(defun add-fl-shortcut (fn-name body)
+(defun fl-let (fn-name body)
   "Add fl function to *fl-env"
   (if (assoc fn-name  *fl-env*)
     (setf (second (assoc fn-name *fl-env*)) body)
@@ -32,12 +32,8 @@ We just substitute the names recursively to expand them:
     (t fl-x)))
 ```
 
-I created a convenience macro to avoid quotes. Here's how it looks:
+I created a convenience function `fl-let` that is alias of add-fl-shortcut
 
-```common_lisp
-(fl-let MM (comp (alpha (alpha IP) (alpha distl) distr 
-                  (cat (idx 0) (comp trans (idx 1))))))
-```
 
 ## Structure operator
 

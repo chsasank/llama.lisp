@@ -143,3 +143,7 @@ Let's make it more like C by rearranging numbers:
 Very nice! Let's just implement this lol. I have a feeling that this construct is related to recursion but that's for later. How to write interpreter for this? Just use `sublis` lol. This works!
 
 Later I will figure out how to write a compiler. May be then I can upgrade to emitting C.
+
+## `reduce` construct
+
+Insert along with for-loop can be an useful thing.
