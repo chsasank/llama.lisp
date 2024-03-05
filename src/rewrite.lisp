@@ -21,12 +21,13 @@
 ))
 
 (defun lhs (rule)
-  (list '(?* ?start-rule) (first rule) '(?* ?end-rule)))
+  (first rule))
 
 (defun rhs (rule)
-  (list '(?* ?start-rule) (second rule) '(?* ?end-rule)))
+  (second rule))
 
 (defun program-rewrite (prog rule)
+  ; need recursive search
   (let ((bindings (pat-match (lhs rule) prog)))
     (if bindings
       (sublis bindings (rhs rule))
