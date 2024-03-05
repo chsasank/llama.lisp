@@ -13,7 +13,7 @@
       (let* ((var-index (- dim (length vars)))
              (var-shape (nth var-index shape)))
         (cond
-          ((integerp var-shape) var-shape)
+          ((integerp var-shape) `(const ,var-shape))
           ((eq var-index 0) 'len)
           (t `(comp len ,@(make-list var-index
                         :initial-element '(idx 0)))))))

@@ -36,19 +36,57 @@
   :lhs '(comp (alpha ?f) (for-loop ?i ?g ?h ?E))
   :rhs '(for-loop ?i ?g ?h (comp ?f ?E)))
 
-(defun program-rewrite (prog rule)
-  ; need recursive search
-  (let ((bindings (pat-match (lhs rule) prog)))
+;; Normalize comps for faster convergence
+(defun normalize-comps-step (prog)
+  "Heuristic to make further analysis easy.
+  Ideally should be derivable from above."
+  (if (not (listp prog))
+    prog
+    (let* ((comp-pat '(comp (?* ?start-comp)
+                          (comp (?* ?inside-comp))
+                          (?* ?end-comp)))
+           (binding (pat-match comp-pat prog)))
+    (if binding
+      `(comp ,@(cdr (assoc '?start-comp binding))
+             ,@(cdr (assoc '?inside-comp binding))
+             ,@(cdr (assoc '?end-comp binding)))
+        ; try recursively if failed
+        (mapcar #'normalize-comps prog)))))
+
+(defun normalize-comps (prog)
+  "Iteratively apply normalize step until prog converges"
+  (let ((old-prog prog)
+        (new-prog (normalize-comps-step prog)))
+    (loop while (not (equal new-prog old-prog))
+      do (setf old-prog new-prog)
+      do (setf new-prog (normalize-comps-step old-prog)))
+    new-prog))
+
+(defun apply-comp-based-rule (comp-rule prog)
+  "Apply composition based rules.
+  Assumes prog is normalized
+  "
+  (if (not (eq (first (lhs rule) 'comp)))
+    (error "rule ~a doesn't start with comp" comp-rule))
+
+  (let* ((comp-pat `(comp (?* ?start-comp)
+                          ,@(rest (lhs rule))
+                          (?* ?end-comp)))
+         (binding (pat-match comp-pat prog)))
+    (if binding
+      `(comp ,@(cdr (assoc '?start-comp binding))
+             ,@(sublis binding (rhs rule))
+             ,@(cdr (assoc '?end-comp binding)))
+        prog)))
+
+; (defun generate-rewrite-rules (rule)
+;   "Sort of like meta rules of each rule"
+;   ; lhs = rhs => rhs = lhs
+;   (list
+;     (list (lhs rule) (rhs rule))
+;     (list (rhs rule) (lhs rule))))
+
+(defun rewrite-program (prog rewrite-rule)
+  (let ((bindings (pat-match (first rewrite-rule) prog)))
     (if bindings
-      (sublis bindings (rhs rule))
-      prog)))
-
-;;; testing
-(fl-let 'IP '(comp (insert add) (alpha mul) trans))
-(fl-let 'MM '(comp (alpha (alpha IP) (alpha distl) distr 
-                 (cat (idx 0) (comp trans (idx 1))))))
-(fl-let 'C-IP (structure-operator '(2 ?)))
-
-(let ((prog (fl-expand '(comp IP C-IP))))
-
-)
+      (sublis bindings (second rewrite-rule)))))

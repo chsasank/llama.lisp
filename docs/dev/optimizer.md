@@ -97,6 +97,15 @@ And then we will apply search on this. We'll come back to it later. First, let's
 
 I implemented pattern matching and rule system. 
 
+### `comp`
+
+So having comp made things more complicated for rewrites because `(comp x* y z*) = (comp (comp x*) y (comp z*))` where `x*` and `z*` represent multiple times. While I can write a rule like that, it is quite inefficient and my matcher can't do the reverse. So I am just writing it manually.
+
+Besides, the pattern matcher used so far was not good enough anymore. So I moved the code to more improved pattern matcher from Chapter 6.
+
+### Recursive rules
+
+Any rule I wrote can be matched in any part of subtree.
 
 References:
 1. Backus Turing
