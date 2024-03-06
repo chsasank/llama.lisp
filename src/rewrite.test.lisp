@@ -35,7 +35,7 @@
       (for-loop i2 (const 0) (comp len (idx 0))
         (comp (idx i2) (idx i1))))))
 
-  ((apply-comp-based-rule "2-53"
+  ((apply-comp-based-rule '2-53
     '(comp (insert add) (alpha mul)
         (for-loop i1 (const 0)
           len (idx i1))))
@@ -44,12 +44,12 @@
       (comp mul (idx i1)))))
 
   ; without recursion, this rule should fail
-  ((apply-rule "2-53"
+  ((apply-rule '2-53
     '(comp (insert add) (comp (alpha f) (for-loop i g h E))))
    (comp (insert add) (comp (alpha f) (for-loop i g h E))))
 
   ; rule passes with recursion
-  ((apply-rule-recursively "2-53"
+  ((apply-rule-recursively '2-53
     '(comp (insert add) (comp (alpha f) (for-loop i g h E))))
    (comp (insert add) (comp (for-loop i g h (comp f E)))))
 
@@ -59,12 +59,12 @@
    (comp (insert add) (for-loop i g h (comp f E))))
 
   ; this rule doesn't work without 2-49
-  ((apply-rule-recursively "2-53"
+  ((apply-rule-recursively '2-53
     (normalize-comp (fl-expand '(comp IP C-IP))))
    ,(normalize-comp (fl-expand '(comp IP C-IP))))
 
   ; see [2], eq 49
-  ((apply-rule-recursively "2-49"
+  ((apply-rule-recursively '2-49
     (normalize-comp (fl-expand '(comp IP C-IP))))
    (comp (insert add) (alpha mul)
     (for-loop i2 (const 0) (comp len (idx 0))

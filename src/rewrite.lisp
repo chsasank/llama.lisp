@@ -6,68 +6,70 @@
 (load "pat-match.lisp")
 (load "macros.lisp")
 
-;;; Let's create a different structure
-;;; No RHS and stuff
-(defparameter *fl-rewrites* nil 
+(defparameter *fl-rewrites* nil
   "A list of all rules available for rewrite")
-
-(defun fl-rewrite (ref)
-  "Get rewrite for given reference"
-  (second (cdr (assoc (intern ref) *fl-rewrites*))))
 
 (defun fl-pattern (ref)
   "Get pattern for given reference"
-  (first (cdr (assoc (intern ref) *fl-rewrites*))))
+  (first (cdr (assoc ref *fl-rewrites*))))
 
-(defun add-fl-rewrite (&key pattern rewrite ref)
+(defun fl-action (ref)
+  "Get rewrite for given reference"
+  (second (cdr (assoc ref *fl-rewrites*))))
+
+(defun add-fl-rewrite (&key pattern action ref)
   "Add reference and its reverse to the rulebase"
-  (pushnew (cons (intern ref) (list pattern rewrite)) *fl-rewrites*))
+  (pushnew (cons ref (list pattern action)) *fl-rewrites*))
+
+(defun binding-p (binding)
+  "Check if binding is successful"
+  (not (eq binding nil)))
 
 (add-fl-rewrite
   :pattern '(comp (const (?is ?i integerp))
                   (cat (?* ?fn-list)))
-  :rewrite #'(lambda (binding)
+  :action #'(lambda (binding)
     (nth (lookup '?i binding) (lookup '?fn-list binding)))
-  :ref "2:3")
+  :ref '2-3)
 
 (add-fl-rewrite
   :pattern '(comp ?inside-comp)
-  :rewrite #'(lambda (binding)
+  :action #'(lambda (binding)
     (lookup '?inside-comp binding))
-  :ref "2-21-0")
+  :ref '2-21-0)
 
 (add-fl-rewrite
   :pattern '(comp (?* ?start-comp)
               (comp (?* ?inside-comp))
               (?* ?end-comp))
-  :rewrite #'(lambda (binding)
+  :action #'(lambda (binding)
     `(comp ,@(lookup '?start-comp binding)
            ,@(lookup '?inside-comp binding)
            ,@(lookup '?end-comp binding)))
-  :ref "2-21")
+  :ref '2-21)
 
 (add-fl-rewrite
   :pattern '(comp (cat (?* ?fn-list) ?g))
-  :rewrite #'(lambda (binding)
+  :action #'(lambda (binding)
     `(cat ,@(mapcar
               #'(lambda (f) (comp f (lookup '?g binding)))
               (lookup '?fn-list binding))))
-  :ref "2:25")
+  :ref '2-25)
 
 (add-fl-rewrite
   :pattern '(comp trans
               (for-loop ?j ?r ?s
                 (for-loop ?i ?f ?g ?E)))
-  :rewrite #'(lambda (binding)
+  :action #'(lambda (binding)
     (sublis binding '(for-loop ?i ?f ?g
                         (for-loop ?j ?r ?s ?E))))
-  :ref "2-49")
+  :ref '2-49)
 
 (add-fl-rewrite
   :pattern '(comp (alpha ?f) (for-loop ?i ?g ?h ?E))
-  :rewrite #'(lambda (binding)
+  :action #'(lambda (binding)
     (sublis binding '(for-loop ?i ?g ?h (comp ?f ?E))))
-  :ref "2-53")
+  :ref '2-53)
 
 ;; Normalize comps for faster converge`nce
 (defun normalize-comp-step (prog)
@@ -75,13 +77,13 @@
   Ideally should be derivable from above."
   (if (not (listp prog))
     prog
-    (let ((binding-simple (pat-match (fl-pattern "2-21-0") prog)))
-      (if binding-simple
-        (funcall (fl-rewrite "2-21-0") binding-simple)
+    (let ((binding-simple (pat-match (fl-pattern '2-21-0) prog)))
+      (if (binding-p binding-simple)
+        (funcall (fl-action '2-21-0) binding-simple)
         ; try yet another pattern
-        (let ((binding (pat-match (fl-pattern "2-21") prog)))
-          (if binding
-            (funcall (fl-rewrite "2-21") binding)
+        (let ((binding (pat-match (fl-pattern '2-21) prog)))
+          (if (binding-p binding)
+            (funcall (fl-action '2-21) binding)
             ; try recursively if this too failed
             (mapcar #'normalize-comp-step prog)))))))
 
@@ -109,17 +111,17 @@
                           ,@(rest (fl-pattern rule))
                           (?* ?end-comp)))
          (binding (pat-match comp-pat prog)))
-    (if binding
-      `(comp ,@(cdr (assoc '?start-comp binding))
-             ,(funcall (fl-rewrite rule) binding)
-             ,@(cdr (assoc '?end-comp binding)))
+    (if (binding-p binding)
+      `(comp ,@(lookup '?start-comp binding)
+             ,(funcall (fl-action rule) binding)
+             ,@(lookup'?end-comp binding))
         prog)))
 
 (defun apply-rule (rule prog)
   (if (check-if-comp-based-rule rule)
     (apply-comp-based-rule rule prog)
     (let ((bindings (pat-match (fl-pattern rule) prog)))
-      (if bindings (funcall (fl-rewrite rule) bindings) prog))))
+      (if (binding-p bindings) (funcall (fl-action rule) bindings) prog))))
 
 (defun apply-rule-recursively (rule prog)
   (if (not (listp prog))
