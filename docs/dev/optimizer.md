@@ -109,6 +109,16 @@ Algorithm for normalization is iterate until convergence paradigm I have seen sh
 
 Any rule I wrote can be matched in any part of subtree.
 
+## Rule Search
+
+I need to do this later, but majority of my time right now is going into writing these micro 'optimization' rules. It's surprising how simple these are. But I still have to apply a lot of rules to get to 3-for loop implementation of matrix multiplication.
+
+I have to create
+1. new rules for tiling and stuff.
+2. cost model
+
+Writing interpreter and even compiler was actually pretty easy.
+
 References:
 1. Backus Turing
 2. PAip

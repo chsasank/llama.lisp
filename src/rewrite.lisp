@@ -26,11 +26,16 @@
   (not (eq binding nil)))
 
 (add-fl-rewrite
-  :pattern '(comp (const (?is ?i integerp))
+  :pattern '(comp (idx (?is ?i integerp))
                   (cat (?* ?fn-list)))
   :action #'(lambda (binding)
     (nth (lookup '?i binding) (lookup '?fn-list binding)))
   :ref '2-3)
+
+(add-fl-rewrite
+  :pattern '(comp (const ?x) ?y)
+  :action #'(lambda (binding) (sublis binding '(const ?x)))
+  :ref '2-14)
 
 (add-fl-rewrite
   :pattern '(comp ?inside-comp)
@@ -49,10 +54,10 @@
   :ref '2-21)
 
 (add-fl-rewrite
-  :pattern '(comp (cat (?* ?fn-list) ?g))
+  :pattern '(comp (cat (?* ?fn-list)) ?g)
   :action #'(lambda (binding)
     `(cat ,@(mapcar
-              #'(lambda (f) (comp f (lookup '?g binding)))
+              #'(lambda (f) (list 'comp f (lookup '?g binding)))
               (lookup '?fn-list binding))))
   :ref '2-25)
 
@@ -66,12 +71,30 @@
   :ref '2-49)
 
 (add-fl-rewrite
+  :pattern '(comp distr (cat (for-loop ?i ?f ?g ?E) ?h))
+  :action #'(lambda (binding) (sublis binding
+            '(for-loop ?i ?f ?g (cat ?E ?h))))
+  :ref '2-51)
+
+(add-fl-rewrite
+  :pattern '(comp distl (cat ?h (for-loop ?i ?f ?g ?E)))
+  :action #'(lambda (binding) (sublis binding
+            '(for-loop ?i ?f ?g (cat ?h ?E))))
+  :ref '2-52)
+
+(add-fl-rewrite
   :pattern '(comp (alpha ?f) (for-loop ?i ?g ?h ?E))
   :action #'(lambda (binding)
     (sublis binding '(for-loop ?i ?g ?h (comp ?f ?E))))
   :ref '2-53)
 
-;; Normalize comps for faster converge`nce
+(add-fl-rewrite
+  :pattern '(comp (for-loop ?i ?f ?g ?E) ?h)
+  :action #'(lambda (binding)
+    (sublis binding '(for-loop ?i ?f ?g (comp ?E ?h))))
+  :ref '2-58)
+
+;; Normalize comps for faster convergence
 (defun normalize-comp-step (prog)
   "Heuristic to make further analysis easy.
   Ideally should be derivable from above."
@@ -118,6 +141,8 @@
         prog)))
 
 (defun apply-rule (rule prog)
+  ; todo: check if rule is 2-21 or 2-21-0
+  ; then apply normalize
   (if (check-if-comp-based-rule rule)
     (apply-comp-based-rule rule prog)
     (let ((bindings (pat-match (fl-pattern rule) prog)))
