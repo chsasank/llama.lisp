@@ -1,16 +1,37 @@
 (load "rewrite.lisp")
 
+; inner product
 (fl-let 'IP '(comp (insert add) (alpha mul) trans))
-(fl-let 'MM '(comp (alpha (alpha IP) (alpha distl) distr
-                 (cat (idx 0) (comp trans (idx 1))))))
+
+; matrix multiplication
+(fl-let 'MM 
+  '(comp
+    (alpha (alpha IP))
+    (alpha distl) distr
+    (cat (idx 0) (comp trans (idx 1)))))
+
+; structure operator for inner product
+; not generating strucuture operators to facilitate testing
 (fl-let 'C-IP
   '(for-loop i1 (const 0) (const 2)
       (for-loop i2 (const 0) (comp len (idx 0))
                   (comp (idx i2) (idx i1)))))
+; matrix identity
 (fl-let 'MI
   '(for-loop i1 (const 0) len
       (for-loop i2 (const 0) (comp len (idx 0))
           (comp (idx i2) (idx i1)))))
+
+; structure operator for matmul
+; this honestly needs to be better defined
+; especially because of assumption A:mxn, B:nxk
+(fl-let 'C-MM '(cat 
+  (for-loop i1 (const 0) (comp len (idx 0))
+    (for-loop i2 (const 0) (comp len (idx 0) (idx 0))
+      (comp (idx i2) (idx i1) (idx 0))))
+  (for-loop i3 (const 0) (comp len (idx 0) (idx 0))
+    (for-loop i4 (const 0) (comp len (idx 0) (idx 1))
+      (comp (idx i4) (idx i3) (idx 1))))))
 
 (defvar *test-cases* `(
   ; function, expected value
@@ -152,6 +173,24 @@
       (for-loop i2 (const 0) (comp len (idx 0))
         (comp mul (cat (comp (idx i2) (idx 0))
                        (comp (idx i2) (idx 1)))))))
+
+  ((normalize-comp (apply-rule '2-56
+    '(comp trans (cat (for-loop i1 f g (const i1))
+                      (for-loop i2 f g (idx i2))))))
+   (for-loop i1 f g (cat (const i1) (idx i1))))
+
+  ; ref 2; page 86-87
+  ((apply-rules-pipeline '(2-25 2-3 2-49 2-14 2-51 2-53 2-58
+                           2-14 2-52 2-53 2-53 2-56 2-53)
+    (fl-expand '(comp MM C-MM)))
+  (for-loop i1 (const 0) (comp len (idx 0))
+    (for-loop i4 (const 0) (comp len (idx 0) (idx 1))
+      (comp (insert add)
+        (for-loop i2 (const 0) (comp len (idx 0) (idx 0))
+          (comp mul
+           (cat (comp (idx i2) (idx i1) (idx 0))
+                (comp (idx i4) (idx i2) (idx 1)))))))))
+
 ))
 
 (defun test-driver ()

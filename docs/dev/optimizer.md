@@ -133,6 +133,7 @@ Gives
   (COMP MUL (CAT (COMP (IDX I2) (IDX 0)) (COMP (IDX I2) (IDX 1))))))
 ```
 
+Need to create another form that takes in insert and for-loop and merge it. 
 
 References:
 1. Backus Turing

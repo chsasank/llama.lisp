@@ -100,6 +100,15 @@
     (sublis binding '(for-loop ?i ?g ?h (comp ?f ?E))))
   :ref '2-53)
 
+; todo: make this more generic
+(add-fl-rewrite
+  :pattern '(comp trans (cat (for-loop ?i1 ?f ?g ?E1)
+                             (for-loop ?i2 ?f ?g ?E2)))
+  :action #'(lambda (binding)
+    (sublis (list (cons (lookup '?i2 binding) (lookup '?i1 binding)))
+      (sublis binding '(for-loop ?i1 ?f ?g (cat ?E1 ?E2)))))
+  :ref '2-56)
+
 (add-fl-rewrite
   :pattern '(comp (for-loop ?i ?f ?g ?E) ?h)
   :action #'(lambda (binding)
