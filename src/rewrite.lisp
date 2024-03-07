@@ -62,6 +62,18 @@
   :ref '2-25)
 
 (add-fl-rewrite
+  :pattern '(for-loop ?i (const (?is ?start integerp)) 
+              (const (?is ?end integerp)) ?body)
+  :action #'(lambda (binding)
+    (let ((i (lookup '?i binding))
+          (start (lookup '?start binding))
+          (end (lookup '?end binding))
+          (body (lookup '?body binding)))
+      `(cat ,@(loop for actual-i from start below end
+               collect (sublis (list (cons i actual-i)) body)))))
+  :ref '2-def-5.2)
+
+(add-fl-rewrite
   :pattern '(comp trans
               (for-loop ?j ?r ?s
                 (for-loop ?i ?f ?g ?E)))
@@ -95,6 +107,9 @@
   :ref '2-58)
 
 ;; Normalize comps for faster convergence
+(defun check-if-normalize-rule (rule)
+  (member rule '(2-21-9 2-21)))
+
 (defun normalize-comp-step (prog)
   "Heuristic to make further analysis easy.
   Ideally should be derivable from above."
@@ -141,12 +156,13 @@
         prog)))
 
 (defun apply-rule (rule prog)
-  ; todo: check if rule is 2-21 or 2-21-0
-  ; then apply normalize
-  (if (check-if-comp-based-rule rule)
-    (apply-comp-based-rule rule prog)
-    (let ((bindings (pat-match (fl-pattern rule) prog)))
-      (if (binding-p bindings) (funcall (fl-action rule) bindings) prog))))
+  (cond
+    ((check-if-normalize-rule rule) (normalize-comp prog))
+    ((check-if-comp-based-rule rule) (apply-comp-based-rule rule prog))
+    (t (let ((bindings (pat-match (fl-pattern rule) prog)))
+          (if (binding-p bindings)
+            (funcall (fl-action rule) bindings)
+            prog)))))
 
 (defun apply-rule-recursively (rule prog)
   (if (not (listp prog))
@@ -156,3 +172,9 @@
         (mapcar #'(lambda (subprog)
                     (apply-rule-recursively rule subprog)) prog)
         new-prog))))
+
+(defun apply-rules-pipeline (rules prog)
+  (if (null rules)
+    (normalize-comp prog)
+    (apply-rules-pipeline (rest rules)
+      (apply-rule-recursively (first rules) (normalize-comp prog)))))

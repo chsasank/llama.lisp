@@ -119,6 +119,21 @@ I have to create
 
 Writing interpreter and even compiler was actually pretty easy.
 
+So I just reproduced simplification of inner product.
+
+```
+(apply-rules-pipeline '(2-49 2-53 2-def-5.2) (fl-expand '(comp IP C-IP)))
+```
+
+Gives
+
+```
+(COMP (INSERT ADD)
+ (FOR-LOOP I2 (CONST 0) (COMP LEN (IDX 0))
+  (COMP MUL (CAT (COMP (IDX I2) (IDX 0)) (COMP (IDX I2) (IDX 1))))))
+```
+
+
 References:
 1. Backus Turing
 2. PAip

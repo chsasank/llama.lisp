@@ -138,6 +138,20 @@
     (for-loop j (const 0) (comp len (idx 0) (idx 1))
       (cat (comp E (idx 0)) (comp E1 (idx 1)))))
 
+  ((apply-rule '2-def-5.2 '(for-loop i (const 0) (const 4) (idx i)))
+   (cat (idx 0) (idx 1) (idx 2) (idx 3)))
+
+  ; ref 2; page 85
+  ((apply-rule '2-def-5.2 '(for-loop j (const 0) (const 2)
+                              (comp (idx i) (idx j))))
+   (cat (comp (idx i) (idx 0)) (comp (idx i) (idx 1))))
+
+  ; ref 2; page 85
+  ((apply-rules-pipeline '(2-49 2-53 2-def-5.2) (fl-expand '(comp IP C-IP)))
+   (comp (insert add)
+      (for-loop i2 (const 0) (comp len (idx 0))
+        (comp mul (cat (comp (idx i2) (idx 0))
+                       (comp (idx i2) (idx 1)))))))
 ))
 
 (defun test-driver ()
@@ -149,7 +163,7 @@
              (actual (eval expression)))
         (if (equal expected actual)
           (format T "~a passed~%" expression)
-          (error "~a failed: expected ~a but got ~a~%"
+          (error "~a failed.~%Expected:~%~a~%Got: ~%~a"
             expression expected actual))))
     *test-cases*))
 
