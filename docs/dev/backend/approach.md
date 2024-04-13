@@ -1,1 +1,0 @@
-This has been the hardest to figure out. I found that LLVM as an abstraction is not good enough. So I am just writing my abstraction I guess. I am implementing my DSL to emit a JSON that closely mirrors LLVM.

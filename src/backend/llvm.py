@@ -45,11 +45,13 @@ class LLVMCodeGenerator(object):
         self.func_symtab = {}
         # Create the function skeleton from the prototype.
         func = self.gen_function_prototype(fn)
-        # Create the entry BB in the function and set the builder to it.
-        bb_entry = func.append_basic_block("entry")
-        self.builder = ir.IRBuilder(bb_entry)
-        retval = self.gen_instructions(fn.instrs)
-        self.builder.ret(retval)
+
+        if fn.instrs:
+            # Create the entry BB in the function and set the builder to it.
+            bb_entry = func.append_basic_block("entry")
+            self.builder = ir.IRBuilder(bb_entry)
+            retval = self.gen_instructions(fn.instrs)
+            self.builder.ret(retval)
         return func
 
     def gen_function_prototype(self, fn):
