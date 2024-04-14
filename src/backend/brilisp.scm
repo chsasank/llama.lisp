@@ -85,32 +85,27 @@
               (dest . ,(first to))
               (funcs . ,(vector (second from)))
               (args . ,(list->vector (rest (rest from)))))))
-
-    (define (print? instr)
-        (eq? (first instr) 'print))
     
-    (define (gen-print-instr instr)
-        `((op . print) (args . ,(list->vector (rest instr)))))
+    (define (jmp? instr)
+        (eq? (first instr) 'jmp))
+    
+    (define (gen-jmp-instr instr)
+        `((op . jmp)
+          (labels . ,(list->vector (rest instr)))))
+
+    (define (label? instr)
+        (eq? (first instr) 'label))
+    
+    (define (gen-label-instr instr)
+        `((label . ,(second instr))))
 
     (cond
         ((const? instr) (gen-const-instr instr))
         ((value? instr) (gen-value-instr instr))
         ((ret? instr) (gen-ret-instr instr))
         ((call? instr) (gen-call-instr instr))
-        ((print? instr) (gen-print-instr instr))
+        ((jmp? instr) (gen-jmp-instr instr))
+        ((label? instr) (gen-label-instr instr))
         (else (error "unknown instruction: " instr))))
 
-(bril '(
-    (bril-define ((print int) (n int)))
-
-    (bril-define ((add5 int) (n int))
-        (set (five int) (const 5))
-        (set (sum int) (add n five))
-        (ret sum))
-
-    (bril-define ((main int))
-        (set (a int) (const 9))
-        (set (b int) (call add5 a))
-        (set (tmp int) (call print b))
-        (ret b))
-))
+(bril (rest (read)))

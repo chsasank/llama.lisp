@@ -1,10 +1,10 @@
 import json
 import sys
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from cfg import block_map, successors, add_terminators, add_entry, reassemble
 from form_blocks import form_blocks
-from dom import get_dom, dom_fronts, dom_tree
+from dom import get_dom, dom_fronts, dom_tree, postorder
 
 
 def def_blocks(blocks):
@@ -116,10 +116,19 @@ def get_types(func):
     return types
 
 
-def func_to_ssa(func):
-    blocks = block_map(form_blocks(func['instrs']))
+def remove_unreachable_blocks(func):
+    blocks = block_map(form_blocks(func["instrs"]))
     add_entry(blocks)
     add_terminators(blocks)
+    succ = {name: successors(block[-1]) for name, block in blocks.items()}
+    entry = list(blocks.keys())[0]
+    reachable_nodes = postorder(succ, entry)
+    blocks = OrderedDict([(bb, instrs) for bb, instrs in blocks.items()
+                          if bb in reachable_nodes])
+    return blocks
+
+def func_to_ssa(func):
+    blocks = remove_unreachable_blocks(func)
     succ = {name: successors(block[-1]) for name, block in blocks.items()}
     dom = get_dom(succ, list(blocks.keys())[0])
 
@@ -138,7 +147,8 @@ def func_to_ssa(func):
 
 def to_ssa(bril):
     for func in bril['functions']:
-        func_to_ssa(func)
+        if func['instrs']:
+            func_to_ssa(func)
     return bril
 
 

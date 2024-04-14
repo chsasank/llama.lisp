@@ -146,7 +146,6 @@ class LLVMCodeGenerator(object):
                 name=instr.dest,
             )
 
-
         for instr in instrs:
             if "label" in instr:
                 gen_label(instr)
@@ -174,7 +173,8 @@ class LLVMCodeGenerator(object):
 
         # Create a function type
         func_ty = ir.FunctionType(
-            self.gen_type(fn.type), [self.gen_type(arg.type) for arg in fn.args]
+            self.gen_type(fn.type),
+            [self.gen_type(arg.type) for arg in fn.get("args", [])],
         )
 
         # If a function with this name already exists in the module...
