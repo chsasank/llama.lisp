@@ -15,3 +15,20 @@
 *.sx32fsl
 *.wx64fsl
 *.wx32fsl
+
+build/
+book/
+venv/
+node_modules/
+.hypothesis/
+.pytest_cache/
+hypothesis_*
+__pycache__
+.vscode
+
+**/*.o
+.DS_Store
+
+# vim swap files
+*.swp
+*.swo

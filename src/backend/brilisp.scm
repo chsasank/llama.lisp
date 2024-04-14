@@ -112,6 +112,5 @@
         (set (a int) (const 9))
         (set (b int) (call add5 a))
         (set (tmp int) (call print b))
-        (ret b)
-    )
+        (ret b))
 ))

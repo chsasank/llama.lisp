@@ -4,6 +4,8 @@ LLVM Code generator
 References:
 1. https://github.com/eliben/pykaleidoscope/
 2. https://llvm.org/docs/tutorial/
+
+Assumes BRIL is in SSA form
 """
 
 import sys
@@ -35,24 +37,137 @@ class LLVMCodeGenerator(object):
         # names to ir.Value.
         self.func_symtab = {}
 
+        # Manages all labels in a function
+        self.func_bbs = {}
+
     def generate(self, bril_prog):
         for fn in bril_prog.functions:
             self.gen_function(fn)
 
-    def gen_function(self, fn):
-        # Reset the symbol table. Prototype generation will pre-populate it with
-        # function arguments.
-        self.func_symtab = {}
-        # Create the function skeleton from the prototype.
-        func = self.gen_function_prototype(fn)
+    def gen_type(self, type):
+        if type == "int":
+            return ir.IntType(32)
+        elif type == "void":
+            return ir.VoidType()
+        elif type == "bool":
+            return ir.IntType(1)
+        else:
+            raise CodegenError(f"Unknown type {type}")
 
-        if fn.instrs:
-            # Create the entry BB in the function and set the builder to it.
-            bb_entry = func.append_basic_block("entry")
-            self.builder = ir.IRBuilder(bb_entry)
-            retval = self.gen_instructions(fn.instrs)
-            self.builder.ret(retval)
-        return func
+    def gen_var(self, var):
+        try:
+            return self.func_symtab[var]
+        except KeyError:
+            raise CodegenError("Unknown variable", var)
+
+    def gen_label(self, label):
+        if label not in self.func_bbs:
+            self.func_bbs[label] = ir.Block(self.builder.function, label)
+
+        return self.func_bbs[label]
+
+    def gen_instructions(self, instrs):
+        """Generate instructions from body and return final symbol to be returned"""
+        value_ops = {
+            "add": "add",
+            "mul": "mul",
+            "sub": "sub",
+            "div": "sdiv",
+            "not": "not_",
+            "and": "and_",
+            "or": "or_",
+        }
+
+        cmp_ops = {
+            "eq": "==",
+            "lt": "<",
+            "gt": ">",
+            "le": "<=",
+            "ge": ">=",
+            "neq": "!=",
+        }
+
+        def gen_label(instr):
+            bb = self.gen_label(instr.label)
+            self.builder.function.basic_blocks.append(bb)
+            self.builder.position_at_start(bb)
+
+        def gen_jmp(instr):
+            self.builder.branch(self.gen_label(instr.labels[0]))
+
+        def gen_br(instr):
+            self.builder.cbranch(
+                cond=self.gen_var(instr.args[0]),
+                truebr=self.gen_label(instr.labels[0]),
+                falsebr=self.gen_label(instr.labels[1]),
+            )
+
+        def gen_phi(instr):
+            phi = self.builder.phi(self.gen_type(instr.type), name=instr.dest)
+            for i in range(len(instr.args)):
+                phi.add_incoming(
+                    value=self.gen_var(instr.args[i]),
+                    block=self.gen_label(instr.labels[i]),
+                )
+            self.func_symtab[instr.dest] = phi
+
+        def gen_call(instr):
+            callee_func = self.module.globals.get(instr.funcs[0], None)
+            if callee_func is None or not isinstance(callee_func, ir.Function):
+                raise CodegenError("Call to unknown function", dict(instr))
+            if len(callee_func.args) != len(instr.args):
+                raise CodegenError("Call argument length mismatch", dict(instrs))
+
+            call_args = [self.gen_var(arg) for arg in instr.args]
+
+            self.func_symtab[instr.dest] = self.builder.call(
+                callee_func, call_args, name=instr.dest
+            )
+
+        def gen_ret(instr):
+            self.builder.ret(self.func_symtab[instr.args[0]])
+
+        def gen_const(instr):
+            self.func_symtab[instr.dest] = ir.Constant(
+                self.gen_type(instr.type), instr.value
+            )
+
+        def gen_value(instr):
+            llvm_instr = getattr(self.builder, value_ops[instr.op])
+            self.func_symtab[instr.dest] = llvm_instr(
+                *[self.gen_var(arg) for arg in instr.args], name=instr.dest
+            )
+
+        def gen_comp(instr):
+            self.func_symtab[instr.dest] = self.builder.icmp_signed(
+                cmpop=cmp_ops[instr.op],
+                lhs=self.gen_var(instr.args[0]),
+                rhs=self.gen_var(instr.args[1]),
+                name=instr.dest,
+            )
+
+
+        for instr in instrs:
+            if "label" in instr:
+                gen_label(instr)
+            elif instr.op == "jmp":
+                gen_jmp(instr)
+            elif instr.op == "br":
+                gen_br(instr)
+            elif instr.op == "phi":
+                gen_phi(instr)
+            elif instr.op == "call":
+                gen_call(instr)
+            elif instr.op == "ret":
+                gen_ret(instr)
+            elif instr.op == "const":
+                gen_const(instr)
+            elif instr.op in value_ops:
+                gen_value(instr)
+            elif instr.op in cmp_ops:
+                gen_comp(instr)
+            else:
+                raise CodegenError(f"Unknown op in the instruction: {dict(instr)}")
 
     def gen_function_prototype(self, fn):
         funcname = fn.name
@@ -84,72 +199,23 @@ class LLVMCodeGenerator(object):
 
         return func
 
-    def gen_type(self, type):
-        if type == "int":
-            return ir.IntType(32)
-        elif type == "void":
-            return ir.VoidType()
-        else:
-            raise CodegenError(f"Unknown type {type}")
+    def gen_function(self, fn):
+        # Reset the symbol and labels table.
+        # Prototype generation will pre-populate it with function arguments.
+        self.func_symtab = {}
+        self.func_bbs = {}
+        # Create the function skeleton from the prototype.
+        func = self.gen_function_prototype(fn)
 
-    def gen_instructions(self, instrs):
-        """Generate instructions from body and return final symbol to be returned"""
-        value_ops = {
-            "add": "add",
-            "mul": "mul",
-            "sub": "sub",
-            "div": "sdiv",
-        }
-
-        cmp_ops = {
-            "eq": "==",
-            "lt": "<",
-            "gt": ">",
-            "le": "<=",
-            "ge": ">=",
-            "neq": "!=",
-        }
-
-        for instr in instrs:
-            if instr.op == "const":
-                self.func_symtab[instr.dest] = ir.Constant(
-                    self.gen_type(instr.type), instr.value
-                )
-            elif instr.op in value_ops:
-                llvm_instr = getattr(self.builder, value_ops[instr.op])
-                self.func_symtab[instr.dest] = llvm_instr(
-                    *[self.gen_var(arg) for arg in instr.args], name=instr.dest
-                )
-            elif instr.op in cmp_ops:
-                self.func_symtab[instr.dest] = self.builder.icmp_signed(
-                    cmpop=cmp_ops[instr.op],
-                    lhs=self.gen_var(instr.args[0]),
-                    rhs=self.gen_var(instr.args[1]),
-                    name=instr.dest,
-                )
-            elif instr.op == "call":
-                callee_func = self.module.globals.get(instr.funcs[0], None)
-                if callee_func is None or not isinstance(callee_func, ir.Function):
-                    raise CodegenError("Call to unknown function", dict(instr))
-                if len(callee_func.args) != len(instr.args):
-                    raise CodegenError("Call argument length mismatch", dict(instrs))
-
-                call_args = [self.gen_var(arg) for arg in instr.args]
-
-                self.func_symtab[instr.dest] = self.builder.call(
-                    callee_func, call_args, name=instr.dest
-                )
-
-            elif instr.op == "ret":
-                return self.func_symtab[instr.args[0]]
-            else:
-                raise CodegenError(f"Unknown op in the instruction: {dict(instr)}")
-
-    def gen_var(self, var):
-        try:
-            return self.func_symtab[var]
-        except KeyError:
-            raise CodegenError("Unknown variable", var)
+        if fn.instrs:
+            # Create the entry BB in the function and set the builder to it.
+            assert "label" in fn.instrs[0]
+            entry_label = fn.instrs[0].label
+            bb_entry = func.append_basic_block(entry_label)
+            self.func_bbs[entry_label] = bb_entry
+            self.builder = ir.IRBuilder(bb_entry)
+            self.gen_instructions(fn.instrs[1:])
+        return func
 
 
 def main():
