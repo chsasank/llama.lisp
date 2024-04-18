@@ -1,9 +1,13 @@
-# llvm.lisp
+# llama.lisp
 
-Due credit where it's due. This lisp generates llvm.
+Name discussion:
+
+1. llvm.lisp? This lisp generates llvm.
+2. bril.lisp? This lisp generates bril.
+
+We can also have cranelift backend because rust. So committing on the name to be llvm lisp might not make sense. Having said that, I'm open to discussions about the name. After all it's a community project. Feel free to raise an issue in Github.
 
 
-llama.lisp
 
 Lisp dialect designed for HPC and AI.
 
