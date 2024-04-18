@@ -1,4 +1,9 @@
-# llama.lisp
+# llvm.lisp
+
+Due credit where it's due. This lisp generates llvm.
+
+
+llama.lisp
 
 Lisp dialect designed for HPC and AI.
 
