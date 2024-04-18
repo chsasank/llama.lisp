@@ -13,6 +13,8 @@ Lisp dialect designed for HPC and AI.
 
 TODO:
 
-- [] Move to mdbooks for documentation
+- [] Move to outline for documentation
 - [] Follow more common style guide
 - [] Move to ASDF system (https://lispcookbook.github.io/cl-cookbook/systems.html)
+
+Use guix as package manager. Much nicer! 
