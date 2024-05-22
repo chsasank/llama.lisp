@@ -1,0 +1,28 @@
+(brilisp
+    (bril-define ((print int) (n int)))
+
+    (bril-define ((pow int) (base int) (exp int))
+        (set (out int) (const 1))
+        (set (one int) (const 1))
+        
+        (label loop)
+        (set (end bool) (lt exp one))
+        (br end ret body)
+        
+        (label body)
+        (set (out int) (mul out base))
+        (set (exp int) (sub exp one))
+        (jmp loop)
+        
+        (label ret)
+        (ret out))
+
+    (bril-define ((main int))
+        (set (one int) (const 1))
+        (set (two int) (const 2))
+        (set (thirtyone int) (const 31))
+        
+        (set (half int) (call pow two thirtyone))
+        (set (tmp int) (call print half))
+
+        (ret tmp)))

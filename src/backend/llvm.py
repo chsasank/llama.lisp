@@ -125,7 +125,10 @@ class LLVMCodeGenerator(object):
             )
 
         def gen_ret(instr):
-            self.builder.ret(self.func_symtab[instr.args[0]])
+            if instr.args:
+                self.builder.ret(self.gen_var(instr.args[0]))
+            else:
+                self.builder.ret_void()
 
         def gen_const(instr):
             self.func_symtab[instr.dest] = ir.Constant(
@@ -181,21 +184,21 @@ class LLVMCodeGenerator(object):
         if funcname in self.module.globals:
             # We only allow the case in which a declaration exists and now the
             # function is defined (or redeclared) with the same number of args.
-            existing_func = self.module[funcname]
+            existing_func = self.module.globals[funcname]
             if not isinstance(existing_func, ir.Function):
                 raise CodegenError("Function/Global name collision", funcname)
-            if not existing_func.is_declaration():
+            if not existing_func.is_declaration:
                 raise CodegenError("Redifinition of {0}".format(funcname))
             if len(existing_func.function_type.args) != len(func_ty.args):
                 raise CodegenError("Redifinition with different number of arguments")
-            func = self.module.globals[funcname]
+            func = existing_func
         else:
             # Otherwise create a new function
             func = ir.Function(self.module, func_ty, funcname)
         # Set function argument names from AST
         for i, arg in enumerate(func.args):
             arg.name = fn.args[i].name
-            self.func_symtab[arg.name] = arg
+            self.func_symtab[fn.args[i].name] = arg
 
         return func
 

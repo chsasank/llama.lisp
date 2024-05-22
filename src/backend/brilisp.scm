@@ -98,6 +98,14 @@
     
     (define (gen-label-instr instr)
         `((label . ,(second instr))))
+    
+    (define (br? instr)
+        (eq? (first instr) 'br))
+    
+    (define (gen-br-instr instr)
+        `((op . br)
+          (args . ,(vector (second instr)))
+          (labels . ,(list->vector (rest (rest instr))))))
 
     (cond
         ((const? instr) (gen-const-instr instr))
@@ -106,6 +114,7 @@
         ((call? instr) (gen-call-instr instr))
         ((jmp? instr) (gen-jmp-instr instr))
         ((label? instr) (gen-label-instr instr))
+        ((br? instr) (gen-br-instr instr))
         (else (error "unknown instruction: " instr))))
 
 (bril (rest (read)))
