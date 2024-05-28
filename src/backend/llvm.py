@@ -56,7 +56,7 @@ class LLVMCodeGenerator(object):
 
     def gen_var(self, var):
         try:
-            return self.func_symtab[var]
+            return self.gen_symbol_load (var)
         except KeyError:
             raise CodegenError("Unknown variable", var)
 
@@ -109,7 +109,7 @@ class LLVMCodeGenerator(object):
                     value=self.gen_var(instr.args[i]),
                     block=self.gen_label(instr.labels[i]),
                 )
-            self.func_symtab[instr.dest] = phi
+            self.gen_symbol_store (instr.dest, phi)
 
         def gen_call(instr):
             callee_func = self.module.globals.get(instr.funcs[0], None)
@@ -120,9 +120,9 @@ class LLVMCodeGenerator(object):
 
             call_args = [self.gen_var(arg) for arg in instr.args]
 
-            self.func_symtab[instr.dest] = self.builder.call(
+            self.gen_symbol_store (instr.dest, self.builder.call(
                 callee_func, call_args, name=instr.dest
-            )
+            ))
 
         def gen_ret(instr):
             if instr.args:
@@ -131,25 +131,27 @@ class LLVMCodeGenerator(object):
                 self.builder.ret_void()
 
         def gen_const(instr):
-            self.func_symtab[instr.dest] = ir.Constant(
+            self.gen_symbol_store (instr.dest, ir.Constant(
                 self.gen_type(instr.type), instr.value
-            )
+            ))
 
         def gen_value(instr):
             llvm_instr = getattr(self.builder, value_ops[instr.op])
-            self.func_symtab[instr.dest] = llvm_instr(
+            self.gen_symbol_store (instr.dest, llvm_instr(
                 *[self.gen_var(arg) for arg in instr.args], name=instr.dest
-            )
+            ))
 
         def gen_comp(instr):
-            self.func_symtab[instr.dest] = self.builder.icmp_signed(
+            self.gen_symbol_store (instr.dest, self.builder.icmp_signed(
                 cmpop=cmp_ops[instr.op],
                 lhs=self.gen_var(instr.args[0]),
                 rhs=self.gen_var(instr.args[1]),
                 name=instr.dest,
-            )
+            ))
 
         for instr in instrs:
+            if "dest" in instr:
+                self.declare_var (self.gen_type(instr.type), instr.dest)
             if "label" in instr:
                 gen_label(instr)
             elif instr.op == "jmp":
@@ -198,15 +200,37 @@ class LLVMCodeGenerator(object):
         # Set function argument names from AST
         for i, arg in enumerate(func.args):
             arg.name = fn.args[i].name
-            self.func_symtab[fn.args[i].name] = arg
+            self.gen_symbol_store (fn.args [i].name, arg)
 
         return func
+
+    def declare_var (self, typ, name):
+        """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
+        #if name in self.func_alloca_symtab: return
+        if isinstance(typ, ir.VoidType): return
+        if name in self.func_symtab or name in self.func_alloca_symtab: return
+
+        builder = ir.IRBuilder ()
+        builder.position_at_start (self.entry_bb)
+        self.func_alloca_symtab [name] = self.builder.alloca(typ, name=name)
+
+    def gen_symbol_load (self, name):
+        if name in self.func_alloca_symtab:
+            return self.builder.load (self.func_alloca_symtab [name])
+        else:
+            return self.func_symtab [name]
+
+    def gen_symbol_store (self, name, val):
+        if name in self.func_alloca_symtab:
+            self.builder.store (val, self.func_alloca_symtab [name])
+        self.func_symtab [name] = val
 
     def gen_function(self, fn):
         # Reset the symbol and labels table.
         # Prototype generation will pre-populate it with function arguments.
         self.func_symtab = {}
         self.func_bbs = {}
+        self.func_alloca_symtab = {}
         # Create the function skeleton from the prototype.
         func = self.gen_function_prototype(fn)
 
@@ -217,6 +241,7 @@ class LLVMCodeGenerator(object):
             bb_entry = func.append_basic_block(entry_label)
             self.func_bbs[entry_label] = bb_entry
             self.builder = ir.IRBuilder(bb_entry)
+            self.entry_bb = bb_entry
             self.gen_instructions(fn.instrs[1:])
         return func
 
