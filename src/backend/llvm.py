@@ -106,15 +106,6 @@ class LLVMCodeGenerator(object):
                 falsebr=self.gen_label(instr.labels[1]),
             )
 
-        def gen_phi(instr):
-            phi = self.builder.phi(self.gen_type(instr.type), name=instr.dest)
-            for i in range(len(instr.args)):
-                phi.add_incoming(
-                    value=self.gen_var(instr.args[i]),
-                    block=self.gen_label(instr.labels[i]),
-                )
-            self.gen_symbol_store (instr.dest, phi)
-
         def gen_call(instr):
             callee_func = self.module.globals.get(instr.funcs[0], None)
             if callee_func is None or not isinstance(callee_func, ir.Function):
@@ -172,8 +163,6 @@ class LLVMCodeGenerator(object):
                 gen_jmp(instr)
             elif instr.op == "br":
                 gen_br(instr)
-            elif instr.op == "phi":
-                gen_phi(instr)
             elif instr.op == "call":
                 gen_call(instr)
             elif instr.op == "ret":
