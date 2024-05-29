@@ -36,8 +36,6 @@ class LLVMCodeGenerator(object):
         # Manages a symbol table while a function is being codegen'd. Maps var
         # names to stack addresses allocated using `alloca` instruction
         self.func_alloca_symtab = {}
-        # Set of void variables, since `alloca` doesn't work for void
-        self.func_void_syms = {}
 
         # Manages all labels in a function
         self.func_bbs = {}
@@ -126,9 +124,15 @@ class LLVMCodeGenerator(object):
 
             call_args = [self.gen_var(arg) for arg in instr.args]
 
-            self.gen_symbol_store (instr.dest, self.builder.call(
-                callee_func, call_args, name=instr.dest
-            ))
+            if instr.type == "void":
+                self.builder.call(
+                    callee_func, call_args, name=instr.dest
+                )
+            else:
+                self.declare_var (self.gen_type(instr.type), instr.dest)
+                self.gen_symbol_store (instr.dest, self.builder.call(
+                    callee_func, call_args, name=instr.dest
+                ))
 
         def gen_ret(instr):
             if instr.args:
@@ -137,17 +141,20 @@ class LLVMCodeGenerator(object):
                 self.builder.ret_void()
 
         def gen_const(instr):
+            self.declare_var (self.gen_type(instr.type), instr.dest)
             self.gen_symbol_store (instr.dest, ir.Constant(
                 self.gen_type(instr.type), instr.value
             ))
 
         def gen_value(instr):
+            self.declare_var (self.gen_type(instr.type), instr.dest)
             llvm_instr = getattr(self.builder, value_ops[instr.op])
             self.gen_symbol_store (instr.dest, llvm_instr(
                 *[self.gen_var(arg) for arg in instr.args], name=instr.dest
             ))
 
         def gen_comp(instr):
+            self.declare_var (self.gen_type(instr.type), instr.dest)
             self.gen_symbol_store (instr.dest, self.builder.icmp_signed(
                 cmpop=cmp_ops[instr.op],
                 lhs=self.gen_var(instr.args[0]),
@@ -156,9 +163,6 @@ class LLVMCodeGenerator(object):
             ))
 
         for instr in instrs:
-            if "dest" in instr: # Variable declarations are implicit
-                self.declare_var (self.gen_type(instr.type), instr.dest)
-
             if "label" in instr:
                 gen_label(instr)
             elif self.builder.block.is_terminated:
@@ -212,38 +216,27 @@ class LLVMCodeGenerator(object):
 
     def declare_var (self, typ, name):
         """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
-        #if name in self.func_alloca_symtab: return
-        if name in self.func_alloca_symtab or self.func_void_syms: return
-
-        if isinstance(typ, ir.VoidType):
-            self.func_void_syms [name] = None
-        else:
+        if not name in self.func_alloca_symtab:
             builder = ir.IRBuilder (self.func_bbs ['alloca']) # Use a separate builder so we don't mess with the global builder's position
             self.func_alloca_symtab [name] = builder.alloca(typ, name=name)
 
     def gen_symbol_load (self, name):
         if name in self.func_alloca_symtab:
             return self.builder.load (self.func_alloca_symtab [name])
-        elif name in self.func_void_syms:
-            #raise CodegenError ("Attempt to read void variable")
-            return self.func_void_syms [name]
         else:
             raise CodegenError (f"Unknown variable: {name}")
 
     def gen_symbol_store (self, name, val):
         if name in self.func_alloca_symtab:
             self.builder.store (val, self.func_alloca_symtab [name])
-        elif name in self.func_void_syms:
-            self.func_void_syms [name] = val
         else:
-            raise CodegenError (f"Undeclared variable")
+            raise CodegenError (f"Unknown variable: {name}")
 
     def gen_function(self, fn):
         # Reset the symbol and labels table.
         # Prototype generation will pre-populate it with function arguments.
         self.func_bbs = {}
         self.func_alloca_symtab = {}
-        self.func_void_syms = {}
         # Create the function skeleton from the prototype.
         func = self.gen_function_prototype(fn)
 
