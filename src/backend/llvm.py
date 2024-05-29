@@ -37,7 +37,8 @@ class LLVMCodeGenerator(object):
 
         # Manages a symbol table while a function is being codegen'd. Maps var
         # names to stack addresses allocated using `alloca` instruction
-        self.func_alloca_symtab = {}
+        self.func_alloca_symtab = {}  # symbol name -> memory address
+        self.symbol_types = {}  # symbol name -> bril type (e.g. `int`, `bool`)
 
         # Manages all labels in a function
         self.func_bbs = {}
@@ -210,11 +211,15 @@ class LLVMCodeGenerator(object):
 
     def declare_var(self, typ, name):
         """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
-        if not name in self.func_alloca_symtab:
-            builder = ir.IRBuilder(
-                self.func_alloca_bb
-            )  # Use a separate builder so we don't mess with the global builder's position
-            self.func_alloca_symtab[name] = builder.alloca(typ, name=name)
+        if name in self.func_alloca_symtab:
+            if self.func_alloca_symtab[name].type == typ:
+                return
+
+        # This is either a new variable or the same variable with a new type
+        builder = ir.IRBuilder(
+            self.func_alloca_bb
+        )  # Use a separate builder so we don't mess with the global builder's position
+        self.func_alloca_symtab[name] = builder.alloca(typ, name=name)
 
     def gen_symbol_load(self, name):
         if name in self.func_alloca_symtab:

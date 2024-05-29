@@ -13,8 +13,9 @@ Lisp dialect designed for HPC and AI.
 
 TODO:
 
-- [] Move to outline for documentation
 - [] Follow more common style guide
 - [] Move to ASDF system (https://lispcookbook.github.io/cl-cookbook/systems.html)
 
 Use guix as package manager. Much nicer! 
+
+You can find the documentation for this project here: https://outline.von-neumann.ai/s/d0cd5eb9-2e15-4fa4-bd17-c3911f305008
