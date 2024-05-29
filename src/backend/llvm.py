@@ -12,6 +12,8 @@ import sys
 import json
 import munch
 import llvmlite.ir as ir
+import random
+import string
 
 
 class CodegenError(Exception):
@@ -56,7 +58,7 @@ class LLVMCodeGenerator(object):
 
     def gen_var(self, var):
         try:
-            return self.gen_symbol_load (var)
+            return self.gen_symbol_load(var)
         except KeyError:
             raise CodegenError("Unknown variable", var)
 
@@ -93,7 +95,7 @@ class LLVMCodeGenerator(object):
             self.builder.function.basic_blocks.append(new_bb)
             if not old_bb.is_terminated:
                 # Make control fallthroughs explicit
-                self.builder.branch (new_bb)
+                self.builder.branch(new_bb)
             self.builder.position_at_start(new_bb)
 
         def gen_jmp(instr):
@@ -116,14 +118,13 @@ class LLVMCodeGenerator(object):
             call_args = [self.gen_var(arg) for arg in instr.args]
 
             if instr.type == "void":
-                self.builder.call(
-                    callee_func, call_args, name=instr.dest
-                )
+                self.builder.call(callee_func, call_args, name=instr.dest)
             else:
-                self.declare_var (self.gen_type(instr.type), instr.dest)
-                self.gen_symbol_store (instr.dest, self.builder.call(
-                    callee_func, call_args, name=instr.dest
-                ))
+                self.declare_var(self.gen_type(instr.type), instr.dest)
+                self.gen_symbol_store(
+                    instr.dest,
+                    self.builder.call(callee_func, call_args, name=instr.dest),
+                )
 
         def gen_ret(instr):
             if instr.args:
@@ -132,33 +133,37 @@ class LLVMCodeGenerator(object):
                 self.builder.ret_void()
 
         def gen_const(instr):
-            self.declare_var (self.gen_type(instr.type), instr.dest)
-            self.gen_symbol_store (instr.dest, ir.Constant(
-                self.gen_type(instr.type), instr.value
-            ))
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest, ir.Constant(self.gen_type(instr.type), instr.value)
+            )
 
         def gen_value(instr):
-            self.declare_var (self.gen_type(instr.type), instr.dest)
+            self.declare_var(self.gen_type(instr.type), instr.dest)
             llvm_instr = getattr(self.builder, value_ops[instr.op])
-            self.gen_symbol_store (instr.dest, llvm_instr(
-                *[self.gen_var(arg) for arg in instr.args], name=instr.dest
-            ))
+            self.gen_symbol_store(
+                instr.dest,
+                llvm_instr(*[self.gen_var(arg) for arg in instr.args], name=instr.dest),
+            )
 
         def gen_comp(instr):
-            self.declare_var (self.gen_type(instr.type), instr.dest)
-            self.gen_symbol_store (instr.dest, self.builder.icmp_signed(
-                cmpop=cmp_ops[instr.op],
-                lhs=self.gen_var(instr.args[0]),
-                rhs=self.gen_var(instr.args[1]),
-                name=instr.dest,
-            ))
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.icmp_signed(
+                    cmpop=cmp_ops[instr.op],
+                    lhs=self.gen_var(instr.args[0]),
+                    rhs=self.gen_var(instr.args[1]),
+                    name=instr.dest,
+                ),
+            )
 
         for instr in instrs:
             if "label" in instr:
                 gen_label(instr)
             elif self.builder.block.is_terminated:
                 # Do not codegen for unreachable code
-                continue
+                instr.op = "dummy"  # This doesn't really do anything
             elif instr.op == "jmp":
                 gen_jmp(instr)
             elif instr.op == "br":
@@ -203,23 +208,25 @@ class LLVMCodeGenerator(object):
 
         return func
 
-    def declare_var (self, typ, name):
+    def declare_var(self, typ, name):
         """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
         if not name in self.func_alloca_symtab:
-            builder = ir.IRBuilder (self.func_bbs ['alloca']) # Use a separate builder so we don't mess with the global builder's position
-            self.func_alloca_symtab [name] = builder.alloca(typ, name=name)
+            builder = ir.IRBuilder(
+                self.func_alloca_bb
+            )  # Use a separate builder so we don't mess with the global builder's position
+            self.func_alloca_symtab[name] = builder.alloca(typ, name=name)
 
-    def gen_symbol_load (self, name):
+    def gen_symbol_load(self, name):
         if name in self.func_alloca_symtab:
-            return self.builder.load (self.func_alloca_symtab [name])
+            return self.builder.load(self.func_alloca_symtab[name])
         else:
-            raise CodegenError (f"Unknown variable: {name}")
+            raise CodegenError(f"Unknown variable: {name}")
 
-    def gen_symbol_store (self, name, val):
+    def gen_symbol_store(self, name, val):
         if name in self.func_alloca_symtab:
-            self.builder.store (val, self.func_alloca_symtab [name])
+            self.builder.store(val, self.func_alloca_symtab[name])
         else:
-            raise CodegenError (f"Unknown variable: {name}")
+            raise CodegenError(f"Unknown variable: {name}")
 
     def gen_function(self, fn):
         # Reset the symbol and labels table.
@@ -235,12 +242,13 @@ class LLVMCodeGenerator(object):
                 entry_label = fn.instrs[0].label
                 fn_instrs = fn.instrs[1:]
             else:
-                entry_label = "entry"
+                entry_label = random_label("entry")
                 fn_instrs = fn.instrs
 
             # Create a basic block for allocas, and let it be the actual entry point
             # Note: using `ir.Builder.position_at_start(block)` doesn't seem to work for some reason
-            self.func_bbs ['alloca'] = func.append_basic_block ('alloca')
+            alloca_label = random_label("alloca")
+            self.func_alloca_bb = func.append_basic_block(alloca_label)
             bb_entry = func.append_basic_block(entry_label)
             self.func_bbs[entry_label] = bb_entry
             self.builder = ir.IRBuilder(bb_entry)
@@ -248,20 +256,33 @@ class LLVMCodeGenerator(object):
             # Set function argument names from AST
             for i, arg in enumerate(func.args):
                 arg.name = fn.args[i].name
-                self.declare_var (self.gen_type (fn.args[i].type), arg.name)
-                self.gen_symbol_store (fn.args [i].name, arg)
+                self.declare_var(self.gen_type(fn.args[i].type), arg.name)
+                self.gen_symbol_store(fn.args[i].name, arg)
 
             # Function body
             self.gen_instructions(fn_instrs)
-            self.builder.position_at_end (self.func_bbs ['alloca'])
-            self.builder.branch (bb_entry) # Cannot use implicit fallthroughs
+            self.builder.position_at_end(self.func_alloca_bb)
+            self.builder.branch(bb_entry)  # Cannot use implicit fallthroughs
         return func
+
 
 def main():
     bril_prog = munch.munchify(json.load(sys.stdin))
     code_gen = LLVMCodeGenerator()
     code_gen.generate(bril_prog)
     print(code_gen.module)
+
+
+def random_label(prefix="", length=10):
+    """
+    Return a random string of the form `prefix_XXXXXXXXXX`
+    """
+    return (
+        prefix
+        + "_"
+        + "".join([random.choice(string.ascii_letters) for i in range(length)])
+    )
+
 
 if __name__ == "__main__":
     main()
