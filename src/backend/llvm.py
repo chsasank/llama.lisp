@@ -34,8 +34,10 @@ class LLVMCodeGenerator(object):
         self.builder = None
 
         # Manages a symbol table while a function is being codegen'd. Maps var
-        # names to ir.Value.
-        self.func_symtab = {}
+        # names to stack addresses allocated using `alloca` instruction
+        self.func_alloca_symtab = {}
+        # Set of void variables, since `alloca` doesn't work for void
+        self.func_void_syms = {}
 
         # Manages all labels in a function
         self.func_bbs = {}
@@ -88,9 +90,13 @@ class LLVMCodeGenerator(object):
         }
 
         def gen_label(instr):
-            bb = self.gen_label(instr.label)
-            self.builder.function.basic_blocks.append(bb)
-            self.builder.position_at_start(bb)
+            old_bb = self.builder.block
+            new_bb = self.gen_label(instr.label)
+            self.builder.function.basic_blocks.append(new_bb)
+            if not old_bb.is_terminated:
+                # Make control fallthroughs explicit
+                self.builder.branch (new_bb)
+            self.builder.position_at_start(new_bb)
 
         def gen_jmp(instr):
             self.builder.branch(self.gen_label(instr.labels[0]))
@@ -150,10 +156,14 @@ class LLVMCodeGenerator(object):
             ))
 
         for instr in instrs:
-            if "dest" in instr:
+            if "dest" in instr: # Variable declarations are implicit
                 self.declare_var (self.gen_type(instr.type), instr.dest)
+
             if "label" in instr:
                 gen_label(instr)
+            elif self.builder.block.is_terminated:
+                # Do not codegen for unreachable code
+                continue
             elif instr.op == "jmp":
                 gen_jmp(instr)
             elif instr.op == "br":
@@ -197,61 +207,79 @@ class LLVMCodeGenerator(object):
         else:
             # Otherwise create a new function
             func = ir.Function(self.module, func_ty, funcname)
-        # Set function argument names from AST
-        for i, arg in enumerate(func.args):
-            arg.name = fn.args[i].name
-            self.gen_symbol_store (fn.args [i].name, arg)
 
         return func
 
     def declare_var (self, typ, name):
         """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
         #if name in self.func_alloca_symtab: return
-        if isinstance(typ, ir.VoidType): return
-        if name in self.func_symtab or name in self.func_alloca_symtab: return
+        if name in self.func_alloca_symtab or self.func_void_syms: return
 
-        builder = ir.IRBuilder ()
-        builder.position_at_start (self.entry_bb)
-        self.func_alloca_symtab [name] = self.builder.alloca(typ, name=name)
+        if isinstance(typ, ir.VoidType):
+            self.func_void_syms [name] = None
+        else:
+            builder = ir.IRBuilder (self.func_bbs ['alloca']) # Use a separate builder so we don't mess with the global builder's position
+            self.func_alloca_symtab [name] = builder.alloca(typ, name=name)
 
     def gen_symbol_load (self, name):
         if name in self.func_alloca_symtab:
             return self.builder.load (self.func_alloca_symtab [name])
+        elif name in self.func_void_syms:
+            #raise CodegenError ("Attempt to read void variable")
+            return self.func_void_syms [name]
         else:
-            return self.func_symtab [name]
+            raise CodegenError (f"Unknown variable: {name}")
 
     def gen_symbol_store (self, name, val):
         if name in self.func_alloca_symtab:
             self.builder.store (val, self.func_alloca_symtab [name])
-        self.func_symtab [name] = val
+        elif name in self.func_void_syms:
+            self.func_void_syms [name] = val
+        else:
+            raise CodegenError (f"Undeclared variable")
 
     def gen_function(self, fn):
         # Reset the symbol and labels table.
         # Prototype generation will pre-populate it with function arguments.
-        self.func_symtab = {}
         self.func_bbs = {}
         self.func_alloca_symtab = {}
+        self.func_void_syms = {}
         # Create the function skeleton from the prototype.
         func = self.gen_function_prototype(fn)
 
         if fn.instrs:
             # Create the entry BB in the function and set the builder to it.
-            assert "label" in fn.instrs[0]
-            entry_label = fn.instrs[0].label
+            if "label" in fn.instrs[0]:
+                entry_label = fn.instrs[0].label
+                fn_instrs = fn.instrs[1:]
+            else:
+                entry_label = "entry"
+                fn_instrs = fn.instrs
+
+            # Create a basic block for allocas, and let it be the actual entry point
+            # Note: using `ir.Builder.position_at_start(block)` doesn't seem to work for some reason
+            self.func_bbs ['alloca'] = func.append_basic_block ('alloca')
             bb_entry = func.append_basic_block(entry_label)
             self.func_bbs[entry_label] = bb_entry
             self.builder = ir.IRBuilder(bb_entry)
-            self.entry_bb = bb_entry
-            self.gen_instructions(fn.instrs[1:])
-        return func
 
+            # Set function argument names from AST
+            for i, arg in enumerate(func.args):
+                arg.name = fn.args[i].name
+                self.declare_var (self.gen_type (fn.args[i].type), arg.name)
+                self.gen_symbol_store (fn.args [i].name, arg)
+
+            # Function body
+            self.gen_instructions(fn_instrs)
+            self.builder.position_at_end (self.func_bbs ['alloca'])
+            self.builder.branch (bb_entry) # Cannot use implicit fallthroughs
+        return func
 
 def main():
     bril_prog = munch.munchify(json.load(sys.stdin))
     code_gen = LLVMCodeGenerator()
     code_gen.generate(bril_prog)
     print(code_gen.module)
-
 
 if __name__ == "__main__":
     main()
