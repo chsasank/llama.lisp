@@ -209,8 +209,10 @@ class LLVMCodeGenerator(object):
         return func
 
     def declare_var(self, typ, name):
-        """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
-        if (name not in self.func_alloca_symtab) or (self.func_alloca_symtab[name].type != typ):
+        """Allocate a pointer using alloca and add it to the symbol table, if it doesn't already exist"""
+        if (name not in self.func_alloca_symtab) or (
+            self.func_alloca_symtab[name].type != typ.as_pointer()
+        ):
             # This is either a new variable or the same variable with a new type
             builder = ir.IRBuilder(
                 self.func_alloca_bb
