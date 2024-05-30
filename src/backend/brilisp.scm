@@ -107,6 +107,12 @@
           (args . ,(vector (second instr)))
           (labels . ,(list->vector (rest (rest instr))))))
 
+    (define (nop? instr)
+        (eq? (first instr) 'nop))
+
+    (define (gen-nop-instr instr)
+        `((op . nop)))
+
     (cond
         ((const? instr) (gen-const-instr instr))
         ((value? instr) (gen-value-instr instr))
@@ -115,6 +121,7 @@
         ((jmp? instr) (gen-jmp-instr instr))
         ((label? instr) (gen-label-instr instr))
         ((br? instr) (gen-br-instr instr))
+        ((nop? instr) (gen-nop-instr instr))
         (else (error "unknown instruction: " instr))))
 
 (bril (rest (read)))

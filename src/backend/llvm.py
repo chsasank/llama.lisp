@@ -162,8 +162,9 @@ class LLVMCodeGenerator(object):
             if "label" in instr:
                 gen_label(instr)
             elif self.builder.block.is_terminated:
-                # Do not codegen for unreachable code
-                instr.op = "dummy"  # This doesn't really do anything
+                pass  # Do not codegen for unreachable code
+            elif instr.op == "nop":
+                pass
             elif instr.op == "jmp":
                 gen_jmp(instr)
             elif instr.op == "br":
