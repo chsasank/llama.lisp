@@ -4,8 +4,6 @@ LLVM Code generator
 References:
 1. https://github.com/eliben/pykaleidoscope/
 2. https://llvm.org/docs/tutorial/
-
-Assumes BRIL is in SSA form
 """
 
 import sys
@@ -47,7 +45,12 @@ class LLVMCodeGenerator(object):
             self.gen_function(fn)
 
     def gen_type(self, type):
-        if type == "int":
+        if isinstance (type, dict):
+            if 'ptr' in type:
+                return self.gen_type(type['ptr'])
+            else:
+                raise CodegenError (f"Unknown type {type}")
+        elif type == "int":
             return ir.IntType(32)
         elif type == "void":
             return ir.VoidType()
@@ -158,6 +161,21 @@ class LLVMCodeGenerator(object):
                 ),
             )
 
+        def gen_alloc(instr):
+            pointee_type = self.gen_type(instr.type)
+            self.declare_var(pointee_type.as_pointer(), instr.dest)
+            self.gen_symbol_store(instr.dest, self.builder.alloca(pointee_type, size=self.gen_var(instr.args[0])))
+
+        def gen_store(instr):
+            ptr = self.gen_symbol_load(instr.args[0])
+            self.builder.store(self.gen_var(instr.args[1]), ptr)
+
+        def gen_load(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            ptr = self.gen_symbol_load(instr.args[0])
+            self.gen_symbol_store(
+                instr.dest, self.builder.load(ptr))
+
         for instr in instrs:
             if "label" in instr:
                 gen_label(instr)
@@ -175,6 +193,12 @@ class LLVMCodeGenerator(object):
                 gen_ret(instr)
             elif instr.op == "const":
                 gen_const(instr)
+            elif instr.op == "alloc":
+                gen_alloc(instr)
+            elif instr.op == "store":
+                gen_store(instr)
+            elif instr.op == "load":
+                gen_load(instr)
             elif instr.op in value_ops:
                 gen_value(instr)
             elif instr.op in cmp_ops:
