@@ -162,8 +162,9 @@ class LLVMCodeGenerator(object):
             if "label" in instr:
                 gen_label(instr)
             elif self.builder.block.is_terminated:
-                # Do not codegen for unreachable code
-                instr.op = "dummy"  # This doesn't really do anything
+                pass  # Do not codegen for unreachable code
+            elif instr.op == "nop":
+                pass
             elif instr.op == "jmp":
                 gen_jmp(instr)
             elif instr.op == "br":
@@ -209,8 +210,10 @@ class LLVMCodeGenerator(object):
         return func
 
     def declare_var(self, typ, name):
-        """Allocate a pointer using alloc and add it to the symbol table, if it doesn't already exist"""
-        if (name not in self.func_alloca_symtab) or (self.func_alloca_symtab[name].type != typ):
+        """Allocate a pointer using alloca and add it to the symbol table, if it doesn't already exist"""
+        if (name not in self.func_alloca_symtab) or (
+            self.func_alloca_symtab[name].type != typ.as_pointer()
+        ):
             # This is either a new variable or the same variable with a new type
             builder = ir.IRBuilder(
                 self.func_alloca_bb
