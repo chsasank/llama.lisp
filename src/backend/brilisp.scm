@@ -34,7 +34,7 @@
            (args (rest header))
            (instrs (rest (rest expr))))
         `((name . ,name)
-          (type . ,type)
+          (type . ,(gen-type type))
           (args . ,(map-vec gen-arg args))
           (instrs . ,(map-vec gen-instr instrs)))))
 

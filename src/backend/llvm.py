@@ -45,11 +45,11 @@ class LLVMCodeGenerator(object):
             self.gen_function(fn)
 
     def gen_type(self, type):
-        if isinstance (type, dict):
-            if 'ptr' in type:
-                return self.gen_type(type['ptr']).as_pointer()
+        if isinstance(type, dict):
+            if "ptr" in type:
+                return self.gen_type(type["ptr"]).as_pointer()
             else:
-                raise CodegenError (f"Unknown type {type}")
+                raise CodegenError(f"Unknown type {type}")
         elif type == "int":
             return ir.IntType(32)
         elif type == "void":
@@ -164,7 +164,12 @@ class LLVMCodeGenerator(object):
         def gen_alloc(instr):
             pointer_type = self.gen_type(instr.type)
             self.declare_var(pointer_type, instr.dest)
-            self.gen_symbol_store(instr.dest, self.builder.alloca(pointer_type.pointee, size=self.gen_var(instr.args[0])))
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.alloca(
+                    pointer_type.pointee, size=self.gen_var(instr.args[0])
+                ),
+            )
 
         def gen_store(instr):
             ptr = self.gen_symbol_load(instr.args[0])
@@ -173,8 +178,7 @@ class LLVMCodeGenerator(object):
         def gen_load(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             ptr = self.gen_symbol_load(instr.args[0])
-            self.gen_symbol_store(
-                instr.dest, self.builder.load(ptr))
+            self.gen_symbol_store(instr.dest, self.builder.load(ptr))
 
         for instr in instrs:
             if "label" in instr:
