@@ -47,7 +47,7 @@ class LLVMCodeGenerator(object):
     def gen_type(self, type):
         if isinstance (type, dict):
             if 'ptr' in type:
-                return self.gen_type(type['ptr'])
+                return self.gen_type(type['ptr']).as_pointer()
             else:
                 raise CodegenError (f"Unknown type {type}")
         elif type == "int":
@@ -162,9 +162,9 @@ class LLVMCodeGenerator(object):
             )
 
         def gen_alloc(instr):
-            pointee_type = self.gen_type(instr.type)
-            self.declare_var(pointee_type.as_pointer(), instr.dest)
-            self.gen_symbol_store(instr.dest, self.builder.alloca(pointee_type, size=self.gen_var(instr.args[0])))
+            pointer_type = self.gen_type(instr.type)
+            self.declare_var(pointer_type, instr.dest)
+            self.gen_symbol_store(instr.dest, self.builder.alloca(pointer_type.pointee, size=self.gen_var(instr.args[0])))
 
         def gen_store(instr):
             ptr = self.gen_symbol_load(instr.args[0])
