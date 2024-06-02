@@ -180,6 +180,16 @@ class LLVMCodeGenerator(object):
             ptr = self.gen_symbol_load(instr.args[0])
             self.gen_symbol_store(instr.dest, self.builder.load(ptr))
 
+        def gen_ptradd(inst):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.gep(
+                    self.gen_var(instr.args[0]),
+                    [self.gen_var(arg) for arg in instr["args"][1:]],
+                ),
+            )
+
         for instr in instrs:
             if "label" in instr:
                 gen_label(instr)
@@ -203,6 +213,8 @@ class LLVMCodeGenerator(object):
                 gen_store(instr)
             elif instr.op == "load":
                 gen_load(instr)
+            elif instr.op == "ptradd":
+                gen_ptradd(instr)
             elif instr.op in value_ops:
                 gen_value(instr)
             elif instr.op in cmp_ops:
