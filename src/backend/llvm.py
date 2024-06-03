@@ -4,8 +4,6 @@ LLVM Code generator
 References:
 1. https://github.com/eliben/pykaleidoscope/
 2. https://llvm.org/docs/tutorial/
-
-Assumes BRIL is in SSA form
 """
 
 import sys
@@ -47,7 +45,12 @@ class LLVMCodeGenerator(object):
             self.gen_function(fn)
 
     def gen_type(self, type):
-        if type == "int":
+        if isinstance(type, dict):
+            if "ptr" in type:
+                return self.gen_type(type["ptr"]).as_pointer()
+            else:
+                raise CodegenError(f"Unknown type {type}")
+        elif type == "int":
             return ir.IntType(32)
         elif type == "void":
             return ir.VoidType()
@@ -158,29 +161,76 @@ class LLVMCodeGenerator(object):
                 ),
             )
 
+        def gen_alloc(instr):
+            pointer_type = self.gen_type(instr.type)
+            self.declare_var(pointer_type, instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.alloca(
+                    pointer_type.pointee, size=self.gen_var(instr.args[0])
+                ),
+            )
+
+        def gen_store(instr):
+            ptr = self.gen_symbol_load(instr.args[0])
+            self.builder.store(self.gen_var(instr.args[1]), ptr)
+
+        def gen_load(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            ptr = self.gen_symbol_load(instr.args[0])
+            self.gen_symbol_store(instr.dest, self.builder.load(ptr))
+
+        def gen_ptradd(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.gep(
+                    self.gen_var(instr.args[0]),
+                    [self.gen_var(arg) for arg in instr["args"][1:]],
+                ),
+            )
+
+        def gen_id(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(instr.dest, self.gen_symbol_load(instr.args[0]))
+
         for instr in instrs:
-            if "label" in instr:
-                gen_label(instr)
-            elif self.builder.block.is_terminated:
-                pass  # Do not codegen for unreachable code
-            elif instr.op == "nop":
-                pass
-            elif instr.op == "jmp":
-                gen_jmp(instr)
-            elif instr.op == "br":
-                gen_br(instr)
-            elif instr.op == "call":
-                gen_call(instr)
-            elif instr.op == "ret":
-                gen_ret(instr)
-            elif instr.op == "const":
-                gen_const(instr)
-            elif instr.op in value_ops:
-                gen_value(instr)
-            elif instr.op in cmp_ops:
-                gen_comp(instr)
-            else:
-                raise CodegenError(f"Unknown op in the instruction: {dict(instr)}")
+            try:
+                if "label" in instr:
+                    gen_label(instr)
+                elif self.builder.block.is_terminated:
+                    pass  # Do not codegen for unreachable code
+                elif instr.op == "nop":
+                    pass
+                elif instr.op == "jmp":
+                    gen_jmp(instr)
+                elif instr.op == "br":
+                    gen_br(instr)
+                elif instr.op == "call":
+                    gen_call(instr)
+                elif instr.op == "ret":
+                    gen_ret(instr)
+                elif instr.op == "const":
+                    gen_const(instr)
+                elif instr.op == "alloc":
+                    gen_alloc(instr)
+                elif instr.op == "store":
+                    gen_store(instr)
+                elif instr.op == "load":
+                    gen_load(instr)
+                elif instr.op == "ptradd":
+                    gen_ptradd(instr)
+                elif instr.op == "id":
+                    gen_id(instr)
+                elif instr.op in value_ops:
+                    gen_value(instr)
+                elif instr.op in cmp_ops:
+                    gen_comp(instr)
+                else:
+                    raise CodegenError(f"Unknown op in the instruction: {dict(instr)}")
+            except Exception as e:
+                print(f"Exception: {e}; in instruction {instr}:")
+                raise e
 
     def gen_function_prototype(self, fn):
         funcname = fn.name

@@ -34,12 +34,17 @@
            (args (rest header))
            (instrs (rest (rest expr))))
         `((name . ,name)
-          (type . ,type)
+          (type . ,(gen-type type))
           (args . ,(map-vec gen-arg args))
           (instrs . ,(map-vec gen-instr instrs)))))
 
 (define (gen-arg arg)
-    `((name . ,(first arg)) (type . ,(second arg))))
+    `((name . ,(first arg)) (type . ,(gen-type (second arg)))))
+
+(define (gen-type type)
+    (if (list? type)
+        `((,(first type) . ,(gen-type (second type))))
+        type))
 
 (define (gen-instr instr)
     (define (const? instr)
@@ -50,20 +55,20 @@
         (let ((to (second instr))
               (from (third instr)))
             `((op . const)
-              (type . ,(second to))
+              (type . ,(gen-type (second to)))
               (dest . ,(first to))
               (value . ,(second from)))))
 
     (define (value? instr)
         (and (eq? (first instr) 'set)
              (memq (first (third instr))
-                '(add mul sub div eq lt gt le ge not and or))))
+                '(add mul sub div eq lt gt le ge not and or alloc load ptradd id))))
 
     (define (gen-value-instr instr)
         (let ((to (second instr))
               (from (third instr)))
             `((op . ,(first from))
-              (type . ,(second to))
+              (type . ,(gen-type (second to)))
               (dest . ,(first to))
               (args . ,(list->vector (rest from))))))
 
@@ -81,7 +86,7 @@
         (let ((to (second instr))
               (from (third instr)))
             `((op . call)
-              (type . ,(second to))
+              (type . ,(gen-type (second to)))
               (dest . ,(first to))
               (funcs . ,(vector (second from)))
               (args . ,(list->vector (rest (rest from)))))))
@@ -113,6 +118,13 @@
     (define (gen-nop-instr instr)
         `((op . nop)))
 
+    (define (store? instr)
+        (eq? (first instr) 'store))
+
+    (define (gen-store-instr instr)
+        `((op . store)
+          (args . ,(list->vector (rest instr)))))
+
     (cond
         ((const? instr) (gen-const-instr instr))
         ((value? instr) (gen-value-instr instr))
@@ -122,6 +134,7 @@
         ((label? instr) (gen-label-instr instr))
         ((br? instr) (gen-br-instr instr))
         ((nop? instr) (gen-nop-instr instr))
+        ((store? instr) (gen-store-instr instr))
         (else (error "unknown instruction: " instr))))
 
 (bril (rest (read)))
