@@ -62,7 +62,7 @@
     (define (value? instr)
         (and (eq? (first instr) 'set)
              (memq (first (third instr))
-                '(add mul sub div eq lt gt le ge not and or alloc load ptradd))))
+                '(add mul sub div eq lt gt le ge not and or alloc load ptradd id))))
 
     (define (gen-value-instr instr)
         (let ((to (second instr))
