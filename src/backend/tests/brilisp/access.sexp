@@ -1,7 +1,7 @@
 (brilisp
     (bril-define ((print int) (n int)))
 
-    (bril-define ((main void))
+    (bril-define ((main int))
         (set (inc int) (const 1))
         (set (v int) (const 4545454))
         (set (max int) (const 8989898))
@@ -17,4 +17,4 @@
 
         (label end)
         (set (tmp int) (call print count))
-        (ret)))
+        (ret tmp)))

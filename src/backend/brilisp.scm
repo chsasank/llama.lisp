@@ -43,7 +43,7 @@
 
 (define (gen-type type)
     (if (list? type)
-        `((,(first type) . ,(second type)))
+        `((,(first type) . ,(gen-type (second type))))
         type))
 
 (define (gen-instr instr)
