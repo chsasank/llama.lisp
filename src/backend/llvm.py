@@ -56,6 +56,8 @@ class LLVMCodeGenerator(object):
             return ir.VoidType()
         elif type == "bool":
             return ir.IntType(1)
+        elif type == "float":
+            return ir.DoubleType()
         else:
             raise CodegenError(f"Unknown type {type}")
 
@@ -81,6 +83,10 @@ class LLVMCodeGenerator(object):
             "not": "not_",
             "and": "and_",
             "or": "or_",
+            "fadd": "fadd",
+            "fsub": "fsub",
+            "fmul": "fmul",
+            "fdiv": "fdiv",
         }
 
         cmp_ops = {
@@ -90,6 +96,15 @@ class LLVMCodeGenerator(object):
             "le": "<=",
             "ge": ">=",
             "neq": "!=",
+        }
+
+        fcmp_ops = {
+            "feq": "==",
+            "flt": "<",
+            "fgt": ">",
+            "fle": "<=",
+            "fge": ">=",
+            "fneq": "!=",
         }
 
         def gen_label(instr):
@@ -147,6 +162,18 @@ class LLVMCodeGenerator(object):
             self.gen_symbol_store(
                 instr.dest,
                 llvm_instr(*[self.gen_var(arg) for arg in instr.args], name=instr.dest),
+            )
+
+        def gen_fcomp(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.fcmp_ordered(
+                    cmpop=fcmp_ops[instr.op],
+                    lhs=self.gen_var(instr.args[0]),
+                    rhs=self.gen_var(instr.args[1]),
+                    name=instr.dest,
+                ),
             )
 
         def gen_comp(instr):
@@ -226,6 +253,8 @@ class LLVMCodeGenerator(object):
                     gen_value(instr)
                 elif instr.op in cmp_ops:
                     gen_comp(instr)
+                elif instr.op in fcmp_ops:
+                    gen_fcomp(instr)
                 else:
                     raise CodegenError(f"Unknown op in the instruction: {dict(instr)}")
             except Exception as e:
