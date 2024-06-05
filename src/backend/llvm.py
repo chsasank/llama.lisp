@@ -95,7 +95,7 @@ class LLVMCodeGenerator(object):
             "gt": ">",
             "le": "<=",
             "ge": ">=",
-            "neq": "!=",
+            "ne": "!=",
         }
 
         fcmp_ops = {
@@ -104,7 +104,7 @@ class LLVMCodeGenerator(object):
             "fgt": ">",
             "fle": "<=",
             "fge": ">=",
-            "fneq": "!=",
+            "fne": "!=",
         }
 
         def gen_label(instr):
