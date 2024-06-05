@@ -5,7 +5,7 @@ int print(int x){
     return x;
 }
 
-double fprint(double x) {
-    printf("%.17f\n", x);
+float fprint(float x) {
+    printf("%f\n", x);
     return x;
 }

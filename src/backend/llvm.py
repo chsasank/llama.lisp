@@ -57,7 +57,7 @@ class LLVMCodeGenerator(object):
         elif type == "bool":
             return ir.IntType(1)
         elif type == "float":
-            return ir.DoubleType()
+            return ir.FloatType()
         else:
             raise CodegenError(f"Unknown type {type}")
 
