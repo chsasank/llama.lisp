@@ -39,11 +39,13 @@
 ;; instructions (even if it's just one instruction).
 ;; The result of a list of Brilisp expressions is stored
 ;; in object property res-sym.
+
 (define (emit-set name type op args)
     (create-ins-list
         name
         `((set (,name ,type) ,(append `(,op) args)))))
 
+;; Expressions
 (define (emit-expr expr)
     (cond
         ((symbol? expr) (emit-id-expr expr))
@@ -103,10 +105,31 @@
         arg-ins-list
         (emit-set res 'int 'call (append `(,(list-ref expr 1)) arg-syms))))
 
+;; Statements
+(define (emit-stmt stmt)
+    (cond
+        ((list? (first stmt)) (emit-compound-stmt stmt))
+        (else (emit-expr stmt))))
+
+(define (emit-compound-stmt stmt)
+    (apply
+        append
+        (map
+            (lambda (s) (emit-stmt s))
+            stmt)))
+
+;; (display
+;;     (emit-expr
+;;         '(set res
+;;             (/
+;;                 (set a (* 4 6))
+;;                 (call add3 1 2 3)))))
 
 (display
-    (emit-expr
-        '(set res
-            (/
-                (set a (* 4 6))
-                (call add3 1 2 3)))))
+    (emit-stmt '(
+        (set in1 5)
+        (set in2 6)
+        (set res (* in1 in2))
+        (call print in1)
+        (call print in2)
+        (call print res))))
