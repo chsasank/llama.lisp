@@ -1,7 +1,7 @@
 (brilisp
-    (bril-define ((print int) (n int)))
+    (define ((print int) (n int)))
 
-    (bril-define ((main int))
+    (define ((main int))
         (set (len int) (const 10))
         (set (arr (ptr int)) (alloc len))
         (set (sum int) (const 0))

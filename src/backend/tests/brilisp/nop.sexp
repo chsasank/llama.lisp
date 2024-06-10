@@ -1,7 +1,7 @@
 (brilisp
-    (bril-define ((print int) (n int)))
+    (define ((print int) (n int)))
 
-    (bril-define ((main void))
+    (define ((main void))
         (nop)
         (set (v int) (const 5))
         (nop)

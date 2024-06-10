@@ -1,27 +1,27 @@
 (brilisp
-    (bril-define ((print int) (n int)))
+    (define ((print int) (n int)))
 
-    (bril-define ((elem int) (i int) (j int))
+    (define ((elem int) (i int) (j int))
         (set (two int) (const 2))
         (set (j int) (mul j two))
         (set (i int) (add i j))
         (ret i))
 
-    (bril-define ((arr_read int) (arr (ptr (ptr int))) (i int) (j int))
+    (define ((arr_read int) (arr (ptr (ptr int))) (i int) (j int))
         (set (p (ptr (ptr int))) (ptradd arr i))
         (set (r (ptr int)) (load p))
         (set (p (ptr int)) (ptradd r j))
         (set (v int) (load p))
         (ret v))
 
-    (bril-define ((arr_write void) (arr (ptr (ptr int))) (i int) (j int) (v int))
+    (define ((arr_write void) (arr (ptr (ptr int))) (i int) (j int) (v int))
         (set (p (ptr (ptr int))) (ptradd arr i))
         (set (r (ptr int)) (load p))
         (set (p (ptr int)) (ptradd r j))
         (store p v)
         (ret))
 
-    (bril-define ((main void))
+    (define ((main void))
         (set (one int) (const 1))
         (set (three int) (const 3))
         (set (arr (ptr (ptr int))) (alloc three))

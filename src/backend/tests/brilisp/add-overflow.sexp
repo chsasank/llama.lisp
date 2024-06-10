@@ -1,7 +1,7 @@
 (brilisp
-    (bril-define ((print int) (n int)))
+    (define ((print int) (n int)))
 
-    (bril-define ((pow int) (base int) (ex int))
+    (define ((pow int) (base int) (ex int))
         (set (out int) (const 1))
         (set (one int) (const 1))
 
@@ -17,7 +17,7 @@
         (label ret)
         (ret out))
 
-    (bril-define ((main int))
+    (define ((main int))
         (set (one int) (const 1))
         (set (two int) (const 2))
         (set (thiry int) (const 30))

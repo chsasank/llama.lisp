@@ -1,7 +1,7 @@
 (brilisp
-    (bril-define ((print int) (n int)))
+    (define ((print int) (n int)))
 
-    (bril-define ((print_bool int) (b bool))
+    (define ((print_bool int) (b bool))
         (set (T int) (const 1))
         (set (F int) (const 0))
         (br b print_true print_false)
@@ -12,7 +12,7 @@
         (set (tmp int) (call print F))
         (ret tmp))
 
-    (bril-define ((main int))
+    (define ((main int))
         (set (v int) (const 4))
         (set (o1 int) (const 1))
         (set (bp (ptr bool)) (alloc v))

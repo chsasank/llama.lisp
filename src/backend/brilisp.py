@@ -7,7 +7,7 @@ def is_list(x):
 
 
 def is_function(expr):
-    return isinstance(expr, list) and (expr[0] == "bril-define")
+    return isinstance(expr, list) and (expr[0] == "define")
 
 
 def gen_function(expr):
