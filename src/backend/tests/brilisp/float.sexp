@@ -1,7 +1,7 @@
 (brilisp
-    (bril-define ((fprint float) (n float)))
+    (define ((fprint float) (n float)))
 
-    (bril-define ((main void))
+    (define ((main void))
         (set (v0 float) (const 9.0))
         (set (v1 float) (const -20.0))
         (set (res float) (fdiv v0 v1))

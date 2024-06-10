@@ -1,7 +1,7 @@
 (brilisp
-    (bril-define ((print bool) (b bool)))
+    (define ((print bool) (b bool)))
 
-    (bril-define ((main void))
+    (define ((main void))
         (set (v1 int) (const 50))
         (set (v2 int) (const 51))
 
