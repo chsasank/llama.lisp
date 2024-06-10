@@ -19,21 +19,25 @@
 (define (get-arith-op expr)
     (assq-ref arith-ops expr))
 
-(define (emit-set name type op args)
-    (define ins `((set (,name ,type) ,(append `(,op) args))))
-    (set! (res-sym ins) name)
-    ins)
+(define (call? expr)
+    (eq? (first expr) 'call))
 
 
 ;; Procedures to emit code
 ;; Each procedure here returns a list containing complete Brilisp
 ;; instructions (even if it's just one instruction).
+(define (emit-set name type op args)
+    (define ins `((set (,name ,type) ,(append `(,op) args))))
+    (set! (res-sym ins) name)
+    ins)
+
 (define (emit-expr expr)
     (cond
         ((symbol? expr) (emit-id-expr expr))
         ((number? expr) (emit-const-int-expr expr))
         ((get-arith-op (first expr)) (emit-arith-expr expr))
-        ((symbol? (first expr)) (emit-call-expr expr))))
+        ((call? expr) (emit-call-expr expr))
+        (else (error "Bad syntax:" expr))))
 
 (define (emit-arith-expr expr)
     (let ((op (get-arith-op (first expr)))
@@ -68,13 +72,13 @@
                 arg-ins-list
                 arg-ins
                 (emit-set arg-sym 'int 'id `(,(res-sym arg-ins))))))
-        (list-tail expr 1))
+        (list-tail expr 2))
     (define ins (append
         arg-ins-list
-        (emit-set res 'int 'call (append `(,(first expr)) arg-syms))))
+        (emit-set res 'int 'call (append `(,(list-ref expr 1)) arg-syms))))
     (set! (res-sym ins) res)
     ins)
 
 (display
     (emit-expr
-        '(print (/ (* 4 6) (add3 1 2 3)))))
+        '(call print (/ (* 4 6) (call add3 1 2 3)))))
