@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
-import random
-import string
+from utils.random_names import random_label
 
 
 class CodegenError(Exception):
@@ -15,12 +14,6 @@ def c_lisp(prog):
         raise CodegenError("Input not a C-Lisp program")
 
     return ["brilisp"] + [gen_function(fn) for fn in prog[1:]]
-
-
-def get_tmp_sym():
-    return "tmp_clisp_" + "".join(
-        [random.choice(string.ascii_letters) for i in range(6)]
-    )
 
 
 def gen_type(typ):
@@ -40,7 +33,7 @@ def gen_function(func):
 
 def gen_stmt(stmt):
     if not stmt:
-        return [] #  Null statement
+        return []  #  Null statement
     elif is_compound_stmt(stmt):
         return gen_compound_stmt(stmt)
     elif is_ret_stmt(stmt):
@@ -52,25 +45,31 @@ def gen_stmt(stmt):
 def is_ret_stmt(stmt):
     return stmt[0] == "ret"
 
+
 def gen_ret_stmt(stmt):
     if len(stmt) == 1:
         return ["ret"]
     elif len(stmt) == 2:
-        res_sym = get_tmp_sym()
-        instr_list = gen_expr(stmt[1], res_sym = res_sym)
+        res_sym = random_label("tmp_clisp")
+        instr_list = gen_expr(stmt[1], res_sym=res_sym)
         instr_list.append(["ret", res_sym])
         return instr_list
     else:
-        raise CodegenError(f"Return statement can contain only 1 optional return value: {stmt}")
+        raise CodegenError(
+            f"Return statement can contain only 1 optional return value: {stmt}"
+        )
+
 
 def is_compound_stmt(stmt):
     return isinstance(stmt, list) and isinstance(stmt[0], list)
+
 
 def gen_compound_stmt(stmt):
     instr_list = []
     for s in stmt:
         instr_list += gen_stmt(s)
     return instr_list
+
 
 def is_set_expr(expr):
     return expr[0] == "set"
@@ -81,29 +80,34 @@ def gen_set_expr(expr, res_sym):
     instr_list.append(["set", expr[1], ["id", res_sym]])
     return instr_list
 
+
 def get_literal_type(expr):
     if isinstance(expr, int):
         return "int"
     else:
         return False
 
+
 def gen_literal_expr(expr, res_sym):
     return [["set", [res_sym, get_literal_type(expr)], ["const", expr]]]
 
+
 def is_call_expr(expr):
     return expr[0] == "call"
+
 
 def gen_call_expr(expr, res_sym):
     instr_list = []
     arg_syms = []
     for arg in expr[2:]:
-        arg_sym = get_tmp_sym()
+        arg_sym = random_label("tmp_clisp")
         arg_syms.append(arg_sym)
         instr_list += gen_expr(arg, res_sym=arg_sym)
     instr_list.append(["set", [res_sym, "int"], ["call", expr[1], *arg_syms]])
     return instr_list
 
-def gen_expr(expr, res_sym=get_tmp_sym()):
+
+def gen_expr(expr, res_sym=random_label("tmp_clisp")):
     if get_literal_type(expr):
         return gen_literal_expr(expr, res_sym)
     elif is_set_expr(expr):
