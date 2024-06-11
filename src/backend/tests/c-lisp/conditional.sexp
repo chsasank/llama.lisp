@@ -2,14 +2,11 @@
     (define ((print int) (n int)))
 
     (define ((main int))
-        (if
-            #t
+        (if #t
             ((call print 1)
              (call print 2)))
 
-        (if
-            #f
+        (if #f
             ((call print 0))
-            else
             ((call print 3)))
-            (ret 0)))
+             (ret 0)))

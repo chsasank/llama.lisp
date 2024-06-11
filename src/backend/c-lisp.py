@@ -71,8 +71,10 @@ def gen_if_stmt(stmt):
     true_instr_list = gen_stmt(stmt[2])
     if len(stmt) == 3:
         false_instr_list = []
-    elif len(stmt) == 5 and stmt[3] == "else":
-        false_instr_list = gen_stmt(stmt[4])
+    elif len(stmt) == 4:
+        false_instr_list = gen_stmt(stmt[3])
+    else:
+        raise CodegenError(f"Bad if statement: {stmt}")
 
     return [
         *cond_instr_list,
@@ -147,7 +149,11 @@ def get_literal_type(expr):
     elif isinstance(expr, int):
         return "int"
     else:
-        return False
+        return None
+
+
+def is_literal_expr(expr):
+    return not (get_literal_type(expr) is None)
 
 
 def gen_literal_expr(expr, res_sym):
@@ -181,7 +187,7 @@ def gen_var_expr(expr, res_sym):
 
 
 def gen_expr(expr, res_sym=random_label("tmp_clisp")):
-    if get_literal_type(expr):
+    if is_literal_expr(expr):
         return gen_literal_expr(expr, res_sym)
     elif is_set_expr(expr):
         return gen_set_expr(expr, res_sym)
