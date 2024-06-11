@@ -45,6 +45,8 @@ def gen_stmt(stmt):
                 return gen_ret_stmt(stmt)
             elif is_decl_stmt(stmt):
                 return gen_decl_stmt(stmt)
+            elif is_if_stmt(stmt):
+                return gen_if_stmt(stmt)
             else:
                 return gen_expr(stmt)
         else:
@@ -54,8 +56,39 @@ def gen_stmt(stmt):
         raise e
 
 
+def is_if_stmt(stmt):
+    return stmt[0] == "if"
+
+
+def gen_if_stmt(stmt):
+    rand_suffix = random_label()
+    cond_sym = "tmp_clisp_" + rand_suffix
+    true_lbl = "lbl_true_clisp_" + rand_suffix
+    false_lbl = "lbl_false_clisp_" + rand_suffix
+    out_lbl = "lbl_out_clisp_" + rand_suffix
+
+    cond_instr_list = gen_expr(stmt[1], res_sym=cond_sym)
+    true_instr_list = gen_stmt(stmt[2])
+    if len(stmt) == 3:
+        false_instr_list = []
+    elif len(stmt) == 5 and stmt[3] == "else":
+        false_instr_list = gen_stmt(stmt[4])
+
+    return [
+        *cond_instr_list,
+        ["br", cond_sym, true_lbl, false_lbl],
+        ["label", true_lbl],
+        *true_instr_list,
+        ["jmp", out_lbl],
+        ["label", false_lbl],
+        *false_instr_list,
+        ["label", out_lbl],
+    ]
+
+
 def is_decl_stmt(stmt):
     return stmt[0] == "declare"
+
 
 def gen_decl_stmt(stmt):
     if not (len(stmt) == 2 and len(stmt[1]) == 2):
@@ -109,7 +142,9 @@ def gen_set_expr(expr, res_sym):
 
 
 def get_literal_type(expr):
-    if isinstance(expr, int):
+    if isinstance(expr, bool):
+        return "bool"
+    elif isinstance(expr, int):
         return "int"
     else:
         return False
@@ -136,6 +171,7 @@ def gen_call_expr(expr, res_sym):
 
 def is_var_expr(expr):
     return isinstance(expr, str)
+
 
 def gen_var_expr(expr, res_sym):
     if expr in symbol_types:
