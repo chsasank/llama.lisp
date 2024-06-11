@@ -2,4 +2,6 @@
     (define ((print int) (n int)))
 
     (define ((main int))
-        (ret (set (res int) (call print 5)))))
+        (declare (res int))
+        (set res (call print 5))
+        (ret 0)))

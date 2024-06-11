@@ -8,6 +8,9 @@ class CodegenError(Exception):
     pass
 
 
+symbol_types = {}
+
+
 def c_lisp(prog):
     """Entry point to C-Lisp compiler"""
     if not prog[0] == "c-lisp":
@@ -32,14 +35,34 @@ def gen_function(func):
 
 
 def gen_stmt(stmt):
-    if not stmt:
-        return []  #  Null statement
-    elif is_compound_stmt(stmt):
-        return gen_compound_stmt(stmt)
-    elif is_ret_stmt(stmt):
-        return gen_ret_stmt(stmt)
-    else:
-        return gen_expr(stmt)
+    try:
+        if isinstance(stmt, list):
+            if not stmt:
+                return []  #  Null statement
+            elif is_compound_stmt(stmt):
+                return gen_compound_stmt(stmt)
+            elif is_ret_stmt(stmt):
+                return gen_ret_stmt(stmt)
+            elif is_decl_stmt(stmt):
+                return gen_decl_stmt(stmt)
+            else:
+                return gen_expr(stmt)
+        else:
+            return gen_expr(stmt)
+    except Exception as e:
+        print(f"Error in statement: {stmt}")
+        raise e
+
+
+def is_decl_stmt(stmt):
+    return stmt[0] == "declare"
+
+def gen_decl_stmt(stmt):
+    if not (len(stmt) == 2 and len(stmt[1]) == 2):
+        raise CodegenError(f"bad declare statement: {stmt}")
+
+    symbol_types[stmt[1][0]] = stmt[1][1]
+    return []
 
 
 def is_ret_stmt(stmt):
@@ -76,8 +99,12 @@ def is_set_expr(expr):
 
 
 def gen_set_expr(expr, res_sym):
+    name = expr[1]
+    if not name in symbol_types:
+        raise CodegenError(f"Cannot set undeclared variable: {name}")
+
     instr_list = gen_expr(expr[2], res_sym=res_sym)
-    instr_list.append(["set", expr[1], ["id", res_sym]])
+    instr_list.append(["set", [name, symbol_types[name]], ["id", res_sym]])
     return instr_list
 
 
@@ -107,6 +134,16 @@ def gen_call_expr(expr, res_sym):
     return instr_list
 
 
+def is_var_expr(expr):
+    return isinstance(expr, str)
+
+def gen_var_expr(expr, res_sym):
+    if expr in symbol_types:
+        return [["set", [res_sym, symbol_types[expr]], ["id", expr]]]
+    else:
+        raise CodegenError(f"Reference to undeclared variable: {expr}")
+
+
 def gen_expr(expr, res_sym=random_label("tmp_clisp")):
     if get_literal_type(expr):
         return gen_literal_expr(expr, res_sym)
@@ -114,8 +151,10 @@ def gen_expr(expr, res_sym=random_label("tmp_clisp")):
         return gen_set_expr(expr, res_sym)
     elif is_call_expr(expr):
         return gen_call_expr(expr, res_sym)
+    elif is_var_expr(expr):
+        return gen_var_expr(expr, res_sym)
     else:
-        raise CodegenError(f"Expected an expression: {expr}")
+        raise CodegenError(f"Bad expression: {expr}")
 
 
 if __name__ == "__main__":
