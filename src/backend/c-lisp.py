@@ -142,7 +142,10 @@ class BrilispCodeGenerator:
         if not (len(stmt) == 2 and len(stmt[1]) == 2):
             raise CodegenError(f"bad declare statement: {stmt}")
 
-        self.symbol_types[stmt[1][0]] = stmt[1][1]
+        name, typ = stmt[1]
+        if name in self.symbol_types:
+            raise CodegenError(f"Re-declaration of variable {name}")
+        self.symbol_types[name] = typ
         return []
 
     def is_ret_stmt(self, stmt):
