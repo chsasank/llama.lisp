@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
-from utils.random_names import random_label
+from utils.utils import random_label
 
 
 class CodegenError(Exception):
@@ -82,11 +82,9 @@ class BrilispCodeGenerator:
         return stmt[0] == "if"
 
     def gen_if_stmt(self, stmt):
-        rand_suffix = random_label()
-        cond_sym = "tmp_clisp_" + rand_suffix
-        true_lbl = "lbl_true_clisp_" + rand_suffix
-        false_lbl = "lbl_false_clisp_" + rand_suffix
-        out_lbl = "lbl_out_clisp_" + rand_suffix
+        cond_sym, true_lbl, false_lbl, out_lbl = random_label(
+            "tmp_clisp", "lbl_true_clisp", "lbl_false_clisp", "lbl_out_clisp"
+        )
 
         cond_instr_list = self.gen_expr(stmt[1], res_sym=cond_sym)
         true_instr_list = self.gen_stmt(stmt[2])
@@ -202,8 +200,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Binary operation takes only 2 operands: {expr}")
 
         instr_list = []
-        rand_sym = random_label()
-        in1_sym, in2_sym = "tmp_clisp_op1" + rand_sym, "tmp_clisp_op2" + rand_sym
+        in1_sym, in2_sym = random_label("tmp_clisp_in1", "tmp_clisp_in2")
         opcode, typ = self.binary_ops[expr[0]]
         return [
             *self.gen_expr(expr[1], in1_sym),
