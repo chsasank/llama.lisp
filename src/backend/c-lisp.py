@@ -10,7 +10,9 @@ class CodegenError(Exception):
 
 class BrilispCodeGenerator:
     def __init__(self):
-        self.symbol_types = {}
+        # Type tracking
+        self.symbol_types = {}  # Variable name -> type
+        self.function_types = {}  # Function name > (ret-type, (arg-types...))
 
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
@@ -19,13 +21,20 @@ class BrilispCodeGenerator:
 
         return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
 
-    def gen_type(self, typ):
-        return typ
-
     def gen_function(self, func):
         if not func[0] == "define":
             raise CodegenError(f"Not a function: {func}")
 
+        for elem in func[1]:
+            if not len(elem) == 2:
+                raise CodegenError(f"Bad function prototype: {func[1]}")
+
+        name, ret_type = func[1][0]
+        parm_types = []
+        for parm in func[1][1:]:
+            parm_types.append(parm[1])
+            self.symbol_types[parm[0]] = parm[1]
+        self.function_types[name] = [ret_type, parm_types]
         return [
             "define",
             func[1],
@@ -98,7 +107,7 @@ class BrilispCodeGenerator:
 
     def gen_ret_stmt(self, stmt):
         if len(stmt) == 1:
-            return ["ret"]
+            return [["ret"]]
         elif len(stmt) == 2:
             res_sym = random_label("tmp_clisp")
             instr_list = self.gen_expr(stmt[1], res_sym=res_sym)
@@ -154,7 +163,10 @@ class BrilispCodeGenerator:
             arg_sym = random_label("tmp_clisp")
             arg_syms.append(arg_sym)
             instr_list += self.gen_expr(arg, res_sym=arg_sym)
-        instr_list.append(["set", [res_sym, "int"], ["call", expr[1], *arg_syms]])
+        name = expr[1]
+        instr_list.append(
+            ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]
+        )
         return instr_list
 
     def is_var_expr(self, expr):
