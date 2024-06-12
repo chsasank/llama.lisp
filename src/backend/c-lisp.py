@@ -70,6 +70,8 @@ class BrilispCodeGenerator:
                     return self.gen_decl_stmt(stmt)
                 elif self.is_if_stmt(stmt):
                     return self.gen_if_stmt(stmt)
+                elif self.is_for_stmt(stmt):
+                    return self.gen_for_stmt(stmt)
                 else:
                     return self.gen_expr(stmt)
             else:
@@ -77,6 +79,33 @@ class BrilispCodeGenerator:
         except Exception as e:
             print(f"Error in statement: {stmt}")
             raise e
+
+    def is_for_stmt(self, stmt):
+        return stmt[0] == "for"
+
+    def gen_for_stmt(self, stmt):
+        if not len(stmt) == 5:
+            raise CodegenError(f"Bad for statement: {stmt}")
+
+        cond_sym, loop_lbl, cont_lbl, break_lbl = random_label(
+            "tmp_clisp_cond", "tmp_clisp_loop", "tmp_clisp_cont", "tmp_clisp_break"
+        )
+        init_expr_instr = self.gen_expr(stmt[1])
+        cond_expr_instr = self.gen_expr(stmt[2], res_sym=cond_sym)
+        iter_expr_instr = self.gen_expr(stmt[3])
+        loop_stmt_instr = self.gen_stmt(stmt[4])
+
+        return [
+            *init_expr_instr,
+            ["label", loop_lbl],
+            *cond_expr_instr,
+            ["br", cond_sym, cont_lbl, break_lbl],
+            ["label", cont_lbl],
+            *loop_stmt_instr,
+            *iter_expr_instr,
+            ["jmp", loop_lbl],
+            ["label", break_lbl],
+        ]
 
     def is_if_stmt(self, stmt):
         return stmt[0] == "if"
