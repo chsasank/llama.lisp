@@ -14,6 +14,22 @@ class BrilispCodeGenerator:
         self.symbol_types = {}  # Variable name -> type
         self.function_types = {}  # Function name > (ret-type, (arg-types...))
 
+        self.binary_ops = {
+            # <op>: (<bril opcode>, <result type>)
+            # Integer arithmetic
+            "+": ("add", "int"),
+            "-": ("sub", "int"),
+            "*": ("mul", "int"),
+            "/": ("div", "int"),
+            # Comparison
+            "<": ("lt", "bool"),
+            ">": ("gt", "bool"),
+            "<=": ("ge", "bool"),
+            ">=": ("le", "bool"),
+            "==": ("eq", "bool"),
+            "!=": ("ge", "bool"),
+        }
+
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
         if not prog[0] == "c-lisp":
@@ -178,6 +194,23 @@ class BrilispCodeGenerator:
         else:
             raise CodegenError(f"Reference to undeclared variable: {expr}")
 
+    def is_binary_expr(self, expr):
+        return expr[0] in self.binary_ops
+
+    def gen_binary_expr(self, expr, res_sym):
+        if not len(expr) == 3:
+            raise CodegenError(f"Binary operation takes only 2 operands: {expr}")
+
+        instr_list = []
+        rand_sym = random_label()
+        in1_sym, in2_sym = "tmp_clisp_op1" + rand_sym, "tmp_clisp_op2" + rand_sym
+        opcode, typ = self.binary_ops[expr[0]]
+        return [
+            *self.gen_expr(expr[1], in1_sym),
+            *self.gen_expr(expr[2], in2_sym),
+            ["set", [res_sym, typ], [opcode, in1_sym, in2_sym]],
+        ]
+
     def gen_expr(self, expr, res_sym=random_label("tmp_clisp")):
         if self.is_literal_expr(expr):
             return self.gen_literal_expr(expr, res_sym)
@@ -187,6 +220,8 @@ class BrilispCodeGenerator:
             return self.gen_call_expr(expr, res_sym)
         elif self.is_var_expr(expr):
             return self.gen_var_expr(expr, res_sym)
+        elif self.is_binary_expr(expr):
+            return self.gen_binary_expr(expr, res_sym)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 
