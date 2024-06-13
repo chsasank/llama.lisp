@@ -8,9 +8,9 @@
 
         (set five 5)
         (set twenty 20)
-        (set res (==
-                    (* five 6)
-                    (+ 10 twenty)))
+        (set res (eq
+                    (mul five 6)
+                    (add 10 twenty)))
 
         (if res
             (call print 0))

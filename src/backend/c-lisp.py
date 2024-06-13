@@ -14,20 +14,32 @@ class BrilispCodeGenerator:
         self.symbol_types = {}  # Variable name -> type
         self.function_types = {}  # Function name > (ret-type, (arg-types...))
 
-        self.binary_ops = {
-            # <op>: (<bril opcode>, <result type>)
+        self.binary_op_types = {
+            # <opcode>: <result type>
             # Integer arithmetic
-            "+": ("add", "int"),
-            "-": ("sub", "int"),
-            "*": ("mul", "int"),
-            "/": ("div", "int"),
-            # Comparison
-            "<": ("lt", "bool"),
-            ">": ("gt", "bool"),
-            "<=": ("ge", "bool"),
-            ">=": ("le", "bool"),
-            "==": ("eq", "bool"),
-            "!=": ("ge", "bool"),
+            "add": "int",
+            "sub": "int",
+            "mul": "int",
+            "div": "int",
+            # Integer comparison
+            "eq": "bool",
+            "ne": "bool",
+            "lt": "bool",
+            "gt": "bool",
+            "le": "bool",
+            "ge": "bool",
+            # Floating-point arithmetic
+            "fadd": "float",
+            "fsub": "float",
+            "fmul": "float",
+            "fdiv": "float",
+            # Floating-point comparison
+            "feq": "bool",
+            "fne": "bool",
+            "flt": "bool",
+            "fgt": "bool",
+            "fle": "bool",
+            "fge": "bool",
         }
 
     def c_lisp(self, prog):
@@ -225,7 +237,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Reference to undeclared variable: {expr}")
 
     def is_binary_expr(self, expr):
-        return expr[0] in self.binary_ops
+        return expr[0] in self.binary_op_types
 
     def gen_binary_expr(self, expr, res_sym):
         if not len(expr) == 3:
@@ -233,7 +245,8 @@ class BrilispCodeGenerator:
 
         instr_list = []
         in1_sym, in2_sym = random_label("tmp_clisp_in1", "tmp_clisp_in2")
-        opcode, typ = self.binary_ops[expr[0]]
+        opcode = expr[0]
+        typ = self.binary_op_types[opcode]
         return [
             *self.gen_expr(expr[1], in1_sym),
             *self.gen_expr(expr[2], in2_sym),
