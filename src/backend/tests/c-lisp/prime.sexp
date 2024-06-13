@@ -25,12 +25,12 @@
         (declare (not-prime bool))
         (set not-prime #f)
 
-        (for (set i 2) (le (call square i) n) (set i (add i 1))
-            ((set iter i)
-             (set not-prime
+        (for ((set i 2) (le (call square i) n) (set i (add i 1)))
+            (set iter i)
+            (set not-prime
                  (ne (call gcd i n) 1))
-             (if not-prime
-                (set i n))))
+            (if not-prime
+                (set i n))) ; TODO: Use break when implemented
 
         (call print iter)
         (if not-prime
