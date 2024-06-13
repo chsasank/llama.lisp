@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 import json
 import sys
-from utils.utils import random_label
+import utils.utils
+
+CLISP_PREFIX = "tmp_clisp"
+
+
+def random_label(prefix=CLISP_PREFIX, extra_prefixes=[], length=10):
+    return utils.utils.random_label(prefix, extra_prefixes, length)
 
 
 class CodegenError(Exception):
@@ -268,7 +274,8 @@ class BrilispCodeGenerator:
             ["set", [res_sym, typ], [opcode, in1_sym, in2_sym]],
         ]
 
-    def gen_expr(self, expr, res_sym=random_label("tmp_clisp")):
+    def gen_expr(self, expr, res_sym=None):
+        res_sym = res_sym or random_label("tmp_clisp")
         if self.is_literal_expr(expr):
             return self.gen_literal_expr(expr, res_sym)
         elif self.is_set_expr(expr):
