@@ -57,6 +57,7 @@ class BrilispCodeGenerator:
             if not len(elem) == 2:
                 raise CodegenError(f"Bad function prototype: {func[1]}")
 
+        self.symbol_types = {} # Clear the symbol table
         name, ret_type = func[1][0]
         parm_types = []
         for parm in func[1][1:]:
