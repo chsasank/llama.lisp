@@ -101,12 +101,12 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad for statement: {stmt}")
 
         cond_sym, loop_lbl, cont_lbl, break_lbl = [
-            random_label(prefix)
-            for prefix in (
-                "tmp_clisp_cond",
-                "tmp_clisp_loop",
-                "tmp_clisp_cont",
-                "tmp_clisp_break",
+            random_label("tmp_clisp", [extra])
+            for extra in (
+                "cond",
+                "loop",
+                "cont",
+                "break",
             )
         ]
         init_expr_instr = self.gen_expr(stmt[1][0])
@@ -131,12 +131,12 @@ class BrilispCodeGenerator:
 
     def gen_if_stmt(self, stmt):
         cond_sym, true_lbl, false_lbl, out_lbl = [
-            random_label(prefix)
-            for prefix in (
-                "tmp_clisp",
-                "lbl_true_clisp",
-                "lbl_false_clisp",
-                "lbl_out_clisp",
+            random_label("tmp_clisp", [extra])
+            for extra in (
+                "cond",
+                "lbl_true",
+                "lbl_false",
+                "lbl_out",
             )
         ]
 
@@ -258,7 +258,7 @@ class BrilispCodeGenerator:
 
         instr_list = []
         in1_sym, in2_sym = [
-            random_label(prefix) for prefix in ("tmp_clisp_in1", "tmp_clisp_in2")
+            random_label("tmp_clisp", [extra]) for extra in ("in1", "in2")
         ]
         opcode = expr[0]
         typ = self.binary_op_types[opcode]
