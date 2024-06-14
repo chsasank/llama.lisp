@@ -221,6 +221,8 @@ class BrilispCodeGenerator:
             return "bool"
         elif isinstance(expr, int):
             return "int"
+        elif isinstance(expr, float):
+            return "float"
         else:
             return None
 
