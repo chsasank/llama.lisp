@@ -19,10 +19,8 @@
             (declare (mid-pt float))
             (declare (loop bool))
 
-            (for ((set loop #t); TODO: Use `while` and `break` once implemented
-                  loop
-                  0)
-
+            (set loop #t)
+            (while loop
                 (set mid-pt
                      (fdiv (fadd pos-pt neg-pt) 2.0))
                 (set mid-val

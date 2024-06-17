@@ -87,6 +87,8 @@ class BrilispCodeGenerator:
                     return self.gen_if_stmt(stmt)
                 elif self.is_for_stmt(stmt):
                     return self.gen_for_stmt(stmt)
+                elif self.is_while_stmt(stmt):
+                    return self.gen_while_stmt(stmt)
                 else:
                     return self.gen_expr(stmt)
             else:
@@ -94,6 +96,35 @@ class BrilispCodeGenerator:
         except Exception as e:
             print(f"Error in statement: {stmt}")
             raise e
+
+    def is_while_stmt(self, stmt):
+        return stmt[0] == "while"
+
+    def gen_while_stmt(self, stmt):
+        if len(stmt) < 3:
+            raise CodegenError(f"Bad while statement: {stmt}")
+
+        cond_sym, loop_lbl, cont_lbl, break_lbl = [
+            random_label(CLISP_PREFIX, [extra])
+            for extra in (
+                "cond",
+                "loop",
+                "cont",
+                "break",
+            )
+        ]
+        cond_expr_instr = self.gen_expr(stmt[1], res_sym=cond_sym)
+        loop_stmt_instr = self.gen_stmt(stmt[2:])
+
+        return [
+            ["label", loop_lbl],
+            *cond_expr_instr,
+            ["br", cond_sym, cont_lbl, break_lbl],
+            ["label", cont_lbl],
+            *loop_stmt_instr,
+            ["jmp", loop_lbl],
+            ["label", break_lbl],
+        ]
 
     def is_for_stmt(self, stmt):
         return stmt[0] == "for"
