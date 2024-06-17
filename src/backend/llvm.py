@@ -10,7 +10,7 @@ import sys
 import json
 import munch
 import llvmlite.ir as ir
-from utils.utils import random_label
+from utils.random import random_label
 
 
 class CodegenError(Exception):

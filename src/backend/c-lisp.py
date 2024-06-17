@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
-from utils.utils import random_label
+from utils.random import random_label
 
 CLISP_PREFIX = "tmp_clisp"
 
