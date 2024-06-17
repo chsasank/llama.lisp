@@ -14,6 +14,7 @@ class BrilispCodeGenerator:
     def __init__(self):
         # Type tracking
         self.symbol_types = {}  # Variable name -> type
+        self.scopes = []  # Stack of scope tags
         self.function_types = {}  # Function name > (ret-type, (arg-types...))
 
         self.binary_op_types = {
@@ -51,6 +52,13 @@ class BrilispCodeGenerator:
 
         return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
 
+    def get_scoped_name(self, name):
+        for scope in self.scopes[::-1]:
+            scoped_name = f"{name}.{scope}"
+            if scoped_name in self.symbol_types:
+                return scoped_name
+        return f"{name}.{self.scopes[-1]}"
+
     def gen_function(self, func):
         if not func[0] == "define":
             raise CodegenError(f"Not a function: {func}")
@@ -59,18 +67,21 @@ class BrilispCodeGenerator:
             if not len(elem) == 2:
                 raise CodegenError(f"Bad function prototype: {func[1]}")
 
-        self.symbol_types = {}  # Clear the symbol table
+        # Clear the symbol table and scope stack
+        self.symbol_types = {}
+        self.scopes = [random_label(CLISP_PREFIX, ["scope"])]
+
         name, ret_type = func[1][0]
         parm_types = []
+        header = func[1][0:1]
         for parm in func[1][1:]:
-            parm_types.append(parm[1])
-            self.symbol_types[parm[0]] = parm[1]
+            typ = parm[1]
+            scoped_name = self.get_scoped_name(parm[0])
+            parm_types.append(typ)
+            self.symbol_types[scoped_name] = typ
+            header.append([scoped_name, typ])
         self.function_types[name] = [ret_type, parm_types]
-        return [
-            "define",
-            func[1],
-            *self.gen_stmt(func[2:]),
-        ]
+        return ["define", header, *self.gen_compound_stmt(func[2:], new_scope=False)]
 
     def gen_stmt(self, stmt):
         try:
@@ -201,9 +212,10 @@ class BrilispCodeGenerator:
             raise CodegenError(f"bad declare statement: {stmt}")
 
         name, typ = stmt[1]
-        if name in self.symbol_types:
+        scoped_name = f"{name}.{self.scopes[-1]}"
+        if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
-        self.symbol_types[name] = typ
+        self.symbol_types[scoped_name] = typ
         return []
 
     def is_ret_stmt(self, stmt):
@@ -225,10 +237,15 @@ class BrilispCodeGenerator:
     def is_compound_stmt(self, stmt):
         return isinstance(stmt, list) and isinstance(stmt[0], list)
 
-    def gen_compound_stmt(self, stmt):
+    def gen_compound_stmt(self, stmt, new_scope=True):
+        if new_scope:
+            scope = random_label(CLISP_PREFIX, ["scope"])
+            self.scopes.append(scope)
         instr_list = []
         for s in stmt:
             instr_list += self.gen_stmt(s)
+        if new_scope:
+            self.scopes.pop()
         return instr_list
 
     def is_set_expr(self, expr):
@@ -236,11 +253,14 @@ class BrilispCodeGenerator:
 
     def gen_set_expr(self, expr, res_sym):
         name = expr[1]
-        if not name in self.symbol_types:
+        scoped_name = self.get_scoped_name(name)
+        if not scoped_name in self.symbol_types:
             raise CodegenError(f"Cannot set undeclared variable: {name}")
 
         instr_list = self.gen_expr(expr[2], res_sym=res_sym)
-        instr_list.append(["set", [name, self.symbol_types[name]], ["id", res_sym]])
+        instr_list.append(
+            ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
+        )
         return instr_list
 
     def get_literal_type(self, expr):
@@ -279,8 +299,11 @@ class BrilispCodeGenerator:
         return isinstance(expr, str)
 
     def gen_var_expr(self, expr, res_sym):
-        if expr in self.symbol_types:
-            return [["set", [res_sym, self.symbol_types[expr]], ["id", expr]]]
+        scoped_name = self.get_scoped_name(expr)
+        if scoped_name in self.symbol_types:
+            return [
+                ["set", [res_sym, self.symbol_types[scoped_name]], ["id", scoped_name]]
+            ]
         else:
             raise CodegenError(f"Reference to undeclared variable: {expr}")
 
