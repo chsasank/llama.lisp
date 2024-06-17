@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 import json
 import sys
-import utils.utils
+from utils.utils import random_label
 
 CLISP_PREFIX = "tmp_clisp"
-
-
-def random_label(prefix=CLISP_PREFIX, extra_prefixes=[], length=10):
-    return utils.utils.random_label(prefix, extra_prefixes, length)
 
 
 class CodegenError(Exception):
@@ -107,7 +103,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad for statement: {stmt}")
 
         cond_sym, loop_lbl, cont_lbl, break_lbl = [
-            random_label("tmp_clisp", [extra])
+            random_label(CLISP_PREFIX, [extra])
             for extra in (
                 "cond",
                 "loop",
@@ -137,7 +133,7 @@ class BrilispCodeGenerator:
 
     def gen_if_stmt(self, stmt):
         cond_sym, true_lbl, false_lbl, out_lbl = [
-            random_label("tmp_clisp", [extra])
+            random_label(CLISP_PREFIX, [extra])
             for extra in (
                 "cond",
                 "lbl_true",
@@ -186,7 +182,7 @@ class BrilispCodeGenerator:
         if len(stmt) == 1:
             return [["ret"]]
         elif len(stmt) == 2:
-            res_sym = random_label("tmp_clisp")
+            res_sym = random_label(CLISP_PREFIX)
             instr_list = self.gen_expr(stmt[1], res_sym=res_sym)
             instr_list.append(["ret", res_sym])
             return instr_list
@@ -239,7 +235,7 @@ class BrilispCodeGenerator:
         instr_list = []
         arg_syms = []
         for arg in expr[2:]:
-            arg_sym = random_label("tmp_clisp")
+            arg_sym = random_label(CLISP_PREFIX)
             arg_syms.append(arg_sym)
             instr_list += self.gen_expr(arg, res_sym=arg_sym)
         name = expr[1]
@@ -266,7 +262,7 @@ class BrilispCodeGenerator:
 
         instr_list = []
         in1_sym, in2_sym = [
-            random_label("tmp_clisp", [extra]) for extra in ("in1", "in2")
+            random_label(CLISP_PREFIX, [extra]) for extra in ("in1", "in2")
         ]
         opcode = expr[0]
         typ = self.binary_op_types[opcode]
@@ -277,7 +273,7 @@ class BrilispCodeGenerator:
         ]
 
     def gen_expr(self, expr, res_sym=None):
-        res_sym = res_sym or random_label("tmp_clisp")
+        res_sym = res_sym or random_label(CLISP_PREFIX)
         if self.is_literal_expr(expr):
             return self.gen_literal_expr(expr, res_sym)
         elif self.is_set_expr(expr):
