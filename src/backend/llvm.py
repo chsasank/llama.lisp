@@ -10,8 +10,7 @@ import sys
 import json
 import munch
 import llvmlite.ir as ir
-import random
-import string
+from utils.random import random_label
 
 
 class CodegenError(Exception):
@@ -354,17 +353,6 @@ def main():
     code_gen = LLVMCodeGenerator()
     code_gen.generate(bril_prog)
     print(code_gen.module)
-
-
-def random_label(prefix="", length=10):
-    """
-    Return a random string of the form `prefix_XXXXXXXXXX`
-    """
-    return (
-        prefix
-        + "_"
-        + "".join([random.choice(string.ascii_letters) for i in range(length)])
-    )
 
 
 if __name__ == "__main__":
