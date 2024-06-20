@@ -44,6 +44,10 @@ class BrilispCodeGenerator:
             "fgt": "bool",
             "fle": "bool",
             "fge": "bool",
+            # Boolean logic
+            "and": "bool",
+            "or": "bool",
+            "not": "bool",
         }
 
     def c_lisp(self, prog):
