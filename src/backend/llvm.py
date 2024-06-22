@@ -32,6 +32,9 @@ class LLVMCodeGenerator(object):
         self.module = ir.Module()
         self.builder = None
 
+        # Table of struct types, maintained throughout the program
+        self.struct_types = {}  # struct type name -> ir.StructType instance
+
         # Manages a symbol table while a function is being codegen'd. Maps var
         # names to stack addresses allocated using `alloca` instruction
         self.func_alloca_symtab = {}  # symbol name -> memory address
@@ -40,6 +43,8 @@ class LLVMCodeGenerator(object):
         self.func_bbs = {}
 
     def generate(self, bril_prog):
+        for struct in bril_prog.structs:
+            self.gen_struct(struct)
         for fn in bril_prog.functions:
             self.gen_function(fn)
 
@@ -49,6 +54,8 @@ class LLVMCodeGenerator(object):
                 return self.gen_type(type["ptr"]).as_pointer()
             else:
                 raise CodegenError(f"Unknown type {type}")
+        elif type in self.struct_types:
+            return self.struct_types[type]
         elif type == "int":
             return ir.IntType(32)
         elif type == "void":
@@ -208,11 +215,17 @@ class LLVMCodeGenerator(object):
 
         def gen_ptradd(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            indices = []
+            for arg in instr.args[1:]:
+                if isinstance(arg, int):
+                    indices.append(ir.Constant(ir.IntType(32), arg))
+                else:
+                    indices.append(self.gen_var(arg))
             self.gen_symbol_store(
                 instr.dest,
                 self.builder.gep(
                     self.gen_var(instr.args[0]),
-                    [self.gen_var(arg) for arg in instr["args"][1:]],
+                    indices,
                 ),
             )
 
@@ -346,6 +359,10 @@ class LLVMCodeGenerator(object):
             self.builder.position_at_end(self.func_alloca_bb)
             self.builder.branch(bb_entry)  # Cannot use implicit fallthroughs
         return func
+
+    def gen_struct(self, struct):
+        elem_types = [self.gen_type(typ) for typ in struct.elements]
+        self.struct_types[struct.name] = ir.LiteralStructType(elem_types)
 
 
 def main():
