@@ -14,7 +14,9 @@ class BrilispCodeGenerator:
     def __init__(self):
         # Type tracking
         self.symbol_types = {}  # Variable name -> type
+        self.scopes = []  # Stack of scope tags
         self.function_types = {}  # Function name > (ret-type, (arg-types...))
+        self.pointer_types = {}  # For internal use, e.g. temporary pointer variables
 
         self.binary_op_types = {
             # <opcode>: <result type>
@@ -42,6 +44,9 @@ class BrilispCodeGenerator:
             "fgt": "bool",
             "fle": "bool",
             "fge": "bool",
+            # Boolean logic
+            "and": "bool",
+            "or": "bool",
         }
 
     def c_lisp(self, prog):
@@ -51,6 +56,13 @@ class BrilispCodeGenerator:
 
         return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
 
+    def get_scoped_name(self, name):
+        for scope in self.scopes[::-1]:
+            scoped_name = f"{name}.{scope}"
+            if scoped_name in self.symbol_types:
+                return scoped_name
+        return f"{name}.{self.scopes[-1]}"
+
     def gen_function(self, func):
         if not func[0] == "define":
             raise CodegenError(f"Not a function: {func}")
@@ -59,18 +71,21 @@ class BrilispCodeGenerator:
             if not len(elem) == 2:
                 raise CodegenError(f"Bad function prototype: {func[1]}")
 
-        self.symbol_types = {}  # Clear the symbol table
+        # Clear the symbol table and scope stack
+        self.symbol_types = {}
+        self.scopes = [random_label(CLISP_PREFIX, ["scope"])]
+
         name, ret_type = func[1][0]
         parm_types = []
+        header = func[1][0:1]
         for parm in func[1][1:]:
-            parm_types.append(parm[1])
-            self.symbol_types[parm[0]] = parm[1]
+            typ = parm[1]
+            scoped_name = self.get_scoped_name(parm[0])
+            parm_types.append(typ)
+            self.symbol_types[scoped_name] = typ
+            header.append([scoped_name, typ])
         self.function_types[name] = [ret_type, parm_types]
-        return [
-            "define",
-            func[1],
-            *self.gen_stmt(func[2:]),
-        ]
+        return ["define", header, *self.gen_compound_stmt(func[2:], new_scope=False)]
 
     def gen_stmt(self, stmt):
         try:
@@ -87,6 +102,8 @@ class BrilispCodeGenerator:
                     return self.gen_if_stmt(stmt)
                 elif self.is_for_stmt(stmt):
                     return self.gen_for_stmt(stmt)
+                elif self.is_while_stmt(stmt):
+                    return self.gen_while_stmt(stmt)
                 else:
                     return self.gen_expr(stmt)
             else:
@@ -94,6 +111,35 @@ class BrilispCodeGenerator:
         except Exception as e:
             print(f"Error in statement: {stmt}")
             raise e
+
+    def is_while_stmt(self, stmt):
+        return stmt[0] == "while"
+
+    def gen_while_stmt(self, stmt):
+        if len(stmt) < 3:
+            raise CodegenError(f"Bad while statement: {stmt}")
+
+        cond_sym, loop_lbl, cont_lbl, break_lbl = [
+            random_label(CLISP_PREFIX, [extra])
+            for extra in (
+                "cond",
+                "loop",
+                "cont",
+                "break",
+            )
+        ]
+        cond_expr_instr = self.gen_expr(stmt[1], res_sym=cond_sym)
+        loop_stmt_instr = self.gen_stmt(stmt[2:])
+
+        return [
+            ["label", loop_lbl],
+            *cond_expr_instr,
+            ["br", cond_sym, cont_lbl, break_lbl],
+            ["label", cont_lbl],
+            *loop_stmt_instr,
+            ["jmp", loop_lbl],
+            ["label", break_lbl],
+        ]
 
     def is_for_stmt(self, stmt):
         return stmt[0] == "for"
@@ -170,9 +216,10 @@ class BrilispCodeGenerator:
             raise CodegenError(f"bad declare statement: {stmt}")
 
         name, typ = stmt[1]
-        if name in self.symbol_types:
+        scoped_name = f"{name}.{self.scopes[-1]}"
+        if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
-        self.symbol_types[name] = typ
+        self.symbol_types[scoped_name] = typ
         return []
 
     def is_ret_stmt(self, stmt):
@@ -194,10 +241,15 @@ class BrilispCodeGenerator:
     def is_compound_stmt(self, stmt):
         return isinstance(stmt, list) and isinstance(stmt[0], list)
 
-    def gen_compound_stmt(self, stmt):
+    def gen_compound_stmt(self, stmt, new_scope=True):
+        if new_scope:
+            scope = random_label(CLISP_PREFIX, ["scope"])
+            self.scopes.append(scope)
         instr_list = []
         for s in stmt:
             instr_list += self.gen_stmt(s)
+        if new_scope:
+            self.scopes.pop()
         return instr_list
 
     def is_set_expr(self, expr):
@@ -205,11 +257,14 @@ class BrilispCodeGenerator:
 
     def gen_set_expr(self, expr, res_sym):
         name = expr[1]
-        if not name in self.symbol_types:
+        scoped_name = self.get_scoped_name(name)
+        if not scoped_name in self.symbol_types:
             raise CodegenError(f"Cannot set undeclared variable: {name}")
 
         instr_list = self.gen_expr(expr[2], res_sym=res_sym)
-        instr_list.append(["set", [name, self.symbol_types[name]], ["id", res_sym]])
+        instr_list.append(
+            ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
+        )
         return instr_list
 
     def get_literal_type(self, expr):
@@ -248,8 +303,15 @@ class BrilispCodeGenerator:
         return isinstance(expr, str)
 
     def gen_var_expr(self, expr, res_sym):
-        if expr in self.symbol_types:
-            return [["set", [res_sym, self.symbol_types[expr]], ["id", expr]]]
+        scoped_name = self.get_scoped_name(expr)
+        if scoped_name in self.symbol_types:
+            typ = self.symbol_types[scoped_name]
+            instr_list = [
+                ["set", [res_sym, typ], ["id", scoped_name]]
+            ]
+            if typ[0] == "ptr":
+                self.pointer_types[res_sym] = typ
+            return instr_list
         else:
             raise CodegenError(f"Reference to undeclared variable: {expr}")
 
@@ -272,6 +334,67 @@ class BrilispCodeGenerator:
             ["set", [res_sym, typ], [opcode, in1_sym, in2_sym]],
         ]
 
+    def is_ptradd_expr(self, expr):
+        return expr[0] == "ptradd"
+
+    def gen_ptradd_expr(self, expr, res_sym):
+        if len(expr) != 3:
+            raise CodegenError(f"Bad ptradd expression: {expr}")
+
+        offset_sym = random_label("tmp_clisp")
+        ptr_name = self.get_scoped_name(expr[1])
+        ptr_type = self.symbol_types[ptr_name]
+        self.pointer_types[res_sym] = ptr_type
+        return [
+            *self.gen_expr(expr[2], res_sym=offset_sym),
+            ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset_sym]],
+        ]
+
+    def is_load_expr(self, expr):
+        return expr[0] == "load"
+
+    def gen_load_expr(self, expr, res_sym):
+        if len(expr) != 2:
+            raise CodegenError(f"Bad load expression: {expr}")
+
+        ptr_sym = random_label("tmp_clisp")
+        return [
+            *self.gen_expr(expr[1], res_sym=ptr_sym),
+            ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["load", ptr_sym]],
+        ]
+
+    def is_store_expr(self, expr):
+        return expr[0] == "store"
+
+    def gen_store_expr(self, expr, res_sym):
+        if len(expr) != 3:
+            raise CodegenError(f"Bad store expression: {expr}")
+
+        val_sym, ptr_sym = [
+            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
+        ]
+        return [
+            *self.gen_expr(expr[1], res_sym=ptr_sym),
+            *self.gen_expr(expr[2], res_sym=val_sym),
+            ["store", ptr_sym, val_sym],
+            ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["id", val_sym]],
+        ]
+
+    def is_alloc_expr(self, expr):
+        return expr[0] == "alloc"
+
+    def gen_alloc_expr(self, expr, res_sym):
+        if len(expr) != 3:
+            raise CodegenError(f"Bad alloc expression: {expr}")
+
+        ptr_type = ["ptr", expr[1]]
+        self.pointer_types[res_sym] = ptr_type
+        size_sym = random_label(CLISP_PREFIX)
+        return [
+            *self.gen_expr(expr[2], res_sym=size_sym),
+            ["set", [res_sym, ptr_type], ["alloc", size_sym]],
+        ]
+
     def gen_expr(self, expr, res_sym=None):
         res_sym = res_sym or random_label(CLISP_PREFIX)
         if self.is_literal_expr(expr):
@@ -284,6 +407,14 @@ class BrilispCodeGenerator:
             return self.gen_var_expr(expr, res_sym)
         elif self.is_binary_expr(expr):
             return self.gen_binary_expr(expr, res_sym)
+        elif self.is_ptradd_expr(expr):
+            return self.gen_ptradd_expr(expr, res_sym)
+        elif self.is_load_expr(expr):
+            return self.gen_load_expr(expr, res_sym)
+        elif self.is_store_expr(expr):
+            return self.gen_store_expr(expr, res_sym)
+        elif self.is_alloc_expr(expr):
+            return self.gen_alloc_expr(expr, res_sym)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 
