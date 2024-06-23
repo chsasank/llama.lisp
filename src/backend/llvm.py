@@ -52,6 +52,8 @@ class LLVMCodeGenerator(object):
         if isinstance(type, dict):
             if "ptr" in type:
                 return self.gen_type(type["ptr"]).as_pointer()
+            elif "struct" in type:
+                return self.struct_types[type["struct"]]
             else:
                 raise CodegenError(f"Unknown type {type}")
         elif type in self.struct_types:
@@ -361,8 +363,13 @@ class LLVMCodeGenerator(object):
         return func
 
     def gen_struct(self, struct):
+        # The ir.StructType object needs to be in the symbol table before the struct's
+        # field types are evaluated, to allow circular references to the struct's own type.
+        self.struct_types[struct.name] = ir.global_context.get_identified_type(
+            struct.name
+        )
         elem_types = [self.gen_type(typ) for typ in struct.elements]
-        self.struct_types[struct.name] = ir.LiteralStructType(elem_types)
+        self.struct_types[struct.name].set_body(*elem_types)
 
 
 def main():
