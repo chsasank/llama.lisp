@@ -56,7 +56,7 @@ class BrilispCodeGenerator:
 
         return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
 
-    def get_scoped_name(self, name):
+    def scope_lookup(self, name):
         scoped_name = name
         # Look up nested scopes
         for s in range(len(self.scopes), -1, -1):
@@ -91,7 +91,7 @@ class BrilispCodeGenerator:
         return [
             "define",
             func[1],
-            *self.gen_stmt(func[2:]),
+            *self.gen_compound_stmt(func[2:], new_scope = False),
         ]
 
     def gen_stmt(self, stmt):
@@ -223,8 +223,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"bad declare statement: {stmt}")
 
         name, typ = stmt[1]
-        scope = ".".join(self.scopes)
-        scoped_name = ".".join([scope, name])
+        scoped_name = ".".join([*self.scopes, name])
         if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
         self.symbol_types[scoped_name] = typ
@@ -265,7 +264,7 @@ class BrilispCodeGenerator:
 
     def gen_set_expr(self, expr, res_sym):
         name = expr[1]
-        scoped_name = self.get_scoped_name(name)
+        scoped_name = self.scope_lookup(name)
         if not scoped_name in self.symbol_types:
             raise CodegenError(f"Cannot set undeclared variable: {name}")
 
@@ -311,7 +310,7 @@ class BrilispCodeGenerator:
         return isinstance(expr, str)
 
     def gen_var_expr(self, expr, res_sym):
-        scoped_name = self.get_scoped_name(expr)
+        scoped_name = self.scope_lookup(expr)
         if scoped_name in self.symbol_types:
             typ = self.symbol_types[scoped_name]
             instr_list = [
@@ -350,7 +349,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad ptradd expression: {expr}")
 
         offset_sym = random_label(CLISP_PREFIX, self.scopes)
-        ptr_name = self.get_scoped_name(expr[1])
+        ptr_name = self.scope_lookup(expr[1])
         ptr_type = self.symbol_types[ptr_name]
         self.pointer_types[res_sym] = ptr_type
         return [
