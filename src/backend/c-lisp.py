@@ -57,11 +57,18 @@ class BrilispCodeGenerator:
         return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
 
     def get_scoped_name(self, name):
-        for scope in self.scopes[::-1]:
-            scoped_name = f"{name}.{scope}"
+        scoped_name = name
+        # Look up nested scopes
+        for s in range(len(self.scopes), -1, -1):
+            scope = ".".join(self.scopes[0:s])
+            scoped_name = ".".join([scope, name])
             if scoped_name in self.symbol_types:
                 return scoped_name
-        return f"{name}.{self.scopes[-1]}"
+        # Function's global scope
+        if name in self.symbol_types:
+            return name
+        else:
+            raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
         if not func[0] == "define":
@@ -73,19 +80,19 @@ class BrilispCodeGenerator:
 
         # Clear the symbol table and scope stack
         self.symbol_types = {}
-        self.scopes = [random_label(CLISP_PREFIX, ["scope"])]
+        self.scopes = []
 
         name, ret_type = func[1][0]
         parm_types = []
-        header = func[1][0:1]
         for parm in func[1][1:]:
-            typ = parm[1]
-            scoped_name = self.get_scoped_name(parm[0])
-            parm_types.append(typ)
-            self.symbol_types[scoped_name] = typ
-            header.append([scoped_name, typ])
+            parm_types.append(parm[1])
+            self.symbol_types[parm[0]] = parm[1]
         self.function_types[name] = [ret_type, parm_types]
-        return ["define", header, *self.gen_compound_stmt(func[2:], new_scope=False)]
+        return [
+            "define",
+            func[1],
+            *self.gen_stmt(func[2:]),
+        ]
 
     def gen_stmt(self, stmt):
         try:
@@ -216,7 +223,8 @@ class BrilispCodeGenerator:
             raise CodegenError(f"bad declare statement: {stmt}")
 
         name, typ = stmt[1]
-        scoped_name = f"{name}.{self.scopes[-1]}"
+        scope = ".".join(self.scopes)
+        scoped_name = ".".join([scope, name])
         if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
         self.symbol_types[scoped_name] = typ
@@ -243,7 +251,7 @@ class BrilispCodeGenerator:
 
     def gen_compound_stmt(self, stmt, new_scope=True):
         if new_scope:
-            scope = random_label(CLISP_PREFIX, ["scope"])
+            scope = random_label()
             self.scopes.append(scope)
         instr_list = []
         for s in stmt:
