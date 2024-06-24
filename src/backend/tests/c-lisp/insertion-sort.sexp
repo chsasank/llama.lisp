@@ -33,7 +33,7 @@
               (set i (add i 1)))
             (set rest-arr (ptradd arr i))
             (set min-idx (call min rest-arr (sub len i)))
-            (if (ne min-idx 0)
+            (if (not (eq min-idx 0))
                 (call swap
                     rest-arr
                     (ptradd rest-arr min-idx))))

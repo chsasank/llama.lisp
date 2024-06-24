@@ -18,35 +18,36 @@ class BrilispCodeGenerator:
         self.function_types = {}  # Function name > (ret-type, (arg-types...))
         self.pointer_types = {}  # For internal use, e.g. temporary pointer variables
 
-        self.binary_op_types = {
+        self.fixed_op_types = {
             # <opcode>: <result type>
             # Integer arithmetic
-            "add": "int",
-            "sub": "int",
-            "mul": "int",
-            "div": "int",
+            "add": ("int", 2),
+            "sub": ("int", 2),
+            "mul": ("int", 2),
+            "div": ("int", 2),
             # Integer comparison
-            "eq": "bool",
-            "ne": "bool",
-            "lt": "bool",
-            "gt": "bool",
-            "le": "bool",
-            "ge": "bool",
+            "eq": ("bool", 2),
+            "ne": ("bool", 2),
+            "lt": ("bool", 2),
+            "gt": ("bool", 2),
+            "le": ("bool", 2),
+            "ge": ("bool", 2),
             # Floating-point arithmetic
-            "fadd": "float",
-            "fsub": "float",
-            "fmul": "float",
-            "fdiv": "float",
+            "fadd": ("float", 2),
+            "fsub": ("float", 2),
+            "fmul": ("float", 2),
+            "fdiv": ("float", 2),
             # Floating-point comparison
-            "feq": "bool",
-            "fne": "bool",
-            "flt": "bool",
-            "fgt": "bool",
-            "fle": "bool",
-            "fge": "bool",
+            "feq": ("bool", 2),
+            "fne": ("bool", 2),
+            "flt": ("bool", 2),
+            "fgt": ("bool", 2),
+            "fle": ("bool", 2),
+            "fge": ("bool", 2),
             # Boolean logic
-            "and": "bool",
-            "or": "bool",
+            "and": ("bool", 2),
+            "or": ("bool", 2),
+            "not": ("bool", 1),
         }
 
     def c_lisp(self, prog):
@@ -322,23 +323,22 @@ class BrilispCodeGenerator:
         else:
             raise CodegenError(f"Reference to undeclared variable: {expr}")
 
-    def is_binary_expr(self, expr):
-        return expr[0] in self.binary_op_types
+    def is_fixed_type_expr(self, expr):
+        return expr[0] in self.fixed_op_types
 
-    def gen_binary_expr(self, expr, res_sym):
-        if not len(expr) == 3:
-            raise CodegenError(f"Binary operation takes only 2 operands: {expr}")
-
+    def gen_fixed_type_expr(self, expr, res_sym):
         instr_list = []
-        in1_sym, in2_sym = [
-            random_label(CLISP_PREFIX, [*self.scopes, extra]) for extra in ("in1", "in2")
-        ]
         opcode = expr[0]
-        typ = self.binary_op_types[opcode]
+        typ, n_ops = self.fixed_op_types[opcode]
+        if not (len(expr) == n_ops + 1):
+            raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
+        in_syms = [random_label(CLISP_PREFIX, [*self.scopes, f"in{n}"]) for n in range(n_ops)]
+        input_instrs = []
+        for n in range(n_ops):
+            input_instrs += [*self.gen_expr(expr[n+1], in_syms[n])]
         return [
-            *self.gen_expr(expr[1], in1_sym),
-            *self.gen_expr(expr[2], in2_sym),
-            ["set", [res_sym, typ], [opcode, in1_sym, in2_sym]],
+            *input_instrs,
+            ["set", [res_sym, typ], [opcode, *in_syms]],
         ]
 
     def is_ptradd_expr(self, expr):
@@ -412,8 +412,8 @@ class BrilispCodeGenerator:
             return self.gen_call_expr(expr, res_sym)
         elif self.is_var_expr(expr):
             return self.gen_var_expr(expr, res_sym)
-        elif self.is_binary_expr(expr):
-            return self.gen_binary_expr(expr, res_sym)
+        elif self.is_fixed_type_expr(expr):
+            return self.gen_fixed_type_expr(expr, res_sym)
         elif self.is_ptradd_expr(expr):
             return self.gen_ptradd_expr(expr, res_sym)
         elif self.is_load_expr(expr):
