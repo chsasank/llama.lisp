@@ -21,35 +21,36 @@ class BrilispCodeGenerator:
             {}
         )  # Struct type name -> {field name -> (index number, type)}
 
-        self.binary_op_types = {
+        self.fixed_op_types = {
             # <opcode>: <result type>
             # Integer arithmetic
-            "add": "int",
-            "sub": "int",
-            "mul": "int",
-            "div": "int",
+            "add": ("int", 2),
+            "sub": ("int", 2),
+            "mul": ("int", 2),
+            "div": ("int", 2),
             # Integer comparison
-            "eq": "bool",
-            "ne": "bool",
-            "lt": "bool",
-            "gt": "bool",
-            "le": "bool",
-            "ge": "bool",
+            "eq": ("bool", 2),
+            "ne": ("bool", 2),
+            "lt": ("bool", 2),
+            "gt": ("bool", 2),
+            "le": ("bool", 2),
+            "ge": ("bool", 2),
             # Floating-point arithmetic
-            "fadd": "float",
-            "fsub": "float",
-            "fmul": "float",
-            "fdiv": "float",
+            "fadd": ("float", 2),
+            "fsub": ("float", 2),
+            "fmul": ("float", 2),
+            "fdiv": ("float", 2),
             # Floating-point comparison
-            "feq": "bool",
-            "fne": "bool",
-            "flt": "bool",
-            "fgt": "bool",
-            "fle": "bool",
-            "fge": "bool",
+            "feq": ("bool", 2),
+            "fne": ("bool", 2),
+            "flt": ("bool", 2),
+            "fgt": ("bool", 2),
+            "fle": ("bool", 2),
+            "fge": ("bool", 2),
             # Boolean logic
-            "and": "bool",
-            "or": "bool",
+            "and": ("bool", 2),
+            "or": ("bool", 2),
+            "not": ("bool", 1),
         }
 
     def c_lisp(self, prog):
@@ -67,12 +68,17 @@ class BrilispCodeGenerator:
                 raise CodegenError(f"Neither struct nor function definition: {defn}")
         return brilisp_prog
 
-    def get_scoped_name(self, name):
-        for scope in self.scopes[::-1]:
-            scoped_name = f"{name}.{scope}"
+    def construct_scoped_name(self, name, scopes):
+        return ".".join([name] + scopes)
+
+    def scoped_lookup(self, name):
+        """Look up the name in reverse order of current scope stack"""
+        # be as specific as possible first
+        for s in range(len(self.scopes), -1, -1):
+            scoped_name = self.construct_scoped_name(name, self.scopes[:s])
             if scoped_name in self.symbol_types:
                 return scoped_name
-        return f"{name}.{self.scopes[-1]}"
+        raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
         if not func[0] == "define":
@@ -84,19 +90,19 @@ class BrilispCodeGenerator:
 
         # Clear the symbol table and scope stack
         self.symbol_types = {}
-        self.scopes = [random_label(CLISP_PREFIX, ["scope"])]
+        self.scopes = []
 
         name, ret_type = func[1][0]
         parm_types = []
-        header = func[1][0:1]
         for parm in func[1][1:]:
-            typ = parm[1]
-            scoped_name = self.get_scoped_name(parm[0])
-            parm_types.append(typ)
-            self.symbol_types[scoped_name] = typ
-            header.append([scoped_name, typ])
+            parm_types.append(parm[1])
+            self.symbol_types[parm[0]] = parm[1]
         self.function_types[name] = [ret_type, parm_types]
-        return ["define", header, *self.gen_compound_stmt(func[2:], new_scope=False)]
+        return [
+            "define",
+            func[1],
+            *self.gen_compound_stmt(func[2:], new_scope=False),
+        ]
 
     def gen_struct(self, struct):
         name = struct[1]
@@ -237,7 +243,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"bad declare statement: {stmt}")
 
         name, typ = stmt[1]
-        scoped_name = f"{name}.{self.scopes[-1]}"
+        scoped_name = self.construct_scoped_name(name, self.scopes)
         if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
         self.symbol_types[scoped_name] = typ
@@ -264,7 +270,7 @@ class BrilispCodeGenerator:
 
     def gen_compound_stmt(self, stmt, new_scope=True):
         if new_scope:
-            scope = random_label(CLISP_PREFIX, ["scope"])
+            scope = random_label()
             self.scopes.append(scope)
         instr_list = []
         for s in stmt:
@@ -278,7 +284,7 @@ class BrilispCodeGenerator:
 
     def gen_set_expr(self, expr, res_sym):
         name = expr[1]
-        scoped_name = self.get_scoped_name(name)
+        scoped_name = self.scoped_lookup(name)
         if not scoped_name in self.symbol_types:
             raise CodegenError(f"Cannot set undeclared variable: {name}")
 
@@ -324,7 +330,7 @@ class BrilispCodeGenerator:
         return isinstance(expr, str)
 
     def gen_var_expr(self, expr, res_sym):
-        scoped_name = self.get_scoped_name(expr)
+        scoped_name = self.scoped_lookup(expr)
         if scoped_name in self.symbol_types:
             typ = self.symbol_types[scoped_name]
             instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
@@ -334,23 +340,24 @@ class BrilispCodeGenerator:
         else:
             raise CodegenError(f"Reference to undeclared variable: {expr}")
 
-    def is_binary_expr(self, expr):
-        return expr[0] in self.binary_op_types
+    def is_fixed_type_expr(self, expr):
+        return expr[0] in self.fixed_op_types
 
-    def gen_binary_expr(self, expr, res_sym):
-        if not len(expr) == 3:
-            raise CodegenError(f"Binary operation takes only 2 operands: {expr}")
-
+    def gen_fixed_type_expr(self, expr, res_sym):
         instr_list = []
-        in1_sym, in2_sym = [
-            random_label(CLISP_PREFIX, [extra]) for extra in ("in1", "in2")
-        ]
         opcode = expr[0]
-        typ = self.binary_op_types[opcode]
+        typ, n_ops = self.fixed_op_types[opcode]
+        if not (len(expr) == n_ops + 1):
+            raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
+        in_syms = [
+            random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)
+        ]
+        input_instrs = []
+        for n in range(n_ops):
+            input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
         return [
-            *self.gen_expr(expr[1], in1_sym),
-            *self.gen_expr(expr[2], in2_sym),
-            ["set", [res_sym, typ], [opcode, in1_sym, in2_sym]],
+            *input_instrs,
+            ["set", [res_sym, typ], [opcode, *in_syms]],
         ]
 
     def is_ptradd_expr(self, expr):
@@ -360,8 +367,8 @@ class BrilispCodeGenerator:
         if len(expr) != 3:
             raise CodegenError(f"Bad ptradd expression: {expr}")
 
-        offset_sym = random_label("tmp_clisp")
-        ptr_name = self.get_scoped_name(expr[1])
+        offset_sym = random_label(CLISP_PREFIX)
+        ptr_name = self.scoped_lookup(expr[1])
         ptr_type = self.symbol_types[ptr_name]
         self.pointer_types[res_sym] = ptr_type
         return [
@@ -376,7 +383,7 @@ class BrilispCodeGenerator:
         if len(expr) != 2:
             raise CodegenError(f"Bad load expression: {expr}")
 
-        ptr_sym = random_label("tmp_clisp")
+        ptr_sym = random_label(CLISP_PREFIX)
         return [
             *self.gen_expr(expr[1], res_sym=ptr_sym),
             ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["load", ptr_sym]],
@@ -390,7 +397,8 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad store expression: {expr}")
 
         val_sym, ptr_sym = [
-            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
+            random_label(CLISP_PREFIX, [extra])
+            for extra in ("val", "ptr")
         ]
         return [
             *self.gen_expr(expr[1], res_sym=ptr_sym),
@@ -419,7 +427,7 @@ class BrilispCodeGenerator:
 
     def gen_struct_memb_expr(self, expr, res_sym):
         name, memb = expr[1], expr[2]
-        scoped_name = self.get_scoped_name(name)
+        scoped_name = self.scoped_lookup(name)
         struct_ptr_type = self.symbol_types[scoped_name]
         if not (struct_ptr_type[0] == "ptr" and struct_ptr_type[1][0] == "struct"):
             raise CodegenError(f"Not a struct pointer: {name}")
@@ -442,8 +450,8 @@ class BrilispCodeGenerator:
             return self.gen_call_expr(expr, res_sym)
         elif self.is_var_expr(expr):
             return self.gen_var_expr(expr, res_sym)
-        elif self.is_binary_expr(expr):
-            return self.gen_binary_expr(expr, res_sym)
+        elif self.is_fixed_type_expr(expr):
+            return self.gen_fixed_type_expr(expr, res_sym)
         elif self.is_ptradd_expr(expr):
             return self.gen_ptradd_expr(expr, res_sym)
         elif self.is_load_expr(expr):

@@ -16,7 +16,6 @@
         (declare (arr1 (ptr int)))
         (declare (arr2 (ptr int)))
         (declare (i int))
-        (declare (arr_i (ptr int)))
 
         (set arr1 (alloc int 10))
         (set arr2 (alloc int 10))
@@ -24,6 +23,7 @@
         (for ((set i 0)
               (lt i 10)
               (set i (add i 1)))
+            (declare (arr_i (ptr int)))
             (set arr_i (ptradd arr1 i))
             (store arr_i i)
             (set arr_i (ptradd arr2 i))

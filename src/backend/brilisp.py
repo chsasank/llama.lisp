@@ -169,9 +169,11 @@ def gen_instr(instr):
 
 
 def brilisp(expr):
+    assert expr[0] == "brilisp"
+    body = expr[1:]
     functions = []
     structs = []
-    for x in expr:
+    for x in body:
         if is_function(x):
             functions.append(gen_function(x))
         elif is_struct(x):
@@ -183,8 +185,7 @@ def brilisp(expr):
 
 def main():
     expr = json.load(sys.stdin)
-    assert expr[0] == "brilisp"
-    print(json.dumps(brilisp(expr[1:])))
+    print(json.dumps(brilisp(expr)))
 
 
 if __name__ == "__main__":
