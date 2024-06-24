@@ -231,6 +231,13 @@ class LLVMCodeGenerator(object):
                 ),
             )
 
+        def gen_ptr_to(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.func_alloca_symtab[instr.args[0]],
+            )
+
         def gen_id(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             self.gen_symbol_store(instr.dest, self.gen_symbol_load(instr.args[0]))
@@ -261,6 +268,8 @@ class LLVMCodeGenerator(object):
                     gen_load(instr)
                 elif instr.op == "ptradd":
                     gen_ptradd(instr)
+                elif instr.op == "ptr-to":
+                    gen_ptr_to(instr)
                 elif instr.op == "id":
                     gen_id(instr)
                 elif instr.op in value_ops:

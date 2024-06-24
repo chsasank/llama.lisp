@@ -76,6 +76,7 @@ def gen_instr(instr):
             "alloc",
             "load",
             "ptradd",
+            "ptr-to",
             "id",
             "fadd",
             "fsub",
