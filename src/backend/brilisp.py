@@ -158,15 +158,16 @@ def gen_instr(instr):
 
 
 def brilisp(expr):
-    for x in expr:
+    assert expr[0] == "brilisp"
+    body = expr[1:]
+    for x in body:
         assert is_function(x), f"{x} is not a function"
-    return {"functions": [gen_function(x) for x in expr]}
+    return {"functions": [gen_function(x) for x in body]}
 
 
 def main():
     expr = json.load(sys.stdin)
-    assert expr[0] == "brilisp"
-    print(json.dumps(brilisp(expr[1:])))
+    print(json.dumps(brilisp(expr)))
 
 
 if __name__ == "__main__":
