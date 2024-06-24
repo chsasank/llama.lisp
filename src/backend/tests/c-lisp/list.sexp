@@ -22,14 +22,14 @@
         (declare (i int))
         (declare (n (ptr (struct Node))))
 
-        (set n (load (struct-memb lst head)))
+        (set n (load (struct-ptr-index lst head)))
 
-        (for ((set i (load (struct-memb lst len)))
+        (for ((set i (load (struct-ptr-index lst len)))
               (gt i 0)
               (set i (sub i 1)))
-            (call printf (load (struct-memb n data)))
+            (call printf (load (struct-ptr-index n data)))
             (call putchar 10)
-            (set n (load (struct-memb n next))))
+            (set n (load (struct-ptr-index n next))))
         (ret))
 
     (define ((list-append void) (lst (ptr (struct List))) (node (ptr (struct Node))))
@@ -37,20 +37,20 @@
         (declare (last (ptr (struct Node))))
         (declare (len int))
 
-        (set len (load (struct-memb lst len)))
+        (set len (load (struct-ptr-index lst len)))
         (if (eq len 0)
-            ((store (struct-memb lst head) node)
-             (store (struct-memb lst len) (add len 1))
+            ((store (struct-ptr-index lst head) node)
+             (store (struct-ptr-index lst len) (add len 1))
              (ret)))
 
-        (set last (load (struct-memb lst head)))
+        (set last (load (struct-ptr-index lst head)))
         (for ((set i 1)
               (lt i len)
               (set i (add i 1)))
-            (set last (load (struct-memb last next))))
+            (set last (load (struct-ptr-index last next))))
 
-        (store (struct-memb last next) node)
-        (store (struct-memb lst len) (add len 1))
+        (store (struct-ptr-index last next) node)
+        (store (struct-ptr-index lst len) (add len 1))
         (ret))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
@@ -58,14 +58,14 @@
         (declare (node (ptr (struct Node))))
 
         (set list (alloc (struct List) 1))
-        (store (struct-memb list len) 0)
+        (store (struct-ptr-index list len) 0)
 
         (declare (i int))
         (for ((set i (sub argc 1))
               (gt i 0)
               (set i (sub i 1)))
             (set node (alloc (struct Node) 1))
-            (store (struct-memb node data) (load (ptradd argv i)))
+            (store (struct-ptr-index node data) (load (ptradd argv i)))
             (call list-append list node))
 
         (call list-print list)

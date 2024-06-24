@@ -11,9 +11,9 @@
         (declare (n (ptr (struct node))))
         (set n (alloc (struct node) 1))
 
-        (store (struct-memb n i-data) 5)
-        (store (struct-memb n f-data) 6.0)
+        (store (struct-ptr-index n i-data) 5)
+        (store (struct-ptr-index n f-data) 6.0)
 
-        (call fprint (load (struct-memb n f-data)))
-        (call print (load (struct-memb n i-data)))
+        (call fprint (load (struct-ptr-index n f-data)))
+        (call print (load (struct-ptr-index n i-data)))
         (ret)))

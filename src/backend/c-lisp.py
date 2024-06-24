@@ -12,14 +12,17 @@ class CodegenError(Exception):
 
 class BrilispCodeGenerator:
     def __init__(self):
-        # Type tracking
-        self.symbol_types = {}  # Variable name -> type
-        self.scopes = []  # Stack of scope tags
-        self.function_types = {}  # Function name > (ret-type, (arg-types...))
-        self.pointer_types = {}  # For internal use, e.g. temporary pointer variables
-        self.struct_types = (
-            {}
-        )  # Struct type name -> {field name -> (index number, type)}
+        ## Type tracking
+        # Variable name -> type
+        self.symbol_types = {}
+        # Stack of scope tags
+        self.scopes = []
+        # Function name > (ret-type, (arg-types...))
+        self.function_types = {}
+        # For internal use, e.g. temporary pointer variables
+        self.pointer_types = {}
+        # Struct type name -> {field name -> (index number, type)}
+        self.struct_types = {}
 
         self.fixed_op_types = {
             # <opcode>: <result type>
@@ -349,9 +352,7 @@ class BrilispCodeGenerator:
         typ, n_ops = self.fixed_op_types[opcode]
         if not (len(expr) == n_ops + 1):
             raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
-        in_syms = [
-            random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)
-        ]
+        in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
         input_instrs = []
         for n in range(n_ops):
             input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
@@ -397,8 +398,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad store expression: {expr}")
 
         val_sym, ptr_sym = [
-            random_label(CLISP_PREFIX, [extra])
-            for extra in ("val", "ptr")
+            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
         ]
         return [
             *self.gen_expr(expr[1], res_sym=ptr_sym),
@@ -422,11 +422,35 @@ class BrilispCodeGenerator:
             ["set", [res_sym, ptr_type], ["alloc", size_sym]],
         ]
 
-    def is_struct_memb_expr(self, expr):
-        return expr[0] == "struct-memb"
+    def is_struct_var_index_expr(self, expr):
+        return expr[0] == "struct-var-index"
 
-    def gen_struct_memb_expr(self, expr, res_sym):
-        name, memb = expr[1], expr[2]
+    def gen_struct_var_index_expr(self, expr, res_sym):
+        if not len(expr) == 3:
+            raise CodegenError(f"Bad struct-var-index expression: {expr}")
+
+        name, field = expr[1:]
+        scoped_name = self.scoped_lookup(name)
+        struct_type = self.symbol_types[scoped_name]
+        if not struct_type[0] == "struct":
+            raise CodegenError(f"Not a struct: {name}")
+        struct_ptr_sym = random_label(CLISP_PREFIX)
+        field_idx, field_type = self.struct_types[struct_type[1]][field]
+        self.pointer_types[res_sym] = ["ptr", field_type]
+        return [
+            ["set", [struct_ptr_sym, ["ptr", struct_type[1]]], ["ptr-to", scoped_name]],
+            [
+                "set",
+                [res_sym, ["ptr", field_type]],
+                ["ptradd", struct_ptr_sym, 0, field_idx],
+            ],
+        ]
+
+    def is_struct_ptr_index_expr(self, expr):
+        return expr[0] == "struct-ptr-index"
+
+    def gen_struct_ptr_index_expr(self, expr, res_sym):
+        name, field = expr[1], expr[2]
         scoped_name = self.scoped_lookup(name)
         struct_ptr_type = self.symbol_types[scoped_name]
         if not (struct_ptr_type[0] == "ptr" and struct_ptr_type[1][0] == "struct"):
@@ -434,10 +458,14 @@ class BrilispCodeGenerator:
         struct_type = struct_ptr_type[1][1]
         if not struct_type in self.struct_types:
             raise CodegenError(f"Undefined struct type: {struct_type}")
-        memb_idx, memb_type = self.struct_types[struct_type][memb]
-        self.pointer_types[res_sym] = ["ptr", memb_type]
+        field_idx, field_type = self.struct_types[struct_type][field]
+        self.pointer_types[res_sym] = ["ptr", field_type]
         return [
-            ["set", [res_sym, ["ptr", memb_type]], ["ptradd", scoped_name, 0, memb_idx]]
+            [
+                "set",
+                [res_sym, ["ptr", field_type]],
+                ["ptradd", scoped_name, 0, field_idx],
+            ]
         ]
 
     def gen_expr(self, expr, res_sym=None):
@@ -460,8 +488,10 @@ class BrilispCodeGenerator:
             return self.gen_store_expr(expr, res_sym)
         elif self.is_alloc_expr(expr):
             return self.gen_alloc_expr(expr, res_sym)
-        elif self.is_struct_memb_expr(expr):
-            return self.gen_struct_memb_expr(expr, res_sym)
+        elif self.is_struct_ptr_index_expr(expr):
+            return self.gen_struct_ptr_index_expr(expr, res_sym)
+        elif self.is_struct_var_index_expr(expr):
+            return self.gen_struct_var_index_expr(expr, res_sym)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 
