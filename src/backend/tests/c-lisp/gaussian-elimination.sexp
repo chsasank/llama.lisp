@@ -2,7 +2,6 @@
 (c-lisp
     (define ((print int) (n int)))
     (define ((fprint float) (n float)))
-    (define ((index int) (i int) (j int) (ncols int)))
     (define ((strtof float) (s (ptr int)) (end int)))
     (define ((atoi int) (s (ptr int))))
 
