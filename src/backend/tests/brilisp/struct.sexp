@@ -2,9 +2,9 @@
     (define ((fprint float) (n float)))
     (define ((print int) (n int)))
 
-    (define-struct node
-        int
-        float)
+    (define-struct
+        node
+        (int float))
 
     (define ((main void))
         (set (i-val int) (const 3))

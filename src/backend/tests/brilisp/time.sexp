@@ -1,17 +1,17 @@
 (brilisp
     (define-struct tm  ;; Taken from C standard library
-        int       ;;  int         tm_sec;    /* Seconds          [0, 60] */
-        int       ;;  int         tm_min;    /* Minutes          [0, 59] */
-        int       ;;  int         tm_hour;   /* Hour             [0, 23] */
-        int       ;;  int         tm_mday;   /* Day of the month [1, 31] */
-        int       ;;  int         tm_mon;    /* Month            [0, 11]  (January = 0) */
-        int       ;;  int         tm_year;   /* Year minus 1900 */
-        int       ;;  int         tm_wday;   /* Day of the week  [0, 6]   (Sunday = 0) */
-        int       ;;  int         tm_yday;   /* Day of the year  [0, 365] (Jan/01 = 0) */
-        int       ;;  int         tm_isdst;  /* Daylight savings flag */
+        (int        ;;  int         tm_sec;    /* Seconds          [0, 60] */
+         int        ;;  int         tm_min;    /* Minutes          [0, 59] */
+         int        ;;  int         tm_hour;   /* Hour             [0, 23] */
+         int        ;;  int         tm_mday;   /* Day of the month [1, 31] */
+         int        ;;  int         tm_mon;    /* Month            [0, 11]  (January = 0) */
+         int        ;;  int         tm_year;   /* Year minus 1900 */
+         int        ;;  int         tm_wday;   /* Day of the week  [0, 6]   (Sunday = 0) */
+         int        ;;  int         tm_yday;   /* Day of the year  [0, 365] (Jan/01 = 0) */
+         int        ;;  int         tm_isdst;  /* Daylight savings flag */
 
-        int int   ;;  long        tm_gmtoff; /* Seconds East of UTC */
-        (ptr int) ;;  const char *tm_zone;   /* Timezone abbreviation */
+         int int    ;;  long        tm_gmtoff; /* Seconds East of UTC */
+         (ptr int)) ;;  const char *tm_zone;   /* Timezone abbreviation */
     )
 
     (define ((asctime (ptr int)) (t (ptr tm))))

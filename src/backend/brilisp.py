@@ -13,7 +13,7 @@ def is_struct(expr):
 def gen_struct(expr):
     return {
         "name": expr[1],
-        "elements": [gen_type(typ) for typ in expr[2:]],
+        "elements": [gen_type(typ) for typ in expr[2]],
     }
 
 

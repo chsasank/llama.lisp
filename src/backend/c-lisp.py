@@ -106,13 +106,13 @@ class BrilispCodeGenerator:
 
     def gen_struct(self, struct):
         name = struct[1]
-        struct_def = ["define-struct", name]
+        struct_membs = []
         self.struct_types[name] = {}
         for idx, (field, typ) in enumerate(struct[2:]):
             self.struct_types[name][field] = (idx, typ)
-            struct_def.append(typ)
+            struct_membs.append(typ)
 
-        return struct_def
+        return ["define-struct", name, struct_membs]
 
     def gen_stmt(self, stmt):
         try:
