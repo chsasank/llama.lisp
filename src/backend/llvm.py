@@ -56,8 +56,6 @@ class LLVMCodeGenerator(object):
                 return self.struct_types[type["struct"]]
             else:
                 raise CodegenError(f"Unknown type {type}")
-        elif type in self.struct_types:
-            return self.struct_types[type]
         elif type == "int":
             return ir.IntType(32)
         elif type == "void":

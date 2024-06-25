@@ -10,7 +10,7 @@
         (set (i-val int) (const 3))
         (set (f-val float) (const 4.0))
         (set (one int) (const 1))
-        (set (n (ptr node)) (alloc one))
+        (set (n (ptr (struct node))) (alloc one))
 
         (set (elem (ptr int)) (ptradd n 0 0))
         (store elem i-val)

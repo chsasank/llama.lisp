@@ -12,8 +12,11 @@
         (ret))
 
     (define ((struct-init void) (node (ptr (struct Node))))
-        (store (struct-ptr-index node i) 4)
-        (store (struct-ptr-index node f) 5.0)
+        (declare (val (struct Node)))
+        (store (struct-var-index val i) 4)
+        (store (struct-var-index val f) 5.0)
+
+        (store node val)
         (ret))
 
     (define ((main void))

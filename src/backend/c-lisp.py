@@ -238,6 +238,19 @@ class BrilispCodeGenerator:
             ["label", out_lbl],
         ]
 
+    def is_struct_type(self, typ):
+        return typ[0] == "struct" and typ[1] in self.struct_types
+
+    def gen_struct_init(self, stmt):
+        name, typ = stmt[1]
+        scoped_name = self.scoped_lookup(name)
+        struct_ptr_sym, alloc_size_sym = [random_label(CLISP_PREFIX, [extra]) for extra in ("ptr", "size")]
+        return [
+            ["set", [alloc_size_sym, "int"], ["const", 1]],
+            ["set", [struct_ptr_sym, ["ptr", typ]], ["alloc", alloc_size_sym]],
+            ["set", [scoped_name, typ], ["load", struct_ptr_sym]],
+        ]
+
     def is_decl_stmt(self, stmt):
         return stmt[0] == "declare"
 
@@ -250,7 +263,11 @@ class BrilispCodeGenerator:
         if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
         self.symbol_types[scoped_name] = typ
-        return []
+
+        instr_list = []
+        if self.is_struct_type(typ):
+            instr_list += self.gen_struct_init(stmt)
+        return instr_list
 
     def is_ret_stmt(self, stmt):
         return stmt[0] == "ret"
@@ -432,13 +449,13 @@ class BrilispCodeGenerator:
         name, field = expr[1:]
         scoped_name = self.scoped_lookup(name)
         struct_type = self.symbol_types[scoped_name]
-        if not struct_type[0] == "struct":
-            raise CodegenError(f"Not a struct: {name}")
+        if not self.is_struct_type(struct_type):
+            raise CodegenError(f"Not a struct type: {struct_type}")
         struct_ptr_sym = random_label(CLISP_PREFIX)
         field_idx, field_type = self.struct_types[struct_type[1]][field]
         self.pointer_types[res_sym] = ["ptr", field_type]
         return [
-            ["set", [struct_ptr_sym, ["ptr", struct_type[1]]], ["ptr-to", scoped_name]],
+            ["set", [struct_ptr_sym, ["ptr", struct_type]], ["ptr-to", scoped_name]],
             [
                 "set",
                 [res_sym, ["ptr", field_type]],
@@ -453,11 +470,11 @@ class BrilispCodeGenerator:
         name, field = expr[1], expr[2]
         scoped_name = self.scoped_lookup(name)
         struct_ptr_type = self.symbol_types[scoped_name]
-        if not (struct_ptr_type[0] == "ptr" and struct_ptr_type[1][0] == "struct"):
-            raise CodegenError(f"Not a struct pointer: {name}")
+        if not struct_ptr_type[0] == "ptr":
+            raise CodegenError(f"Not a pointer: {name}")
+        if not self.is_struct_type(struct_ptr_type[1]):
+            raise CodegenError(f"Not a struct type: {struct_type}")
         struct_type = struct_ptr_type[1][1]
-        if not struct_type in self.struct_types:
-            raise CodegenError(f"Undefined struct type: {struct_type}")
         field_idx, field_type = self.struct_types[struct_type][field]
         self.pointer_types[res_sym] = ["ptr", field_type]
         return [

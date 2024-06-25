@@ -14,10 +14,10 @@
          (ptr int)) ;;  const char *tm_zone;   /* Timezone abbreviation */
     )
 
-    (define ((asctime (ptr int)) (t (ptr tm))))
+    (define ((asctime (ptr int)) (t (ptr (struct tm)))))
     (define ((printf void) (s (ptr int))))
 
-    (define ((set-date void) (time (ptr tm)) (day int) (month int) (year int) (daynum int))
+    (define ((set-date void) (time (ptr (struct tm))) (day int) (month int) (year int) (daynum int))
         (set (day-p (ptr int)) (ptradd time 0 3))
         (store day-p day)
         (set (month-p (ptr int)) (ptradd time 0 4))
@@ -30,7 +30,7 @@
         (store daynum-p daynum)
         (ret))
 
-    (define ((set-to-midnight void) (time (ptr tm)))
+    (define ((set-to-midnight void) (time (ptr (struct tm))))
         (set (zero int) (const 0))
         (set (sec-p (ptr int)) (ptradd time 0 0))
         (store sec-p zero)
@@ -47,7 +47,7 @@
     (define ((main void))
         (set (one int) (const 1))
         (set (tmp-p (ptr int)) (alloc one))
-        (set (time-struct (ptr tm)) (alloc one))
+        (set (time-struct (ptr (struct tm))) (alloc one))
 
         (set (d int) (const 22))
         (set (m int) (const 6))
