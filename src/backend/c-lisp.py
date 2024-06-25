@@ -244,7 +244,9 @@ class BrilispCodeGenerator:
     def gen_struct_init(self, stmt):
         name, typ = stmt[1]
         scoped_name = self.scoped_lookup(name)
-        struct_ptr_sym, alloc_size_sym = [random_label(CLISP_PREFIX, [extra]) for extra in ("ptr", "size")]
+        struct_ptr_sym, alloc_size_sym = [
+            random_label(CLISP_PREFIX, [extra]) for extra in ("ptr", "size")
+        ]
         return [
             ["set", [alloc_size_sym, "int"], ["const", 1]],
             ["set", [struct_ptr_sym, ["ptr", typ]], ["alloc", alloc_size_sym]],
@@ -439,12 +441,12 @@ class BrilispCodeGenerator:
             ["set", [res_sym, ptr_type], ["alloc", size_sym]],
         ]
 
-    def is_struct_var_index_expr(self, expr):
-        return expr[0] == "struct-var-index"
+    def is_member_ref_expr(self, expr):
+        return expr[0] == "member-ref"
 
-    def gen_struct_var_index_expr(self, expr, res_sym):
+    def gen_member_ref_expr(self, expr, res_sym):
         if not len(expr) == 3:
-            raise CodegenError(f"Bad struct-var-index expression: {expr}")
+            raise CodegenError(f"Bad member-ref expression: {expr}")
 
         name, field = expr[1:]
         scoped_name = self.scoped_lookup(name)
@@ -463,10 +465,13 @@ class BrilispCodeGenerator:
             ],
         ]
 
-    def is_struct_ptr_index_expr(self, expr):
-        return expr[0] == "struct-ptr-index"
+    def is_ptr_member_ref_expr(self, expr):
+        return expr[0] == "ptr-member-ref"
 
-    def gen_struct_ptr_index_expr(self, expr, res_sym):
+    def gen_ptr_member_ref_expr(self, expr, res_sym):
+        if not len(expr) == 3:
+            raise CodegenError(f"Bad ptr-member-ref expression: {expr}")
+
         name, field = expr[1], expr[2]
         scoped_name = self.scoped_lookup(name)
         struct_ptr_type = self.symbol_types[scoped_name]
@@ -505,10 +510,10 @@ class BrilispCodeGenerator:
             return self.gen_store_expr(expr, res_sym)
         elif self.is_alloc_expr(expr):
             return self.gen_alloc_expr(expr, res_sym)
-        elif self.is_struct_ptr_index_expr(expr):
-            return self.gen_struct_ptr_index_expr(expr, res_sym)
-        elif self.is_struct_var_index_expr(expr):
-            return self.gen_struct_var_index_expr(expr, res_sym)
+        elif self.is_ptr_member_ref_expr(expr):
+            return self.gen_ptr_member_ref_expr(expr, res_sym)
+        elif self.is_member_ref_expr(expr):
+            return self.gen_member_ref_expr(expr, res_sym)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 

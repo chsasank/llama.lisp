@@ -7,14 +7,14 @@
     (define ((fprint float) (n float)))
 
     (define ((node-print void) (node (struct Node)))
-        (call print (load (struct-var-index node i)))
-        (call fprint (load (struct-var-index node f)))
+        (call print (load (member-ref node i)))
+        (call fprint (load (member-ref node f)))
         (ret))
 
     (define ((struct-init void) (node (ptr (struct Node))))
         (declare (val (struct Node)))
-        (store (struct-var-index val i) 4)
-        (store (struct-var-index val f) 5.0)
+        (store (member-ref val i) 4)
+        (store (member-ref val f) 5.0)
 
         (store node val)
         (ret))
