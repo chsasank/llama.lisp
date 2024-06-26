@@ -318,6 +318,8 @@ class BrilispCodeGenerator:
             arg_syms.append(arg_sym)
             instr_list += self.gen_expr(arg, res_sym=arg_sym)
         name = expr[1]
+        if not name in self.function_types:
+            raise CodegenError(f"Call to undeclared function: {name}")
         instr_list.append(
             ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]
         )
