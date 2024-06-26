@@ -2,7 +2,7 @@
     (define ((print int) (n int)))
 
     (define ((main int))
-        (declare (i int))
+        (declare i int)
 
         (for ((set i 11)
               (lt i 11)

@@ -2,12 +2,12 @@
     (define ((print int) (n int)))
 
     (define ((sum-square-diff int) (n int))
-        (declare (sum-sq int))
+        (declare sum-sq int)
         (set sum-sq 0)
-        (declare (sum int))
+        (declare sum int)
         (set sum 0)
 
-        (declare (i int))
+        (declare i int)
         (for ((set i 1) (le i n) (set i (add i 1)))
             (set sum-sq (add sum-sq (mul i i)))
             (set sum (add sum i)))

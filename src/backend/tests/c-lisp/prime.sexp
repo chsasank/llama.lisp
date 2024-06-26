@@ -4,8 +4,8 @@
         (ret (mul i i)))
 
     (define ((gcd int) (a int) (b int))
-        (declare (big int))
-        (declare (small int))
+        (declare big int)
+        (declare small int)
 
         (if (gt a b)
             ((set big a)
@@ -20,9 +20,9 @@
         (ret (call gcd small (sub big small))))
 
     (define ((is-prime bool) (n int))
-        (declare (i int))
-        (declare (iter int))
-        (declare (not-prime bool))
+        (declare i int)
+        (declare iter int)
+        (declare not-prime bool)
         (set not-prime #f)
 
         (for ((set i 2) (le (call square i) n) (set i (add i 1)))
