@@ -2,10 +2,10 @@
     (define ((print int) (n int)))
 
     (define ((fib int) (n int))
-        (declare (last-2 int))
-        (declare (last-1 int))
-        (declare (res int))
-        (declare (i int))
+        (declare last-2 int)
+        (declare last-1 int)
+        (declare res int)
+        (declare i int)
 
         (set last-2 0)
         (set last-1 1)

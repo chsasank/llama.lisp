@@ -5,15 +5,15 @@
     (define ((atoi int) (s (ptr int))))
 
     (define ((swap void) (a (ptr int)) (b (ptr int)))
-        (declare (tmp int))
+        (declare tmp int)
         (set tmp (load b))
         (store b (load a))
         (store a tmp)
         (ret))
 
     (define ((min int) (arr (ptr int)) (n int))
-        (declare (i int))
-        (declare (idx int))
+        (declare i int)
+        (declare idx int)
 
         (set idx 0)
         (for ((set i 1)
@@ -24,9 +24,9 @@
         (ret idx))
 
     (define ((insertion-sort void) (arr (ptr int)) (len int))
-        (declare (min-idx int))
-        (declare (i int))
-        (declare (rest-arr (ptr int)))
+        (declare min-idx int)
+        (declare i int)
+        (declare rest-arr (ptr int))
 
         (for ((set i 0)
               (lt i (sub len 1))
@@ -40,9 +40,9 @@
         (ret))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
-        (declare (input (ptr int)))
-        (declare (len int))
-        (declare (i int))
+        (declare input (ptr int))
+        (declare len int)
+        (declare i int)
 
         (set len (sub argc 1))
         (set input (alloc int len))
