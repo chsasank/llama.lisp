@@ -218,10 +218,10 @@ class BrilispCodeGenerator:
         return stmt[0] == "declare"
 
     def gen_decl_stmt(self, stmt):
-        if not (len(stmt) == 2 and len(stmt[1]) == 2):
+        if not len(stmt) == 3:
             raise CodegenError(f"bad declare statement: {stmt}")
 
-        name, typ = stmt[1]
+        name, typ = stmt[1], stmt[2]
         scoped_name = self.construct_scoped_name(name, self.scopes)
         if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
@@ -328,9 +328,7 @@ class BrilispCodeGenerator:
         typ, n_ops = self.fixed_op_types[opcode]
         if not (len(expr) == n_ops + 1):
             raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
-        in_syms = [
-            random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)
-        ]
+        in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
         input_instrs = []
         for n in range(n_ops):
             input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
@@ -376,8 +374,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad store expression: {expr}")
 
         val_sym, ptr_sym = [
-            random_label(CLISP_PREFIX, [extra])
-            for extra in ("val", "ptr")
+            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
         ]
         return [
             *self.gen_expr(expr[1], res_sym=ptr_sym),

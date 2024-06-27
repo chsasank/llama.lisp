@@ -16,6 +16,7 @@
 *.wx64fsl
 *.wx32fsl
 
+src/backend/tests/llama2.c
 build/
 book/
 venv/
@@ -32,3 +33,5 @@ __pycache__
 # vim swap files
 *.swp
 *.swo
+
+src/backend/tests/llama2.c/matrix_multiplication.sexp
