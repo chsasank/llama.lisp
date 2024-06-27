@@ -88,18 +88,18 @@ class BrilispCodeGenerator:
             self.symbol_types[parm[0]] = parm[1]
         self.function_types[name] = [ret_type, parm_types]
 
+        # If the function has a body, we need to codegen for it
         if len(func) > 2:
-            # Return value, instruction and label
+            # Set up a return label and a return variable, if needed
             self.ret_ptr_sym, ret_label, ret_alloc_size_sym, ret_val_sym = [
                 random_label(CLISP_PREFIX, [extra])
                 for extra in ("ret_ptr", "ret_lbl", "ret_alloc", "ret_val")
             ]
             self.ret_jmp_instr = ["jmp", ret_label]
-            if ret_type == "void":
-                ret_alloc_instrs = []
-                ret_instrs = [["ret"]]
-            else:
+            if not ret_type == "void":
+                # Function returns something, so we have to maintain a return variable
                 ret_alloc_instrs = [
+                    # Allocate space for the return variable
                     ["set", [ret_alloc_size_sym, "int"], ["const", 1]],
                     [
                         "set",
@@ -107,17 +107,25 @@ class BrilispCodeGenerator:
                         ["alloc", ret_alloc_size_sym],
                     ],
                 ]
-                ret_instrs = [
+                ret_label_instrs = [
+                    # Load the return variable and return it.
+                    # Control jumps here for function return.
+                    ["label", ret_label],
                     ["set", [ret_val_sym, ret_type], ["load", self.ret_ptr_sym]],
                     ["ret", ret_val_sym],
                 ]
+            else:
+                # No return value, so no need to maintain a return variable
+                ret_alloc_instrs = []
+                ret_label_instrs = [["label", ret_label], ["ret"]]
+
             body_instrs = [
                 *ret_alloc_instrs,
-                *self.gen_compound_stmt(func[2:], new_scope=False),
-                ["label", ret_label],
-                *ret_instrs,
+                *self.gen_compound_stmt(func[2:], new_scope=False), # C-Lisp function body
+                *ret_label_instrs,
             ]
         else:
+            # This is a declaration without a body
             body_instrs = []
 
         return [
