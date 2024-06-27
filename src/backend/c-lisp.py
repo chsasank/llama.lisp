@@ -88,20 +88,38 @@ class BrilispCodeGenerator:
             self.symbol_types[parm[0]] = parm[1]
         self.function_types[name] = [ret_type, parm_types]
 
-        # Return value, instruction and label
-        ret_sym, ret_label = [random_label(CLISP_PREFIX, [extra]) for extra in ("ret_sym", "ret_lbl")]
-        self.ret_jmp_instr = ["jmp", ret_label]
-        self.ret_sym_and_type = [ret_sym, ret_type]
-
-        body_instrs = self.gen_compound_stmt(func[2:], new_scope=False)
-        if len(body_instrs) > 0:
-            if not body_instrs[-1] == self.ret_jmp_instr:
-                raise CodegenError(f"Implicit return in function {func[1]}")
-            body_instrs.append(["label", ret_label])
+        if len(func) > 2:
+            # Return value, instruction and label
+            self.ret_ptr_sym, ret_label, ret_alloc_size_sym, ret_val_sym = [
+                random_label(CLISP_PREFIX, [extra])
+                for extra in ("ret_ptr", "ret_lbl", "ret_alloc", "ret_val")
+            ]
+            self.ret_jmp_instr = ["jmp", ret_label]
             if ret_type == "void":
-                body_instrs.append(["ret"])
+                ret_alloc_instrs = []
+                ret_instrs = [["ret"]]
             else:
-                body_instrs.append(["ret", ret_sym])
+                ret_alloc_instrs = [
+                    ["set", [ret_alloc_size_sym, "int"], ["const", 1]],
+                    [
+                        "set",
+                        [self.ret_ptr_sym, ["ptr", ret_type]],
+                        ["alloc", ret_alloc_size_sym],
+                    ],
+                ]
+                ret_instrs = [
+                    ["set", [ret_val_sym, ret_type], ["load", self.ret_ptr_sym]],
+                    ["ret", ret_val_sym],
+                ]
+            body_instrs = [
+                *ret_alloc_instrs,
+                *self.gen_compound_stmt(func[2:], new_scope=False),
+                ["label", ret_label],
+                *ret_instrs,
+            ]
+        else:
+            body_instrs = []
+
         return [
             "define",
             func[1],
@@ -253,7 +271,7 @@ class BrilispCodeGenerator:
             res_sym = random_label(CLISP_PREFIX)
             instr_list = [
                 *self.gen_expr(stmt[1], res_sym=res_sym),
-                ["set", self.ret_sym_and_type, ["id", res_sym]],
+                ["store", self.ret_ptr_sym, res_sym],
                 self.ret_jmp_instr,
             ]
             return instr_list
@@ -348,9 +366,7 @@ class BrilispCodeGenerator:
         typ, n_ops = self.fixed_op_types[opcode]
         if not (len(expr) == n_ops + 1):
             raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
-        in_syms = [
-            random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)
-        ]
+        in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
         input_instrs = []
         for n in range(n_ops):
             input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
@@ -396,8 +412,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad store expression: {expr}")
 
         val_sym, ptr_sym = [
-            random_label(CLISP_PREFIX, [extra])
-            for extra in ("val", "ptr")
+            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
         ]
         return [
             *self.gen_expr(expr[1], res_sym=ptr_sym),
