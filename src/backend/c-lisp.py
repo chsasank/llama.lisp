@@ -148,7 +148,7 @@ class BrilispCodeGenerator:
             else:
                 return self.gen_expr(stmt)
         except Exception as e:
-            print(f"Error in statement: {stmt}", file = sys.stderr)
+            print(f"Error in statement: {stmt}", file=sys.stderr)
             raise e
 
     def is_while_stmt(self, stmt):
@@ -300,9 +300,6 @@ class BrilispCodeGenerator:
     def gen_set_expr(self, expr, res_sym):
         name = expr[1]
         scoped_name = self.scoped_lookup(name)
-        if not scoped_name in self.symbol_types:
-            raise CodegenError(f"Cannot set undeclared variable: {name}")
-
         instr_list = self.gen_expr(expr[2], res_sym=res_sym)
         instr_list.append(
             ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
@@ -348,14 +345,11 @@ class BrilispCodeGenerator:
 
     def gen_var_expr(self, expr, res_sym):
         scoped_name = self.scoped_lookup(expr)
-        if scoped_name in self.symbol_types:
-            typ = self.symbol_types[scoped_name]
-            instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
-            if typ[0] == "ptr":
-                self.pointer_types[res_sym] = typ
-            return instr_list
-        else:
-            raise CodegenError(f"Reference to undeclared variable: {expr}")
+        typ = self.symbol_types[scoped_name]
+        instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
+        if typ[0] == "ptr":
+            self.pointer_types[res_sym] = typ
+        return instr_list
 
     def is_fixed_type_expr(self, expr):
         return expr[0] in self.fixed_op_types
