@@ -221,7 +221,7 @@ class BrilispCodeGenerator:
         if not len(stmt) == 3:
             raise CodegenError(f"bad declare statement: {stmt}")
 
-        name, typ = stmt[1], stmt[2]
+        name, typ = stmt[1]
         scoped_name = self.construct_scoped_name(name, self.scopes)
         if scoped_name in self.symbol_types:
             raise CodegenError(f"Re-declaration of variable {name}")
