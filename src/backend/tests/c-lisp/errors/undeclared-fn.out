@@ -1,0 +1,2 @@
+Error in statement: ['call', 'print', 4]
+CodegenError: Call to undeclared function: print

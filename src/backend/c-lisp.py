@@ -148,7 +148,7 @@ class BrilispCodeGenerator:
             else:
                 return self.gen_expr(stmt)
         except Exception as e:
-            print(f"Error in statement: {stmt}")
+            print(f"Error in statement: {stmt}", file = sys.stderr)
             raise e
 
     def is_while_stmt(self, stmt):
