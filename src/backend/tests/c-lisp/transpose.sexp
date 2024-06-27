@@ -2,7 +2,7 @@
     (define ((print int) (n int)))
 
     (define ((swap void) (a (ptr int)) (b (ptr int)))
-        (declare (tmp int))
+        (declare tmp int)
         (set tmp (load b))
         (store b (load a))
         (store a tmp)
@@ -12,8 +12,8 @@
         (ret (add (mul i len) j)))
 
     (define ((transpose void) (mat (ptr int)) (len int))
-        (declare (i int))
-        (declare (j int))
+        (declare i int)
+        (declare j int)
 
         (for ((set i 0)
               (lt i len)
@@ -25,8 +25,8 @@
         (ret))
 
     (define ((mat-cons void) (arr (ptr int)) (len int))
-        (declare (i int))
-        (declare (j int))
+        (declare i int)
+        (declare j int)
 
         (for ((set i 0)
               (lt i len)
@@ -40,7 +40,7 @@
         (ret))
 
     (define ((arr-print void) (arr (ptr int)) (len int))
-        (declare (i int))
+        (declare i int)
 
         (for ((set i 0)
               (lt i len)
@@ -49,7 +49,7 @@
         (ret))
 
     (define ((main void))
-        (declare (input (ptr int)))
+        (declare input (ptr int))
 
         (set input (alloc int 25))
         (call mat-cons input 5)
