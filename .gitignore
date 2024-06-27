@@ -34,4 +34,3 @@ __pycache__
 *.swp
 *.swo
 
-src/backend/tests/llama2.c/matrix_multiplication.sexp
