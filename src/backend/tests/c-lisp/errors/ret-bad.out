@@ -1,0 +1,2 @@
+Error in statement: ['ret', 0, 1]
+CodegenError: Return statement can contain only 1 optional return value: ['ret', 0, 1]

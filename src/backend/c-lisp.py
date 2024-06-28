@@ -373,7 +373,7 @@ class BrilispCodeGenerator:
         opcode = expr[0]
         typ, n_ops = self.fixed_op_types[opcode]
         if not (len(expr) == n_ops + 1):
-            raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
+            raise CodegenError(f"`{opcode}` takes only {n_ops} operands: {expr}")
         in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
         input_instrs = []
         for n in range(n_ops):
