@@ -1,0 +1,2 @@
+Error in statement: ['set', ['declare', 'var', 'int'], 4]
+CodegenError: Bad set expression: ['set', ['declare', 'var', 'int'], 4]

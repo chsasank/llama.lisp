@@ -1,0 +1,2 @@
+Error in statement: ['set', 'var', 5]
+CodegenError: Undeclared symbol: var

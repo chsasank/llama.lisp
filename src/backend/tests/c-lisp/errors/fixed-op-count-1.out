@@ -1,0 +1,2 @@
+Error in statement: ['ret', ['not', True, False]]
+CodegenError: `not` takes only 1 operands: ['not', True, False]

@@ -2,6 +2,7 @@
 import json
 import sys
 from utils.random import random_label
+from utils.shape import verify_shape
 
 CLISP_PREFIX = "tmp_clisp"
 
@@ -87,10 +88,53 @@ class BrilispCodeGenerator:
             parm_types.append(parm[1])
             self.symbol_types[parm[0]] = parm[1]
         self.function_types[name] = [ret_type, parm_types]
+
+        # If the function has a body, we need to codegen for it
+        if len(func) > 2:
+            # Set up a return label and a return variable, if needed
+            self.ret_ptr_sym, ret_label, ret_alloc_size_sym, ret_val_sym = [
+                random_label(CLISP_PREFIX, [extra])
+                for extra in ("ret_ptr", "ret_lbl", "ret_alloc", "ret_val")
+            ]
+            self.ret_jmp_instr = ["jmp", ret_label]
+            if ret_type != "void":
+                # Function returns something, so we have to maintain a return variable
+                ret_alloc_instrs = [
+                    # Allocate space for the return variable
+                    ["set", [ret_alloc_size_sym, "int"], ["const", 1]],
+                    [
+                        "set",
+                        [self.ret_ptr_sym, ["ptr", ret_type]],
+                        ["alloc", ret_alloc_size_sym],
+                    ],
+                ]
+                ret_label_instrs = [
+                    # Load the return variable and return it.
+                    # Control jumps here for function return.
+                    ["label", ret_label],
+                    ["set", [ret_val_sym, ret_type], ["load", self.ret_ptr_sym]],
+                    ["ret", ret_val_sym],
+                ]
+            else:
+                # No return value, so no need to maintain a return variable
+                ret_alloc_instrs = []
+                ret_label_instrs = [["label", ret_label], ["ret"]]
+
+            body_instrs = [
+                *ret_alloc_instrs,
+                *self.gen_compound_stmt(
+                    func[2:], new_scope=False
+                ),  # C-Lisp function body
+                *ret_label_instrs,
+            ]
+        else:
+            # This is a declaration without a body
+            body_instrs = []
+
         return [
             "define",
             func[1],
-            *self.gen_compound_stmt(func[2:], new_scope=False),
+            *body_instrs,
         ]
 
     def gen_stmt(self, stmt):
@@ -115,7 +159,7 @@ class BrilispCodeGenerator:
             else:
                 return self.gen_expr(stmt)
         except Exception as e:
-            print(f"Error in statement: {stmt}")
+            print(f"Error in statement: {stmt}", file=sys.stderr)
             raise e
 
     def is_while_stmt(self, stmt):
@@ -219,7 +263,7 @@ class BrilispCodeGenerator:
 
     def gen_decl_stmt(self, stmt):
         if not len(stmt) == 3:
-            raise CodegenError(f"bad declare statement: {stmt}")
+            raise CodegenError(f"Bad declare statement: {stmt}")
 
         name, typ = stmt[1], stmt[2]
         scoped_name = self.construct_scoped_name(name, self.scopes)
@@ -233,11 +277,14 @@ class BrilispCodeGenerator:
 
     def gen_ret_stmt(self, stmt):
         if len(stmt) == 1:
-            return [["ret"]]
+            return [self.ret_jmp_instr]
         elif len(stmt) == 2:
             res_sym = random_label(CLISP_PREFIX)
-            instr_list = self.gen_expr(stmt[1], res_sym=res_sym)
-            instr_list.append(["ret", res_sym])
+            instr_list = [
+                *self.gen_expr(stmt[1], res_sym=res_sym),
+                ["store", self.ret_ptr_sym, res_sym],
+                self.ret_jmp_instr,
+            ]
             return instr_list
         else:
             raise CodegenError(
@@ -262,11 +309,11 @@ class BrilispCodeGenerator:
         return expr[0] == "set"
 
     def gen_set_expr(self, expr, res_sym):
+        if not verify_shape(expr, [str, str, None]):
+            raise CodegenError(f"Bad set expression: {expr}")
+
         name = expr[1]
         scoped_name = self.scoped_lookup(name)
-        if not scoped_name in self.symbol_types:
-            raise CodegenError(f"Cannot set undeclared variable: {name}")
-
         instr_list = self.gen_expr(expr[2], res_sym=res_sym)
         instr_list.append(
             ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
@@ -300,6 +347,8 @@ class BrilispCodeGenerator:
             arg_syms.append(arg_sym)
             instr_list += self.gen_expr(arg, res_sym=arg_sym)
         name = expr[1]
+        if name not in self.function_types:
+            raise CodegenError(f"Call to undeclared function: {name}")
         instr_list.append(
             ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]
         )
@@ -310,14 +359,11 @@ class BrilispCodeGenerator:
 
     def gen_var_expr(self, expr, res_sym):
         scoped_name = self.scoped_lookup(expr)
-        if scoped_name in self.symbol_types:
-            typ = self.symbol_types[scoped_name]
-            instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
-            if typ[0] == "ptr":
-                self.pointer_types[res_sym] = typ
-            return instr_list
-        else:
-            raise CodegenError(f"Reference to undeclared variable: {expr}")
+        typ = self.symbol_types[scoped_name]
+        instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
+        if typ[0] == "ptr":
+            self.pointer_types[res_sym] = typ
+        return instr_list
 
     def is_fixed_type_expr(self, expr):
         return expr[0] in self.fixed_op_types
@@ -327,10 +373,8 @@ class BrilispCodeGenerator:
         opcode = expr[0]
         typ, n_ops = self.fixed_op_types[opcode]
         if not (len(expr) == n_ops + 1):
-            raise CodegenError(f"`{opcode}` takes only 2 operands: {expr}")
-        in_syms = [
-            random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)
-        ]
+            raise CodegenError(f"`{opcode}` takes only {n_ops} operands: {expr}")
+        in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
         input_instrs = []
         for n in range(n_ops):
             input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
@@ -376,8 +420,7 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad store expression: {expr}")
 
         val_sym, ptr_sym = [
-            random_label(CLISP_PREFIX, [extra])
-            for extra in ("val", "ptr")
+            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
         ]
         return [
             *self.gen_expr(expr[1], res_sym=ptr_sym),
