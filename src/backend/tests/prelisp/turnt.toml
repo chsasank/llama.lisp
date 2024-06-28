@@ -1,0 +1,1 @@
+command = "guile ../../prelisp.scm < {filename} | guile ../../utils/sexp-json.scm | python ../../c-lisp.py | python ../../brilisp.py | python ../../llvm.py | bash ../brilisp/run.sh "
