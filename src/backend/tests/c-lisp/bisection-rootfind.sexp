@@ -2,7 +2,7 @@
     (define ((fprint float) (n float)))
 
     (define ((quad-val float) (a2 float) (a1 float) (a0 float) (x float))
-        (declare (val float))
+        (declare val float)
         (set val a0)
         (set val (fadd val (fmul a1 x)))
         (set val (fadd val (fmul a2 (fmul x x))))
@@ -12,12 +12,12 @@
              (a2 float) (a1 float) (a0 float) ; The quadratic equation is a2(x^2) + a1(x) + a0 = 0
              (neg-pt float) (pos-pt float))   ; Known to be > 0 at pos-pt and < 0 at neg-pt
 
-            (declare (prev-mid-val float))
+            (declare prev-mid-val float)
             (set prev-mid-val 0.0)
 
-            (declare (mid-val float))
-            (declare (mid-pt float))
-            (declare (loop bool))
+            (declare mid-val float)
+            (declare mid-pt float)
+            (declare loop bool)
 
             (set loop #t)
             (while loop
