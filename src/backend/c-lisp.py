@@ -2,6 +2,7 @@
 import json
 import sys
 from utils.random import random_label
+from utils.shape import verify_shape
 
 CLISP_PREFIX = "tmp_clisp"
 
@@ -308,6 +309,9 @@ class BrilispCodeGenerator:
         return expr[0] == "set"
 
     def gen_set_expr(self, expr, res_sym):
+        if not verify_shape(expr, [str, str, None]):
+            raise CodegenError(f"Bad set expression: {expr}")
+
         name = expr[1]
         scoped_name = self.scoped_lookup(name)
         instr_list = self.gen_expr(expr[2], res_sym=res_sym)
