@@ -32,6 +32,9 @@ class LLVMCodeGenerator(object):
         self.module = ir.Module()
         self.builder = None
 
+        # Table of struct types, maintained throughout the program
+        self.struct_types = {}  # struct type name -> ir.StructType instance
+
         # Manages a symbol table while a function is being codegen'd. Maps var
         # names to stack addresses allocated using `alloca` instruction
         self.func_alloca_symtab = {}  # symbol name -> memory address
@@ -40,6 +43,8 @@ class LLVMCodeGenerator(object):
         self.func_bbs = {}
 
     def generate(self, bril_prog):
+        for struct in bril_prog.structs:
+            self.gen_struct(struct)
         for fn in bril_prog.functions:
             self.gen_function(fn)
 
@@ -47,6 +52,8 @@ class LLVMCodeGenerator(object):
         if isinstance(type, dict):
             if "ptr" in type:
                 return self.gen_type(type["ptr"]).as_pointer()
+            elif "struct" in type:
+                return self.struct_types[type["struct"]]
             else:
                 raise CodegenError(f"Unknown type {type}")
         elif type == "int":
@@ -208,12 +215,25 @@ class LLVMCodeGenerator(object):
 
         def gen_ptradd(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            indices = []
+            for arg in instr.args[1:]:
+                if isinstance(arg, int):
+                    indices.append(ir.Constant(ir.IntType(32), arg))
+                else:
+                    indices.append(self.gen_var(arg))
             self.gen_symbol_store(
                 instr.dest,
                 self.builder.gep(
                     self.gen_var(instr.args[0]),
-                    [self.gen_var(arg) for arg in instr["args"][1:]],
+                    indices,
                 ),
+            )
+
+        def gen_ptr_to(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.func_alloca_symtab[instr.args[0]],
             )
 
         def gen_id(instr):
@@ -246,6 +266,8 @@ class LLVMCodeGenerator(object):
                     gen_load(instr)
                 elif instr.op == "ptradd":
                     gen_ptradd(instr)
+                elif instr.op == "ptr-to":
+                    gen_ptr_to(instr)
                 elif instr.op == "id":
                     gen_id(instr)
                 elif instr.op in value_ops:
@@ -346,6 +368,15 @@ class LLVMCodeGenerator(object):
             self.builder.position_at_end(self.func_alloca_bb)
             self.builder.branch(bb_entry)  # Cannot use implicit fallthroughs
         return func
+
+    def gen_struct(self, struct):
+        # The ir.StructType object needs to be in the symbol table before the struct's
+        # field types are evaluated, to allow circular references to the struct's own type.
+        self.struct_types[struct.name] = ir.global_context.get_identified_type(
+            struct.name
+        )
+        elem_types = [self.gen_type(typ) for typ in struct.elements]
+        self.struct_types[struct.name].set_body(*elem_types)
 
 
 def main():

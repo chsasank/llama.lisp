@@ -6,6 +6,17 @@ def is_list(x):
     return isinstance(x, list)
 
 
+def is_struct(expr):
+    return isinstance(expr, list) and (expr[0] == "define-struct")
+
+
+def gen_struct(expr):
+    return {
+        "name": expr[1],
+        "elements": [gen_type(typ) for typ in expr[2]],
+    }
+
+
 def is_function(expr):
     return isinstance(expr, list) and (expr[0] == "define")
 
@@ -65,6 +76,7 @@ def gen_instr(instr):
             "alloc",
             "load",
             "ptradd",
+            "ptr-to",
             "id",
             "fadd",
             "fsub",
@@ -160,9 +172,16 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
+    functions = []
+    structs = []
     for x in body:
-        assert is_function(x), f"{x} is not a function"
-    return {"functions": [gen_function(x) for x in body]}
+        if is_function(x):
+            functions.append(gen_function(x))
+        elif is_struct(x):
+            structs.append(gen_struct(x))
+        else:
+            raise Exception(f"{x} is neither function nor struct")
+    return {"functions": functions, "structs": structs}
 
 
 def main():
