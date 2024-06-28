@@ -1,9 +1,9 @@
 (c-lisp
     (define ((main void))
-        (declare (var int))
+        (declare var int)
 
         (if #t
-            ((declare (var float))
+            ((declare var float)
              (set var 0.5)))
 
-        (declare (var bool))))
+        (declare var bool)))

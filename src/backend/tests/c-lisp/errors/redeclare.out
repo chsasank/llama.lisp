@@ -1,2 +1,2 @@
-Error in statement: ['declare', ['var', 'bool']]
+Error in statement: ['declare', 'var', 'bool']
 CodegenError: Re-declaration of variable var

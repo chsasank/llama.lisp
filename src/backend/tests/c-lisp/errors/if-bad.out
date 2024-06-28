@@ -1,0 +1,2 @@
+Error in statement: ['if', True, ['call', 'print', 5], ['call', 'print', 4], ['call', 'print', 3]]
+CodegenError: Bad if statement: ['if', True, ['call', 'print', 5], ['call', 'print', 4], ['call', 'print', 3]]

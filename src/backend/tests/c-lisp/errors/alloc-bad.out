@@ -1,0 +1,2 @@
+Error in statement: ['set', 'arr', ['alloc', 3]]
+CodegenError: Bad alloc expression: ['alloc', 3]

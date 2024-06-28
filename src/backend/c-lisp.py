@@ -96,7 +96,7 @@ class BrilispCodeGenerator:
                 for extra in ("ret_ptr", "ret_lbl", "ret_alloc", "ret_val")
             ]
             self.ret_jmp_instr = ["jmp", ret_label]
-            if not ret_type == "void":
+            if ret_type != "void":
                 # Function returns something, so we have to maintain a return variable
                 ret_alloc_instrs = [
                     # Allocate space for the return variable
@@ -121,7 +121,9 @@ class BrilispCodeGenerator:
 
             body_instrs = [
                 *ret_alloc_instrs,
-                *self.gen_compound_stmt(func[2:], new_scope=False), # C-Lisp function body
+                *self.gen_compound_stmt(
+                    func[2:], new_scope=False
+                ),  # C-Lisp function body
                 *ret_label_instrs,
             ]
         else:
@@ -260,7 +262,7 @@ class BrilispCodeGenerator:
 
     def gen_decl_stmt(self, stmt):
         if not len(stmt) == 3:
-            raise CodegenError(f"bad declare statement: {stmt}")
+            raise CodegenError(f"Bad declare statement: {stmt}")
 
         name, typ = stmt[1], stmt[2]
         scoped_name = self.construct_scoped_name(name, self.scopes)
@@ -341,7 +343,7 @@ class BrilispCodeGenerator:
             arg_syms.append(arg_sym)
             instr_list += self.gen_expr(arg, res_sym=arg_sym)
         name = expr[1]
-        if not name in self.function_types:
+        if name not in self.function_types:
             raise CodegenError(f"Call to undeclared function: {name}")
         instr_list.append(
             ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]

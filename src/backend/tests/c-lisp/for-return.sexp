@@ -2,7 +2,7 @@
     (define ((print int) (n int)))
 
     (define ((cons void) (arr (ptr int)) (n int))
-        (declare (i int))
+        (declare i int)
         (for ((set i 0)
               (lt i n)
               (set i (add i 1)))
@@ -11,7 +11,7 @@
                 (mul i 3))))
 
     (define ((find int) (arr (ptr int)) (key int) (n int))
-        (declare (i int))
+        (declare i int)
         (for ((set i 0)
                 (lt i n)
                 (set i (add i 1)))
@@ -20,7 +20,7 @@
                 (ret i))))
 
     (define ((verify int) (arr (ptr int)) (key int) (idx int) (len int))
-        (declare (val int))
+        (declare val int)
         (if (lt idx len)
             ((set val (load (ptradd arr idx)))
              (if (eq val key)
@@ -29,14 +29,14 @@
             (ret -2)))
 
     (define ((main void))
-        (declare (input (ptr int)))
-        (declare (i int))
+        (declare input (ptr int))
+        (declare i int)
 
         (set input (alloc int 10))
         (call cons input 10)
 
-        (declare (12-idx int))
-        (declare (13-idx int))
+        (declare 12-idx int)
+        (declare 13-idx int)
 
         (set 12-idx (call find input 12 10))
         (set 13-idx (call find input 13 10))

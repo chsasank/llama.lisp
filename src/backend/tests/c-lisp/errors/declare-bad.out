@@ -1,0 +1,2 @@
+Error in statement: ['declare', 'a']
+CodegenError: Bad declare statement: ['declare', 'a']

@@ -1,0 +1,2 @@
+Error in statement: ['while', ['call', 'print', 5]]
+CodegenError: Bad while statement: ['while', ['call', 'print', 5]]
