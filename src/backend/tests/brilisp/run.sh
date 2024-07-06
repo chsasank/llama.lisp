@@ -1,11 +1,12 @@
-#!/bin/bash
+#!/bin/sh
 cd "$(dirname "$0")"
 
-tmp_in=$(mktemp --suffix '.ll')
-tmp_out=$(mktemp --suffix '.out')
+tmp_dir=$(mktemp -d)
+tmp_in=${tmp_dir}/tmp.ll
+tmp_out=${tmp_dir}/tmp.out
 
 cat > $tmp_in
 clang $tmp_in runtime.c -o $tmp_out -Wno-override-module -O2
 $tmp_out $@
 
-rm $tmp_in $tmp_out
+rm -r $tmp_dir
