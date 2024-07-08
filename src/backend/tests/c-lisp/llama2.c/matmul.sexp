@@ -3,7 +3,7 @@
 
     (define ((putchar int) (n int)))
 
-    (define ((initialise void) (xout (ptr float)) (x (ptr float)) (w (ptr float)) (column int) (row int)) ;void initialise(float *xout, float *x, float *w, int column , int row)
+    (define ((initialise void) (x (ptr float)) (w (ptr float)) (column int) (row int))
         (declare row_float float)
         (declare column_float float)
         (declare i int)
@@ -58,7 +58,7 @@
         (set w (alloc float 100))
         (set n 10)
         (set d 10)
-        (call initialise xout x w n d)
+        (call initialise x w n d)
         (call mat_mul xout x w n d)
         (ret) 
     )
