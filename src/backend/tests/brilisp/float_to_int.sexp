@@ -8,7 +8,7 @@
         (ret sum))
 
     (define ((main int))
-        (set (a float) (const 9.0))
+        (set (a float) (const 9.7123))
         (set (b int) (call add5 a))
         (set (tmp int) (call print b))
         (ret b)))

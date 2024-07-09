@@ -2,7 +2,7 @@
     (define ((fprint float) (n float)))
 
     (define ((add5 float) (n int))
-        (set (five float) (const 5.0))
+        (set (five float) (const 5.13))
         (set (f_n float) (sitofp n))
         (set (sum float) (fadd f_n five))
         (ret sum))
