@@ -57,6 +57,10 @@ class LLVMCodeGenerator(object):
             return ir.IntType(1)
         elif type == "float":
             return ir.FloatType()
+        elif type == "int8":
+            return ir.IntType(8)
+        elif type == "int4":
+            return ir.IntType(4)
         else:
             raise CodegenError(f"Unknown type {type}")
 
@@ -104,6 +108,22 @@ class LLVMCodeGenerator(object):
             "fle": "<=",
             "fge": ">=",
             "fne": "!=",
+        }
+
+        cast_ops = {
+            "trunc": "trunc",
+            "zext": "zext",
+            "sext": "sext",
+            "fptrunc": "fptrunc",
+            "fpext": "fpext",
+            "bitcast": "bitcast",
+            "addrspacecast": "addrspacecast",
+            "fptoui": "fptoui",
+            "uitofp": "uitofp",
+            "fptosi": "fptosi",
+            "sitofp": "sitofp",
+            "ptrtoint": "ptrtoint",
+            "inttoptr": "inttoptr",
         }
 
         def gen_label(instr):
@@ -216,24 +236,13 @@ class LLVMCodeGenerator(object):
                 ),
             )
 
-        def gen_sitofp(instr):
-            """this function creates an IR for the instruction sitofp. IRBuilder.sitofp(value, typ, name='')"""
+        def gen_castop(instr):
+            """this function creates an IR for casting types"""
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            llvm_instr = getattr(self.builder, cast_ops[instr.op])
             self.gen_symbol_store(
                 instr.dest,
-                self.builder.sitofp(
-                    self.gen_var(instr.args[0]),
-                    self.gen_type(instr.type),
-                    name=instr.dest,
-                ),
-            )
-
-        def gen_fptosi(instr):
-            """this function creates an IR for the instruction fptosi. IRBuilder.fptosi(value, typ, name='')"""
-            self.declare_var(self.gen_type(instr.type), instr.dest)
-            self.gen_symbol_store(
-                instr.dest,
-                self.builder.fptosi(
+                llvm_instr(
                     self.gen_var(instr.args[0]),
                     self.gen_type(instr.type),
                     name=instr.dest,
@@ -278,10 +287,8 @@ class LLVMCodeGenerator(object):
                     gen_comp(instr)
                 elif instr.op in fcmp_ops:
                     gen_fcomp(instr)
-                elif instr.op == "sitofp":
-                    gen_sitofp(instr)
-                elif instr.op == "fptosi":
-                    gen_fptosi(instr)
+                elif instr.op in cast_ops:
+                    gen_castop(instr)
                 else:
                     raise CodegenError(f"Unknown op in the instruction: {dict(instr)}")
             except Exception as e:
