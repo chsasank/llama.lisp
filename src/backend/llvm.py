@@ -85,7 +85,7 @@ class LLVMCodeGenerator(object):
             "fadd": "fadd",
             "fsub": "fsub",
             "fmul": "fmul",
-            "fdiv": "fdiv"
+            "fdiv": "fdiv",
         }
 
         cmp_ops = {
@@ -215,22 +215,30 @@ class LLVMCodeGenerator(object):
                     [self.gen_var(arg) for arg in instr["args"][1:]],
                 ),
             )
+
         def gen_sitofp(instr):
-            """ this function creates an IR for the instruction sitofp. IRBuilder.sitofp(value, typ, name='')"""
+            """this function creates an IR for the instruction sitofp. IRBuilder.sitofp(value, typ, name='')"""
             self.declare_var(self.gen_type(instr.type), instr.dest)
-            self.gen_symbol_store(instr.dest,
-                    self.builder.sitofp(
-                        self.gen_var(instr.args[0]),self.gen_type(instr.type),name=instr.dest
-                                        )
-                                )
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.sitofp(
+                    self.gen_var(instr.args[0]),
+                    self.gen_type(instr.type),
+                    name=instr.dest,
+                ),
+            )
+
         def gen_fptosi(instr):
-            """ this function creates an IR for the instruction fptosi. IRBuilder.fptosi(value, typ, name='')"""
+            """this function creates an IR for the instruction fptosi. IRBuilder.fptosi(value, typ, name='')"""
             self.declare_var(self.gen_type(instr.type), instr.dest)
-            self.gen_symbol_store(instr.dest,
-                    self.builder.fptosi(
-                        self.gen_var(instr.args[0]),self.gen_type(instr.type),name=instr.dest
-                                        )
-                                )
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.fptosi(
+                    self.gen_var(instr.args[0]),
+                    self.gen_type(instr.type),
+                    name=instr.dest,
+                ),
+            )
 
         def gen_id(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
@@ -329,8 +337,6 @@ class LLVMCodeGenerator(object):
             self.builder.store(val, self.func_alloca_symtab[name])
         else:
             raise CodegenError(f"Unknown variable: {name}")
-    
-    
 
     def gen_function(self, fn):
         # Reset the symbol and labels table.

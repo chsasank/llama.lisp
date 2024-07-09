@@ -77,7 +77,8 @@ def gen_instr(instr):
             "fle",
             "fge",
             "sitofp",
-            "fptosi"
+            "fptosi",
+            "trunc",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 
