@@ -21,7 +21,7 @@ uint8_t print_char(int character) {
 int print_matrix(float* matrix, int rows, int cols) {
     for (int j=0; j<cols; j++ ){
         for (int i=0; i<rows; i++ ){
-            printf("%.2f ", matrix[j * rows + i]);
+            printf("%.5f ", matrix[j * rows + i]);
         }
         printf("\n");
     }
@@ -64,6 +64,7 @@ int compare_matrix(float* res, float* ref, int rows, int cols) {
     return 1;
 }
 
+void __MMult0(float*, float*, float*, int, int, int);
 
 int main(){
     int m, n, k;
@@ -74,13 +75,22 @@ int main(){
 
     float* A = (float*)malloc(m * k * sizeof(float));
     float* B = (float*)malloc(k * n * sizeof(float));
-    float* C = (float*)malloc(m * n * sizeof(float));
+    float* C_kernel = (float*)malloc(m * n * sizeof(float));
+    float* C_ref = (float*)malloc(m * n * sizeof(float));
 
     random_matrix(A, m, k);
     random_matrix(B, k, n);
 
-    __MMult2(A, B, C, m, n, k);
-    print_matrix(C, m, n);
+    __MMult1(A, B, C_kernel, m, n, k);
+
+    ref_mult(A, B, C_ref, m, n, k);
+
+    print_matrix(A, m, k);
+    print_matrix(B, k, n);
+    print_matrix(C_kernel, m, n);
+    print_matrix(C_ref, m, n);
+
+    printf("%d\n", compare_matrix(C_kernel, C_ref, m, n));
 
     return 0;
 }
