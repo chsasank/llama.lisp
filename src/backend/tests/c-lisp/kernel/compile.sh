@@ -5,10 +5,21 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+build_dir=build
 input_file="$1.sexp"
 kernel_object="$1.o"
 ir_file="$1.ll"
 executable_file="$1.out"
+
+if [ ! -e $input_file ]; then
+    echo "File '$input_file' not found."
+    exit 1
+fi
+
+if [ ! -d "$build_dir" ]; then
+    echo "Creating build directory..."
+    mkdir "$build_dir"
+fi
 
 guile ../../../utils/sexp-json.scm < $input_file \
   | python ../../../c-lisp.py \
