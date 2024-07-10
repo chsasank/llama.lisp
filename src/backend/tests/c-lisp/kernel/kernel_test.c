@@ -2,6 +2,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <sys/time.h>
 
 int print(int x){
     printf("%d\n", x);
@@ -16,6 +18,14 @@ float fprint(float x) {
 uint8_t print_char(int character) {
     printf("%c", character);
     return 0xff; 
+}
+
+float flops(int m, int n, int k, float time) {
+    return 2 * (m * n * k) / time / 1e9;
+}
+
+clock_t timer() {
+    return clock(); 
 }
 
 int print_matrix(float* matrix, int rows, int cols) {
@@ -53,25 +63,24 @@ int ref_mult(float* A, float* B, float* C, int m, int n, int k) {
     return 1;
 }
 
-int compare_matrix(float* res, float* ref, int rows, int cols) {
+bool compare_matrix(float* res, float* ref, int rows, int cols) {
     for (int j = 0; j < cols; j++) {
         for (int i = 0; i < rows; i++) {
             if (res[j * rows + i] != ref[j * rows + i]) {
-                return 0;
+                return false;
             }
         }
     }
-    return 1;
+    return true;
 }
-
-void __MMult0(float*, float*, float*, int, int, int);
 
 int main(){
     int m, n, k;
+    float time, elapsed;
 
-    m = 3;
-    n = 3;
-    k = 3;
+    m = 100;
+    n = 100;
+    k = 100;
 
     float* A = (float*)malloc(m * k * sizeof(float));
     float* B = (float*)malloc(k * n * sizeof(float));
@@ -81,16 +90,22 @@ int main(){
     random_matrix(A, m, k);
     random_matrix(B, k, n);
 
+    time = -timer();
     __MMult1(A, B, C_kernel, m, n, k);
+    time += timer();
+
+    elapsed = ((double)time / CLOCKS_PER_SEC);
 
     ref_mult(A, B, C_ref, m, n, k);
+    float kernel_flops = flops(m, n, k, elapsed);
 
-    print_matrix(A, m, k);
-    print_matrix(B, k, n);
-    print_matrix(C_kernel, m, n);
-    print_matrix(C_ref, m, n);
+    // print_matrix(A, m, k);
+    // print_matrix(B, k, n);
+    // print_matrix(C_kernel, m, n);
+    // print_matrix(C_ref, m, n);
 
     printf("%d\n", compare_matrix(C_kernel, C_ref, m, n));
+    printf("%.4fms %.4f Gflops\n", elapsed * 1e3, kernel_flops);
 
     return 0;
 }
