@@ -1,8 +1,5 @@
 (c-lisp
 
-    (define ((fprint float) (n float)))
-    (define ((print int) (n int)))
-
     (define ((__MMult1 void) (A (ptr float))
                             (B (ptr float))    
                             (C (ptr float))    
