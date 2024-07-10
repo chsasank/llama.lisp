@@ -12,9 +12,9 @@ int main(){
     int m, n, k;
     float time, elapsed;
 
-    m = 100;
-    n = 100;
-    k = 100;
+    m = 500;
+    n = 500;
+    k = 500;
 
     float* A = (float*)malloc(m * k * sizeof(float));
     float* B = (float*)malloc(k * n * sizeof(float));
@@ -25,7 +25,7 @@ int main(){
     random_matrix(B, k, n);
 
     time = -timer();
-    // __MMult1(A, B, C_kernel, m, n, k);
+    __MMult1(A, B, C_kernel, m, n, k);
     time += timer();
 
     elapsed = ((double)time / CLOCKS_PER_SEC);
@@ -39,7 +39,8 @@ int main(){
     // print_matrix(C_ref, m, n);
 
     printf("%d\n", compare_matrix(C_kernel, C_ref, m, n));
-    printf("%.4fms %.4f Gflops\n", elapsed * 1e3, kernel_flops);
+    printf("%d\n", all_close(C_kernel, C_ref, m, n, 1e-5, 1e-8, false));
+    printf("%.4fs %.4f Gflops\n", elapsed, kernel_flops);
 
     return 0;
 }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 int random_matrix(float* matrix, int rows, int cols) {
     srand((unsigned int)time(NULL));
@@ -35,4 +36,30 @@ bool compare_matrix(float* res, float* ref, int rows, int cols) {
         }
     }
     return true;
+}
+
+bool all_close(float* A, float* B, int rows, int cols, float rtol, float atol, bool equal_NaN) {
+    float RHS, LHS;
+    bool* results = (bool*)malloc(rows * cols * sizeof(bool));
+    bool result;
+
+    for (int i = 0; i < cols * rows; i++) {
+        LHS = fabsf(A[i] - B[i]);
+        RHS = atol + rtol * fabsf(B[i]);
+        
+        result = LHS <= RHS;
+        // result = result & compare_matrix(A, B, rows, cols);/* Increasing time taken to compute all_close */
+        result = result & isfinite(B[i]);
+
+        if(equal_NaN) 
+            result |= isnan(A[i]) & isnan(B[i]);
+
+        results[i] = result;
+    }
+    
+    result = true;
+    for(int i = 0; i < rows * cols; i++) 
+        result &= results[i];
+
+    return result;
 }
