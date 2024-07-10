@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define A(i,j) a[ (j)*lda + (i) ]
-#define B(i,j) b[ (j)*ldb + (i) ]
-#define C(i,j) c[ (j)*ldc + (i) ]
-
 int print(int x){
     printf("%d\n", x);
     return x;
@@ -69,5 +65,22 @@ int compare_matrix(float* res, float* ref, int rows, int cols) {
 }
 
 
+int main(){
+    int m, n, k;
 
+    m = 3;
+    n = 3;
+    k = 3;
 
+    float* A = (float*)malloc(m * k * sizeof(float));
+    float* B = (float*)malloc(k * n * sizeof(float));
+    float* C = (float*)malloc(m * n * sizeof(float));
+
+    random_matrix(A, m, k);
+    random_matrix(B, k, n);
+
+    __MMult2(A, B, C, m, n, k);
+    print_matrix(C, m, n);
+
+    return 0;
+}
