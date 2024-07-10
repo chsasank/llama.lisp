@@ -27,8 +27,8 @@ guile ../../../utils/sexp-json.scm < $input_file \
   | python ../../../llvm.py > build/$ir_file 
 
 clang -c -o build/$kernel_object build/$ir_file
-clang -c -o build/runtime.o kernel_test.c
-clang -o build/$executable_file build/runtime.o build/$kernel_object
+clang -c -o build/main.o runtime/main.c
+clang -o build/$executable_file build/*.o
 
 ./build/$executable_file
 
