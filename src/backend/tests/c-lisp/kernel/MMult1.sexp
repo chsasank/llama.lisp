@@ -8,8 +8,7 @@
                             (C (ptr float))    
                             (m int)    
                             (n int)    
-                            (k int)    
-            )
+                            (k int))
 
         (declare i int)
         (declare j int)
@@ -24,16 +23,8 @@
                     (set sum (fadd
                         (fmul 
                             (load (ptradd A (add (mul p m) i)))
-                            (load (ptradd B (add (mul j k) p)))
-                        )
-                        sum
-                        )
-                    )
-                )
-                (store (ptradd C (add (mul j m) i)) sum)
-            )
-        )
-        (ret)
-    )
-)
+                            (load (ptradd B (add (mul j k) p))))
+                        sum)))
+                (store (ptradd C (add (mul j m) i)) sum)))
+        (ret)))
 
