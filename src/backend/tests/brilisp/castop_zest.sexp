@@ -10,5 +10,5 @@
         (set (a int32) (const 257))
         (set (b int64) (call cas_t a))
         (set (tmp int64) (call print b))
-        (ret )))
+        (ret)))
 

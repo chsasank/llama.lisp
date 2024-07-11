@@ -49,7 +49,7 @@ class LLVMCodeGenerator(object):
                 return self.gen_type(type["ptr"]).as_pointer()
             else:
                 raise CodegenError(f"Unknown type {type}")
-        elif type in ["int","int32"]:
+        elif type in ["int", "int32"]:
             return ir.IntType(32)
         elif type == "void":
             return ir.VoidType()
@@ -249,7 +249,6 @@ class LLVMCodeGenerator(object):
                     self.gen_type(instr.type),
                     name=instr.dest,
                 ),
-            
             )
 
         def gen_id(instr):

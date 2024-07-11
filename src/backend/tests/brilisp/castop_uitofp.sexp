@@ -18,5 +18,4 @@
         (set (ui_8 int8) (const -1))
         (set (c double) (call cas_t_diff_variable ui_8))
         (set (tmp double) (call dprint c))
-
-        (ret )))
+        (ret)))

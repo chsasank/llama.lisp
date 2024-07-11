@@ -10,6 +10,6 @@
         (set (a double) (const 16777217.0))
         (set (b float) (call cas_t a))
         (set (tmp float) (call fprint b))
-        (ret )))
+        (ret)))
 
 
