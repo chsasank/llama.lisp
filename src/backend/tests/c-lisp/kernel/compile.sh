@@ -9,7 +9,7 @@ build_dir=build
 input_file="$1.sexp"
 kernel_object="$1.o"
 ir_file="$1.ll"
-executable_file="$1.out"
+executable_file="$1"
 
 if [ ! -e $input_file ]; then
     echo "File '$input_file' not found."
@@ -26,9 +26,10 @@ guile ../../../utils/sexp-json.scm < $input_file \
   | python ../../../brilisp.py \
   | python ../../../llvm.py > build/$ir_file 
 
-clang -c -o build/$kernel_object build/$ir_file
-clang -c -o build/main.o runtime/main.c
-clang -o build/$executable_file build/*.o
+clang -O1 -c -o build/$kernel_object build/$ir_file
+clang -O1 -c -o build/main.o runtime/main.c
+clang -O1 -o build/$executable_file build/*.o
+
 
 ./build/$executable_file
 

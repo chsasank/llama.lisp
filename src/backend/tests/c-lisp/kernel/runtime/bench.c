@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-float flops(int m, int n, int k, float time) {
-    return 2 * (m * n * k) / time / 1e9;
+double flops(int m, int n, int k, double time) {
+    double num_ops = 2 * (m * n * k);
+    return num_ops / (time * 1e9);
 }
 
 clock_t timer() {
