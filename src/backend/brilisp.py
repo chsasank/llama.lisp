@@ -78,6 +78,15 @@ def gen_instr(instr):
             "fge",
             "sitofp",
             "fptosi",
+            "sext",
+            "trunc",
+            "fptrunc",
+            "fpext",
+            "fptoui",
+            "uitofp",
+            "ptrtoint",
+            "inttoptr",
+            "zext"
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 

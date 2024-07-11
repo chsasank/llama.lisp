@@ -49,7 +49,7 @@ class LLVMCodeGenerator(object):
                 return self.gen_type(type["ptr"]).as_pointer()
             else:
                 raise CodegenError(f"Unknown type {type}")
-        elif type == "int":
+        elif type in ["int","int32"]:
             return ir.IntType(32)
         elif type == "void":
             return ir.VoidType()
@@ -57,10 +57,14 @@ class LLVMCodeGenerator(object):
             return ir.IntType(1)
         elif type == "float":
             return ir.FloatType()
+        elif type == "double":
+            return ir.DoubleType()
+        elif type == "int64":
+            return ir.IntType(64)
+        elif type == "int16":
+            return ir.IntType(16)
         elif type == "int8":
             return ir.IntType(8)
-        elif type == "int4":
-            return ir.IntType(4)
         else:
             raise CodegenError(f"Unknown type {type}")
 
@@ -116,8 +120,6 @@ class LLVMCodeGenerator(object):
             "sext": "sext",
             "fptrunc": "fptrunc",
             "fpext": "fpext",
-            "bitcast": "bitcast",
-            "addrspacecast": "addrspacecast",
             "fptoui": "fptoui",
             "uitofp": "uitofp",
             "fptosi": "fptosi",
@@ -247,6 +249,7 @@ class LLVMCodeGenerator(object):
                     self.gen_type(instr.type),
                     name=instr.dest,
                 ),
+            
             )
 
         def gen_id(instr):
