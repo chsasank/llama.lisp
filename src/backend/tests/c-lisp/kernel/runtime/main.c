@@ -15,9 +15,9 @@ int main(){
     // n = 2000;
     // k = 2000;
     
-    printf("size, is_equal, kernel_time, kernel_flops, ref_time, ref_flops\n");
+    printf("size, is_equal,kernel_time,kernel_gflops,ref_time,ref_gflops\n");
     int size = 0;
-    for (size = 0; size <= 2000; size += 200){
+    for (size = 0; size <= 2600; size += 200){
         m = size;
         n = size;
         k = size;
@@ -57,7 +57,14 @@ int main(){
                 elapsed_kernel,
                 kernel_flops,
                 elapsed_ref,
-                ref_flops);
+                ref_flops
+              );
+
+        fflush(stdout);
+        free(A);
+        free(B);
+        free(C_ref);
+        free(C_kernel);
     }
 
     // volatile float* A          =    (float*)malloc(m * k * sizeof(float));

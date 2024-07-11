@@ -11,8 +11,8 @@
         (declare j int)
         (declare p int)
 
-        (for ((set j 0) (lt j n) (set j (add j 1)))
-            (for ((set i 0) (lt i m) (set i (add i 1)))
+        (for ((set i 0) (lt i n) (set i (add i 1)))
+            (for ((set j 0) (lt j m) (set j (add j 1)))
                 (declare sum float)
                 (set sum 0.0)
                 (for ((set p 0) (lt p k) (set p (add p 1)))
