@@ -28,6 +28,7 @@ guile ../../../utils/sexp-json.scm < $input_file \
 
 clang -O1 -c -o build/$kernel_object build/$ir_file
 clang -O1 -c -o build/main.o runtime/main.c
+clang -O1 -c -o build/matrix.o runtime/matrix.c
 clang -O1 -o build/$executable_file build/*.o
 
 
