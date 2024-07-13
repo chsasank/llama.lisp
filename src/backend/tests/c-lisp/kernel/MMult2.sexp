@@ -34,26 +34,26 @@
                     (ptradd a (add i (mul 0 lda))) 
                     lda 
                     (ptradd b (add 0 (mul (add j 0) ldb)))
-                    (ptradd c (add (add i 0) (mul (add j 0) ldc))))
+                    (ptradd c (add i (mul (add j 0) ldc))))
 
                 (call __add_dot 
                     k 
                     (ptradd a (add i (mul 0 lda))) 
                     lda 
                     (ptradd b (add 0 (mul (add j 1) ldb)))
-                    (ptradd c (add (add i 1) (mul (add j 1) ldc))))
+                    (ptradd c (add i (mul (add j 1) ldc))))
 
                 (call __add_dot 
                     k 
                     (ptradd a (add i (mul 0 lda))) 
                     lda 
                     (ptradd b (add 0 (mul (add j 2) ldb)))
-                    (ptradd c (add (add i 2) (mul (add j 2) ldc))))
+                    (ptradd c (add i (mul (add j 2) ldc))))
 
                 (call __add_dot 
                     k 
                     (ptradd a (add i (mul 0 lda))) 
                     lda 
                     (ptradd b (add 0 (mul (add j 3) ldb)))
-                    (ptradd c (add (add i 3) (mul (add j 3) ldc))))))
+                    (ptradd c (add i (mul (add j 3) ldc))))))
     (ret)))
