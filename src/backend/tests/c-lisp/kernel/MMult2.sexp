@@ -7,28 +7,34 @@
         (declare p int)
         (declare a_value float)
         (declare b_value float)
+        (declare acc float)
+        
+        ;; Initialize accumulator to zero
+        (set acc 0.0)
 
         (for ((set p 0) (lt p k) (set p (add p 1)))
             (set a_value (load (ptradd a (mul p incx))))
             (set b_value (load (ptradd b p)))
-            (store c (fadd (load c) (fmul a_value b_value))))
+            (set acc (fadd acc (fmul a_value b_value))))
+
+        ;; Store the accumulated result in c
+        (store c acc)
     (ret))
 
     (define ((__MMult2 void) (m int)
-                             (n int)
-                             (k int)
-                             (lda int)
-                             (ldb int)
-                             (ldc int)
-                             (a (ptr float))
-                             (b (ptr float))
-                             (c (ptr float)))
+                            (n int)
+                            (k int)
+                            (lda int)
+                            (ldb int)
+                            (ldc int)
+                            (a (ptr float))
+                            (b (ptr float))
+                            (c (ptr float)))
         (declare i int)
         (declare j int)
 
         (for ((set j 0) (lt j n) (set j (add j 4)))
             (for ((set i 0) (lt i m) (set i (add i 1)))
-
                 (call __add_dot 
                     k 
                     (ptradd a (add i (mul 0 lda))) 
