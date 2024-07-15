@@ -29,6 +29,5 @@ guile ../../../utils/sexp-json.scm < $input_file \
 clang -O1 -Wno-implicit-function-declaration -c -o build/$kernel_object build/$ir_file
 clang -O1 -Wno-implicit-function-declaration -c -o build/main.o runtime/main.c
 clang -O1 -Wno-implicit-function-declaration -c -o build/matrix.o runtime/matrix.c
-clang -O1 -Wno-implicit-function-declaration -o build/$executable_file build/*.o
+clang -O1 -Wno-implicit-function-declaration -o build/$executable_file build/main.o build/matrix.o build/$kernel_object
 
-./build/$executable_file
