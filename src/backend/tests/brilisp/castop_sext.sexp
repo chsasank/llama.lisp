@@ -10,5 +10,4 @@
         (set (a int8) (const -1))
         (set (b int16) (call cas_t a))
         (set (tmp int16) (call print b))
-        (ret)))
-
+        (ret )))

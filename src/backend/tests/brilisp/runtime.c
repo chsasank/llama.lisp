@@ -21,3 +21,8 @@ int* ptr_print(int* x){
     printf("%p\n",x);
     return x ;
 }
+
+int64_t int64_print(int64_t x){
+    printf("%"PRId64"\n",x);
+    return x ;
+}
