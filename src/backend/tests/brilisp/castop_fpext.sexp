@@ -3,12 +3,8 @@
 (brilisp
     (define ((dprint double) (n double)))
 
-    (define ((cas_t double) (n float))
-        (set (f_n double) (fpext n double))
-        (ret f_n))
-
     (define ((main void))
         (set (a float) (const 3.125))
-        (set (b double) (call cas_t a))
+        (set (b double) (fpext a double))
         (set (tmp double) (call dprint b))
-        (ret )))
+        (ret)))
