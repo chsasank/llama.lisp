@@ -7,5 +7,3 @@
         (set (f_n float) (fptrunc a float))
         (set (tmp float) (call fprint f_n))
         (ret)))
-
-

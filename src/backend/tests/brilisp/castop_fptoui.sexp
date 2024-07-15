@@ -8,4 +8,4 @@
         (set (a double) (const 123.0))
         (set (f_n int32) (fptoui a int32))
         (set (tmp int32) (call print f_n))
-        (ret )))
+        (ret)))

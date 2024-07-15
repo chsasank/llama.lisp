@@ -16,4 +16,3 @@
         (set (tmp int) (call print sum))
 
         (ret tmp)))
-

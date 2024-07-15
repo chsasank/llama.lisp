@@ -6,5 +6,3 @@
         (set (f_n int8) (trunc a int8))
         (set (tmp int8) (call print f_n))
         (ret)))
-
-
