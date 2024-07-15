@@ -305,7 +305,6 @@ class BrilispCodeGenerator:
             self.scopes.pop()
         return instr_list
 
-
     def get_literal_type(self, expr):
         if isinstance(expr, bool):
             return "bool"
@@ -315,10 +314,6 @@ class BrilispCodeGenerator:
             return "float"
         else:
             return None
-
-
-
-   
 
     def gen_expr(self, expr, res_sym=None):
         # literal
@@ -359,7 +354,11 @@ class BrilispCodeGenerator:
             if name not in self.function_types:
                 raise CodegenError(f"Call to undeclared function: {name}")
             instr_list.append(
-                ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]
+                [
+                    "set",
+                    [res_sym, self.function_types[name][0]],
+                    ["call", name, *arg_syms],
+                ]
             )
             return instr_list
 
@@ -393,7 +392,7 @@ class BrilispCodeGenerator:
                 *input_instrs,
                 ["set", [res_sym, typ], [opcode, *in_syms]],
             ]
-        
+
         # ptradd
         def is_ptradd_expr(expr):
             return expr[0] == "ptradd"
