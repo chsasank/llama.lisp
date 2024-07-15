@@ -126,6 +126,7 @@ class LLVMCodeGenerator(object):
             "sitofp": "sitofp",
             "ptrtoint": "ptrtoint",
             "inttoptr": "inttoptr",
+            "bitcast": "bitcast"
         }
 
         def gen_label(instr):
