@@ -305,20 +305,6 @@ class BrilispCodeGenerator:
             self.scopes.pop()
         return instr_list
 
-    def is_set_expr(self, expr):
-        return expr[0] == "set"
-
-    def gen_set_expr(self, expr, res_sym):
-        if not verify_shape(expr, [str, str, None]):
-            raise CodegenError(f"Bad set expression: {expr}")
-
-        name = expr[1]
-        scoped_name = self.scoped_lookup(name)
-        instr_list = self.gen_expr(expr[2], res_sym=res_sym)
-        instr_list.append(
-            ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
-        )
-        return instr_list
 
     def get_literal_type(self, expr):
         if isinstance(expr, bool):
@@ -330,140 +316,168 @@ class BrilispCodeGenerator:
         else:
             return None
 
-    def is_literal_expr(self, expr):
-        return not (self.get_literal_type(expr) is None)
 
-    def gen_literal_expr(self, expr, res_sym):
-        return [["set", [res_sym, self.get_literal_type(expr)], ["const", expr]]]
 
-    def is_call_expr(self, expr):
-        return expr[0] == "call"
-
-    def gen_call_expr(self, expr, res_sym):
-        instr_list = []
-        arg_syms = []
-        for arg in expr[2:]:
-            arg_sym = random_label(CLISP_PREFIX)
-            arg_syms.append(arg_sym)
-            instr_list += self.gen_expr(arg, res_sym=arg_sym)
-        name = expr[1]
-        if name not in self.function_types:
-            raise CodegenError(f"Call to undeclared function: {name}")
-        instr_list.append(
-            ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]
-        )
-        return instr_list
-
-    def is_var_expr(self, expr):
-        return isinstance(expr, str)
-
-    def gen_var_expr(self, expr, res_sym):
-        scoped_name = self.scoped_lookup(expr)
-        typ = self.symbol_types[scoped_name]
-        instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
-        if typ[0] == "ptr":
-            self.pointer_types[res_sym] = typ
-        return instr_list
-
-    def is_fixed_type_expr(self, expr):
-        return expr[0] in self.fixed_op_types
-
-    def gen_fixed_type_expr(self, expr, res_sym):
-        instr_list = []
-        opcode = expr[0]
-        typ, n_ops = self.fixed_op_types[opcode]
-        if not (len(expr) == n_ops + 1):
-            raise CodegenError(f"`{opcode}` takes only {n_ops} operands: {expr}")
-        in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
-        input_instrs = []
-        for n in range(n_ops):
-            input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
-        return [
-            *input_instrs,
-            ["set", [res_sym, typ], [opcode, *in_syms]],
-        ]
-
-    def is_ptradd_expr(self, expr):
-        return expr[0] == "ptradd"
-
-    def gen_ptradd_expr(self, expr, res_sym):
-        if len(expr) != 3:
-            raise CodegenError(f"Bad ptradd expression: {expr}")
-
-        offset_sym = random_label(CLISP_PREFIX)
-        ptr_name = self.scoped_lookup(expr[1])
-        ptr_type = self.symbol_types[ptr_name]
-        self.pointer_types[res_sym] = ptr_type
-        return [
-            *self.gen_expr(expr[2], res_sym=offset_sym),
-            ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset_sym]],
-        ]
-
-    def is_load_expr(self, expr):
-        return expr[0] == "load"
-
-    def gen_load_expr(self, expr, res_sym):
-        if len(expr) != 2:
-            raise CodegenError(f"Bad load expression: {expr}")
-
-        ptr_sym = random_label(CLISP_PREFIX)
-        return [
-            *self.gen_expr(expr[1], res_sym=ptr_sym),
-            ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["load", ptr_sym]],
-        ]
-
-    def is_store_expr(self, expr):
-        return expr[0] == "store"
-
-    def gen_store_expr(self, expr, res_sym):
-        if len(expr) != 3:
-            raise CodegenError(f"Bad store expression: {expr}")
-
-        val_sym, ptr_sym = [
-            random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
-        ]
-        return [
-            *self.gen_expr(expr[1], res_sym=ptr_sym),
-            *self.gen_expr(expr[2], res_sym=val_sym),
-            ["store", ptr_sym, val_sym],
-            ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["id", val_sym]],
-        ]
-
-    def is_alloc_expr(self, expr):
-        return expr[0] == "alloc"
-
-    def gen_alloc_expr(self, expr, res_sym):
-        if len(expr) != 3:
-            raise CodegenError(f"Bad alloc expression: {expr}")
-
-        ptr_type = ["ptr", expr[1]]
-        self.pointer_types[res_sym] = ptr_type
-        size_sym = random_label(CLISP_PREFIX)
-        return [
-            *self.gen_expr(expr[2], res_sym=size_sym),
-            ["set", [res_sym, ptr_type], ["alloc", size_sym]],
-        ]
+   
 
     def gen_expr(self, expr, res_sym=None):
+        # literal
+        def is_literal_expr(expr):
+            return not (self.get_literal_type(expr) is None)
+
+        def gen_literal_expr(expr, res_sym):
+            return [["set", [res_sym, self.get_literal_type(expr)], ["const", expr]]]
+
+        # set
+        def is_set_expr(expr):
+            return expr[0] == "set"
+
+        def gen_set_expr(expr, res_sym):
+            if not verify_shape(expr, [str, str, None]):
+                raise CodegenError(f"Bad set expression: {expr}")
+
+            name = expr[1]
+            scoped_name = self.scoped_lookup(name)
+            instr_list = self.gen_expr(expr[2], res_sym=res_sym)
+            instr_list.append(
+                ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
+            )
+            return instr_list
+
+        # call
+        def is_call_expr(expr):
+            return expr[0] == "call"
+
+        def gen_call_expr(expr, res_sym):
+            instr_list = []
+            arg_syms = []
+            for arg in expr[2:]:
+                arg_sym = random_label(CLISP_PREFIX)
+                arg_syms.append(arg_sym)
+                instr_list += self.gen_expr(arg, res_sym=arg_sym)
+            name = expr[1]
+            if name not in self.function_types:
+                raise CodegenError(f"Call to undeclared function: {name}")
+            instr_list.append(
+                ["set", [res_sym, self.function_types[name][0]], ["call", name, *arg_syms]]
+            )
+            return instr_list
+
+        # var
+        def is_var_expr(expr):
+            return isinstance(expr, str)
+
+        def gen_var_expr(expr, res_sym):
+            scoped_name = self.scoped_lookup(expr)
+            typ = self.symbol_types[scoped_name]
+            instr_list = [["set", [res_sym, typ], ["id", scoped_name]]]
+            if typ[0] == "ptr":
+                self.pointer_types[res_sym] = typ
+            return instr_list
+
+        # fixed type
+        def is_fixed_type_expr(expr):
+            return expr[0] in self.fixed_op_types
+
+        def gen_fixed_type_expr(expr, res_sym):
+            instr_list = []
+            opcode = expr[0]
+            typ, n_ops = self.fixed_op_types[opcode]
+            if not (len(expr) == n_ops + 1):
+                raise CodegenError(f"`{opcode}` takes only {n_ops} operands: {expr}")
+            in_syms = [random_label(CLISP_PREFIX, [f"inp_{n}"]) for n in range(n_ops)]
+            input_instrs = []
+            for n in range(n_ops):
+                input_instrs += [*self.gen_expr(expr[n + 1], in_syms[n])]
+            return [
+                *input_instrs,
+                ["set", [res_sym, typ], [opcode, *in_syms]],
+            ]
+        
+        # ptradd
+        def is_ptradd_expr(expr):
+            return expr[0] == "ptradd"
+
+        def gen_ptradd_expr(expr, res_sym):
+            if len(expr) != 3:
+                raise CodegenError(f"Bad ptradd expression: {expr}")
+
+            offset_sym = random_label(CLISP_PREFIX)
+            ptr_name = self.scoped_lookup(expr[1])
+            ptr_type = self.symbol_types[ptr_name]
+            self.pointer_types[res_sym] = ptr_type
+            return [
+                *self.gen_expr(expr[2], res_sym=offset_sym),
+                ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset_sym]],
+            ]
+
+        # load
+        def is_load_expr(expr):
+            return expr[0] == "load"
+
+        def gen_load_expr(expr, res_sym):
+            if len(expr) != 2:
+                raise CodegenError(f"Bad load expression: {expr}")
+
+            ptr_sym = random_label(CLISP_PREFIX)
+            return [
+                *self.gen_expr(expr[1], res_sym=ptr_sym),
+                ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["load", ptr_sym]],
+            ]
+
+        # store
+        def is_store_expr(expr):
+            return expr[0] == "store"
+
+        def gen_store_expr(expr, res_sym):
+            if len(expr) != 3:
+                raise CodegenError(f"Bad store expression: {expr}")
+
+            val_sym, ptr_sym = [
+                random_label(CLISP_PREFIX, [extra]) for extra in ("val", "ptr")
+            ]
+            return [
+                *self.gen_expr(expr[1], res_sym=ptr_sym),
+                *self.gen_expr(expr[2], res_sym=val_sym),
+                ["store", ptr_sym, val_sym],
+                ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["id", val_sym]],
+            ]
+
+        # alloc
+        def is_alloc_expr(expr):
+            return expr[0] == "alloc"
+
+        def gen_alloc_expr(expr, res_sym):
+            if len(expr) != 3:
+                raise CodegenError(f"Bad alloc expression: {expr}")
+
+            ptr_type = ["ptr", expr[1]]
+            self.pointer_types[res_sym] = ptr_type
+            size_sym = random_label(CLISP_PREFIX)
+            return [
+                *self.gen_expr(expr[2], res_sym=size_sym),
+                ["set", [res_sym, ptr_type], ["alloc", size_sym]],
+            ]
+
         res_sym = res_sym or random_label(CLISP_PREFIX)
-        if self.is_literal_expr(expr):
-            return self.gen_literal_expr(expr, res_sym)
-        elif self.is_set_expr(expr):
-            return self.gen_set_expr(expr, res_sym)
-        elif self.is_call_expr(expr):
-            return self.gen_call_expr(expr, res_sym)
-        elif self.is_var_expr(expr):
-            return self.gen_var_expr(expr, res_sym)
-        elif self.is_fixed_type_expr(expr):
-            return self.gen_fixed_type_expr(expr, res_sym)
-        elif self.is_ptradd_expr(expr):
-            return self.gen_ptradd_expr(expr, res_sym)
-        elif self.is_load_expr(expr):
-            return self.gen_load_expr(expr, res_sym)
-        elif self.is_store_expr(expr):
-            return self.gen_store_expr(expr, res_sym)
-        elif self.is_alloc_expr(expr):
-            return self.gen_alloc_expr(expr, res_sym)
+        if is_literal_expr(expr):
+            return gen_literal_expr(expr, res_sym)
+        elif is_set_expr(expr):
+            return gen_set_expr(expr, res_sym)
+        elif is_call_expr(expr):
+            return gen_call_expr(expr, res_sym)
+        elif is_var_expr(expr):
+            return gen_var_expr(expr, res_sym)
+        elif is_fixed_type_expr(expr):
+            return gen_fixed_type_expr(expr, res_sym)
+        elif is_ptradd_expr(expr):
+            return gen_ptradd_expr(expr, res_sym)
+        elif is_load_expr(expr):
+            return gen_load_expr(expr, res_sym)
+        elif is_store_expr(expr):
+            return gen_store_expr(expr, res_sym)
+        elif is_alloc_expr(expr):
+            return gen_alloc_expr(expr, res_sym)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 
