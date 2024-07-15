@@ -14,7 +14,7 @@ int random_matrix(float* matrix, int rows, int cols) {
     return 1;
 }
 
-int ref_mult(float* A, float* B, float* C, int m, int n, int k) {
+int ref_mult1(float* A, float* B, float* C, int m, int n, int k) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             float sum = 0.0;
@@ -26,6 +26,29 @@ int ref_mult(float* A, float* B, float* C, int m, int n, int k) {
     }
     return 1;
 }
+
+void add_dot1x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) {
+    c[0 * ldc] = 0.0;
+    c[1 * ldc] = 0.0;
+    c[2 * ldc] = 0.0;
+    c[3 * ldc] = 0.0;
+
+    for (int p = 0; p < k; p++) {
+        c[0 * ldc] += a[p * lda] * b[p + ldb * 0];
+        c[1 * ldc] += a[p * lda] * b[p + ldb * 1];
+        c[2 * ldc] += a[p * lda] * b[p + ldb * 2];
+        c[3 * ldc] += a[p * lda] * b[p + ldb * 3];
+    }
+}
+
+void ref_mult2(int m, int n, int k, int lda, int ldb, int ldc, float* a, float* b, float* c) {
+    for (int j = 0; j < n; j += 4) {
+        for (int i = 0; i < m; i++) {
+            add_dot1x4(k, &a[i], lda, &b[j * ldb], ldb, &c[j * ldc + i], ldc);
+        }
+    }
+}
+
 
 bool compare_matrix(float* res, float* ref, int rows, int cols) {
     for (int j = 0; j < cols; j++) {
@@ -47,19 +70,20 @@ bool all_close(float* A, float* B, int rows, int cols, float rtol, float atol, b
         LHS = fabsf(A[i] - B[i]);
         RHS = atol + rtol * fabsf(B[i]);
         
-        result = LHS <= RHS;
-        // result = result & compare_matrix(A, B, rows, cols);/* Increasing time taken to compute all_close */
-        result = result & isfinite(B[i]);
+        result = (LHS <= RHS);
+        result = result && isfinite(B[i]);
 
-        if(equal_NaN) 
-            result |= isnan(A[i]) & isnan(B[i]);
+        if (equal_NaN) {
+            result = result || (isnan(A[i]) && isnan(B[i]));
+        }
 
         results[i] = result;
     }
     
     result = true;
     for(int i = 0; i < rows * cols; i++) 
-        result &= results[i];
+        result = result && results[i];
 
+    free(results);
     return result;
 }
