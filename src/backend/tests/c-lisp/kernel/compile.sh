@@ -6,15 +6,18 @@ if [ $# -eq 0 ]; then
 fi
 
 build_dir=build
+optimization=-O1
 
 if [ ! -d "$build_dir" ]; then
     echo "Creating build directory..."
     mkdir "$build_dir"
+    mkdir "$build_dir/object"
+    mkdir "$build_dir/ir"
 fi
 
 for input in "$@"; do
     input_file="$input.sexp"
-    kernel_object="$input.o"
+    kernel_object="$input.clisp.o"
     ir_file="$input.ll"
     executable_file="$input"
 
@@ -26,25 +29,27 @@ for input in "$@"; do
     guile ../../../utils/sexp-json.scm < $input_file \
       | python ../../../c-lisp.py \
       | python ../../../brilisp.py \
-      | python ../../../llvm.py > build/$ir_file 
+      | python ../../../llvm.py > build/ir/$ir_file 
 
-    clang -O1 -Wno-implicit-function-declaration -c -o build/$kernel_object build/$ir_file
+    clang $optimization -Wno-implicit-function-declaration -c -o build/object/$kernel_object build/ir/$ir_file
 done
 
-clang -O1 -Wno-implicit-function-declaration -c -o build/main.o runtime/main.c
-clang -O1 -Wno-implicit-function-declaration -c -o build/matrix.o runtime/matrix.c
-
-objects="build/main.o build/matrix.o"
 for input in "$@"; do
-    kernel_object="$input.o"
-    objects="$objects build/$kernel_object"
+    c_file="$input.c"
+    obj_file="$input.c.o"
+
+    clang $optimization -Wno-implicit-function-declaration -c -o build/object/$obj_file runtime/$c_file
 done
 
-clang -O1 -Wno-implicit-function-declaration -o build/kernel_bench $objects
+clang $optimization -Wno-implicit-function-declaration -c -o build/object/main.o runtime/main.c
+clang $optimization -Wno-implicit-function-declaration -c -o build/object/matrix.o runtime/matrix.c
 
-if [ $? -eq 0 ]; then
-    echo "Build successful. Executable created: build/output_executable"
-else
-    echo "Build failed."
-    exit 1
-fi
+objects="build/object/main.o build/object/matrix.o"
+for input in "$@"; do
+    c_kernel_object="$input.c.o"
+    clisp_kernel_object="$input.clisp.o"
+    objects="$objects build/object/$c_kernel_object"
+    objects="$objects build/object/$clisp_kernel_object"
+done
+
+clang $optimization -Wno-implicit-function-declaration -o build/kernel_bench $objects
