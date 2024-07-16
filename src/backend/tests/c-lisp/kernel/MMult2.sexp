@@ -21,7 +21,7 @@
         (store c acc)
     (ret))
 
-    (define ((__MMult2 void)(a (ptr float))
+    (define ((__kernel void)(a (ptr float))
                             (b (ptr float))
                             (c (ptr float))
                             (n int)

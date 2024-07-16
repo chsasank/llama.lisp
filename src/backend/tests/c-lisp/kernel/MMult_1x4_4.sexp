@@ -37,7 +37,7 @@
         )
     )
 
-    (define ((__MMult_1x4_4 void) (a (ptr float))
+    (define ((__kernel void) (a (ptr float))
                                   (b (ptr float))
                                   (c (ptr float)) 
                                   (m int)

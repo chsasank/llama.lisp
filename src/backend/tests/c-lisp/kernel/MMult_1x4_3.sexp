@@ -57,7 +57,7 @@
             (ptradd c (mul 3 ldc)))
     (ret))
 
-    (define ((__MMult_1x4_3 void) (a (ptr float))
+    (define ((__kernel void) (a (ptr float))
                                   (b (ptr float))
                                   (c (ptr float))
                                   (m int)

@@ -1,6 +1,6 @@
 (c-lisp
 
-    (define ((__MMult1 void) (A (ptr float))
+    (define ((__kernel void) (A (ptr float))
                             (B (ptr float))    
                             (C (ptr float))    
                             (m int)    
