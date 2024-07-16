@@ -1,6 +1,6 @@
-#define START 40
+#define START 200
 #define END 2000
-#define STEP 40
+#define STEP 200
 #define SAMPLES 10
 
 #define M 1000
