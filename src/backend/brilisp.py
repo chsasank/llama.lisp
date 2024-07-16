@@ -26,7 +26,10 @@ def gen_function(expr):
 
 def gen_type(typ):
     if is_list(typ):
-        return {typ[0]: gen_type(typ[1])}
+        retval = {typ[0]: gen_type(typ[1])}
+        if len(typ) > 2 and is_list(typ[2]):
+            retval[typ[2][0]] = typ[2][1]
+        return retval
     else:
         return typ
 

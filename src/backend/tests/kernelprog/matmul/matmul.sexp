@@ -9,7 +9,7 @@
         (define ((llvm.nvvm.read.ptx.sreg.ntid.x int)))
         (define ((llvm.nvvm.read.ptx.sreg.ntid.y int)))
 
-        (define ((kernel void) (a (ptr float)) (b (ptr float)) (c (ptr float)) (len int))
+        (define ((kernel void) (a (ptr float (addrspace 1))) (b (ptr float (addrspace 1))) (c (ptr float (addrspace 1))) (len int))
                 ; Calculate c[i, j] from a[i, *] and b[*, j]
                 ; a, b, c have dimensions len x len
                 (declare row int)
@@ -23,9 +23,9 @@
                         (call llvm.nvvm.read.ptx.sreg.tid.y)
                         (mul (call llvm.nvvm.read.ptx.sreg.ntid.y) (call llvm.nvvm.read.ptx.sreg.ctaid.y))))
 
-                (declare a-ptr (ptr float))
-                (declare b-ptr (ptr float))
-                (declare c-ptr (ptr float))
+                (declare a-ptr (ptr float (addrspace 1)))
+                (declare b-ptr (ptr float (addrspace 1)))
+                (declare c-ptr (ptr float (addrspace 1)))
                 (set a-ptr (ptradd a (mul row len)))
                 (set b-ptr (ptradd b col))
                 (set c-ptr (ptradd c (add col (mul row len))))

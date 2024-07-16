@@ -6,7 +6,7 @@
         ; Block Dimensions
         (define ((llvm.nvvm.read.ptx.sreg.ntid.x int)))
 
-        (define ((kernel void) (a (ptr float)) (b (ptr float)) (c (ptr float)))
+        (define ((kernel void) (a (ptr float (addrspace 1))) (b (ptr float (addrspace 1))) (c (ptr float (addrspace 1))))
                 (declare x int)
                 (set x
                      (add
