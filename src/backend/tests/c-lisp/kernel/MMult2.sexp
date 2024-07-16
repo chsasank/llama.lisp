@@ -21,17 +21,23 @@
         (store c acc)
     (ret))
 
-    (define ((__MMult2 void) (m int)
+    (define ((__MMult2 void)(a (ptr float))
+                            (b (ptr float))
+                            (c (ptr float))
                             (n int)
                             (k int)
-                            (lda int)
-                            (ldb int)
-                            (ldc int)
-                            (a (ptr float))
-                            (b (ptr float))
-                            (c (ptr float)))
+                            (m int)) 
+                            
         (declare i int)
         (declare j int)
+
+        (declare lda int)
+        (declare ldb int)
+        (declare ldc int)
+
+        (set lda m)
+        (set ldb n)
+        (set ldc k)
 
         (for ((set j 0) (lt j n) (set j (add j 4)))
             (for ((set i 0) (lt i m) (set i (add i 1)))
