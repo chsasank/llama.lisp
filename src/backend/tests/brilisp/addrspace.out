@@ -1,0 +1,19 @@
+; ModuleID = ""
+target triple = "unknown-unknown-unknown"
+target datalayout = ""
+
+define void @"add5"(float addrspace(1)* %"a")
+{
+alloca:
+  %"a.1" = alloca float addrspace(1)*
+  %"five" = alloca float
+  br label %"entry"
+entry:
+  store float addrspace(1)* %"a", float addrspace(1)** %"a.1"
+  store float 0x4014000000000000, float* %"five"
+  %".5" = load float addrspace(1)*, float addrspace(1)** %"a.1"
+  %".6" = load float, float* %"five"
+  store float %".6", float addrspace(1)* %".5"
+  ret void
+}
+
