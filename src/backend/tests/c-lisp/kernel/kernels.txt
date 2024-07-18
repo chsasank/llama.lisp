@@ -2,3 +2,7 @@ MMult1
 MMult2
 MMult_1x4_3
 MMult_1x4_4
+MMult_1x4_5
+MMult_4x4_3
+MMult_4x4_4
+MMult_4x4_5
