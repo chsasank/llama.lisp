@@ -29,21 +29,22 @@ os.system("rm tmp/data.csv")
 os.system(f"./compile.sh {args.k}")
 os.system(f"./build/kernel_bench {args.m} | tee tmp/data.csv")
 
-sns.set_style("darkgrid")
 
-df = pd.read_csv("tmp/data.csv", names=["size", "allclose", "ref_gflops", "kernel_gflops"])
+if args.m == "many":
+    df = pd.read_csv("tmp/data.csv", names=["size", "allclose", "ref_gflops", "kernel_gflops"])
+    
+    sns.set_style("darkgrid")
+    sns.lineplot(x="size", y="ref_gflops", data=df, label="Reference GFLOPS")
+    sns.lineplot(x="size", y="kernel_gflops", data=df, label="Kernel GFLOPS")
 
-sns.lineplot(x="size", y="ref_gflops", data=df, label="Reference GFLOPS")
-sns.lineplot(x="size", y="kernel_gflops", data=df, label="Kernel GFLOPS")
+    plt.legend(title="GFLOPS")
+    plt.xlabel("Size")
+    plt.ylabel("GFLOPS")
+    plt.ylim(1, 4)
+    plt.title(f"Performance of Kernel: {args.k}")
 
-plt.legend(title="GFLOPS")
-plt.xlabel("Size")
-plt.ylabel("GFLOPS")
-plt.title(f"Performance of Kernel: {args.k}")
+    output_dir = "plots"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, f"{args.k}_performance_plot_{datetime.now().strftime('%H:%M')}.png")
+    plt.savefig(output_path)
 
-output_dir = "plots"
-os.makedirs(output_dir, exist_ok=True)
-output_path = os.path.join(output_dir, f"{args.k}_performance_plot_{datetime.now().strftime('%H:%M')}.png")
-plt.savefig(output_path)
-
-# plt.show()
