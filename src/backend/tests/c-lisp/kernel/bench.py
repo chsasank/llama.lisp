@@ -16,11 +16,18 @@ parser.add_argument(
     help="kernel name"
 )
 
+parser.add_argument(
+    "-m",
+    type=str,
+    default="once",
+    help="Mode"
+)
+
 args = parser.parse_args()
 
 os.system("rm tmp/data.csv")
 os.system(f"./compile.sh {args.k}")
-os.system(f"./build/kernel_bench many | tee tmp/data.csv")
+os.system(f"./build/kernel_bench {args.m} | tee tmp/data.csv")
 
 sns.set_style("darkgrid")
 
