@@ -1,0 +1,1 @@
+command = "guile ../../../utils/sexp-json.scm < {filename} | python ../../../c-lisp.py 2>&1 | sed -e '/^[ (Traceback)]/d'"

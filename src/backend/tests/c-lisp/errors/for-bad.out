@@ -1,0 +1,2 @@
+Error in statement: ['for', [['lt', 'i', 10], ['set', ['add', 'i', 1]], ['call', 'print', 'i']]]
+CodegenError: Bad for statement: ['for', [['lt', 'i', 10], ['set', ['add', 'i', 1]], ['call', 'print', 'i']]]

@@ -6,10 +6,10 @@
     (define ((atoi int) (s (ptr int))))
 
     (define ((row-op void) (mod (ptr float)) (ref (ptr float)) (len int)) ; mod -> mod - factor*ref
-        (declare (i int))
-        (declare (mod_p (ptr float)))
-        (declare (l float))
-        (declare (pv int))
+        (declare i int)
+        (declare mod_p (ptr float))
+        (declare l float)
+        (declare pv int)
 
         (for ((set pv 0)
               (and
@@ -37,9 +37,9 @@
         (ret))
 
     (define ((gaussian-eli void) (mat (ptr float)) (nrows int) (ncols int))
-        (declare (ref-row int))
-        (declare (mod-row int))
-        (declare (col int))
+        (declare ref-row int)
+        (declare mod-row int)
+        (declare col int)
 
         (for ((set ref-row 0)
               (lt ref-row (sub nrows 1))
@@ -55,11 +55,11 @@
         (ret))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
-        (declare (input (ptr float)))
-        (declare (nr int))
-        (declare (nc int))
-        (declare (sz int))
-        (declare (i int))
+        (declare input (ptr float))
+        (declare nr int)
+        (declare nc int)
+        (declare sz int)
+        (declare i int)
 
         (set nr (call atoi (load (ptradd argv 1))))
         (set nc (call atoi (load (ptradd argv 2))))

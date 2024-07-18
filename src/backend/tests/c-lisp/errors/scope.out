@@ -1,0 +1,2 @@
+Error in statement: ['call', 'print', 'val']
+CodegenError: Undeclared symbol: val

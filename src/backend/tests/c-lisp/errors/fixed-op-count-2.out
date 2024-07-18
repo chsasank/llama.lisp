@@ -1,0 +1,2 @@
+Error in statement: ['ret', ['add', 3, 4, 5]]
+CodegenError: `add` takes only 2 operands: ['add', 3, 4, 5]

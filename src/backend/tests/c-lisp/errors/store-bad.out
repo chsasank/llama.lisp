@@ -1,0 +1,2 @@
+Error in statement: ['store', 'a', 5, 6, 7]
+CodegenError: Bad store expression: ['store', 'a', 5, 6, 7]

@@ -19,8 +19,8 @@
         (ret))
 
     (define ((list-print void) (lst (ptr (struct List))))
-        (declare (i int))
-        (declare (n (ptr (struct Node))))
+        (declare i int)
+        (declare n (ptr (struct Node)))
 
         (set n (load (ptr-member-ref lst head)))
 
@@ -33,9 +33,9 @@
         (ret))
 
     (define ((list-append void) (lst (ptr (struct List))) (node (ptr (struct Node))))
-        (declare (i int))
-        (declare (last (ptr (struct Node))))
-        (declare (len int))
+        (declare i int)
+        (declare last (ptr (struct Node)))
+        (declare len int)
 
         (set len (load (ptr-member-ref lst len)))
         (if (eq len 0)
@@ -54,13 +54,13 @@
         (ret))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
-        (declare (list (ptr (struct List))))
-        (declare (node (ptr (struct Node))))
+        (declare list (ptr (struct List)))
+        (declare node (ptr (struct Node)))
 
         (set list (alloc (struct List) 1))
         (store (ptr-member-ref list len) 0)
 
-        (declare (i int))
+        (declare i int)
         (for ((set i (sub argc 1))
               (gt i 0)
               (set i (sub i 1)))

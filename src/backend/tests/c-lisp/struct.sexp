@@ -8,7 +8,7 @@
     (define ((fprint float) (n float)))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
-        (declare (n (ptr (struct node))))
+        (declare n (ptr (struct node)))
         (set n (alloc (struct node) 1))
 
         (store (ptr-member-ref n i-data) 5)

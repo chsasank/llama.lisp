@@ -1,0 +1,2 @@
+Error in statement: ['load', 'argv', 'a']
+CodegenError: Bad load expression: ['load', 'argv', 'a']

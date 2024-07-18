@@ -2,9 +2,9 @@
     (define ((print int) (n int)))
 
     (define ((main int))
-        (declare (five int))
-        (declare (twenty int))
-        (declare (res bool))
+        (declare five int)
+        (declare twenty int)
+        (declare res bool)
 
         (set five 5)
         (set twenty 20)
