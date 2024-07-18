@@ -26,9 +26,11 @@ def gen_function(expr):
 
 def gen_type(typ):
     if is_list(typ):
-        retval = {typ[0]: gen_type(typ[1])}
+        assert typ[0] == "ptr"
+        retval = {"ptr": gen_type(typ[1])}
         if len(typ) > 2 and is_list(typ[2]):
-            retval[typ[2][0]] = typ[2][1]
+            assert typ[2][0] == "addrspace"
+            retval["addrspace"] = typ[2][1]
         return retval
     else:
         return typ

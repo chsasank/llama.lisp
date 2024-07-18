@@ -46,9 +46,8 @@ class LLVMCodeGenerator(object):
     def gen_type(self, type):
         if isinstance(type, dict):
             if "ptr" in type:
-                type_obj = self.gen_type(type["ptr"]).as_pointer()
-                if "addrspace" in type:
-                    type_obj.addrspace = type["addrspace"]
+                addrspace = type.get("addrspace", 0)
+                type_obj = self.gen_type(type["ptr"]).as_pointer(addrspace)
                 return type_obj
             else:
                 raise CodegenError(f"Unknown type {type}")
