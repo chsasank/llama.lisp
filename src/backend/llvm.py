@@ -46,7 +46,9 @@ class LLVMCodeGenerator(object):
     def gen_type(self, type):
         if isinstance(type, dict):
             if "ptr" in type:
-                return self.gen_type(type["ptr"]).as_pointer()
+                addrspace = type.get("addrspace", 0)
+                type_obj = self.gen_type(type["ptr"]).as_pointer(addrspace)
+                return type_obj
             else:
                 raise CodegenError(f"Unknown type {type}")
         elif type in ["int", "int32"]:
@@ -126,7 +128,7 @@ class LLVMCodeGenerator(object):
             "sitofp": "sitofp",
             "ptrtoint": "ptrtoint",
             "inttoptr": "inttoptr",
-            "bitcast": "bitcast"
+            "bitcast": "bitcast",
         }
 
         def gen_label(instr):
