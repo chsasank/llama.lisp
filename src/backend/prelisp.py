@@ -1,16 +1,15 @@
 import sys
 import json
 import importlib
+import os
+
+sys.path.append(os.getcwd())
 
 
-def prelisp(expr):
-    assert expr[0] == "prelisp"
-    module_name = expr[1]
+def prelisp(expr, module_name):
     assert isinstance(module_name, str) and module_name.endswith(".py")
-    # TODO: figure out paths and stuff
     module = importlib.import_module(module_name[: -len(".py")])
-
-    return preprocess(expr[2:], module)
+    return preprocess(expr, module)
 
 
 def preprocess(expr, env):
@@ -42,10 +41,17 @@ def clean_python_output(x):
     return json.loads(json.dumps(x))
 
 
-def main():
+def main(mod_name):
     expr = json.load(sys.stdin)
-    print(json.dumps(prelisp(expr)))
+    print(json.dumps(prelisp(expr, mod_name)))
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="What the program does")
+    parser.add_argument(
+        "macro_module", help="python file with entry for macro functions"
+    )
+    args = parser.parse_args()
+    main(args.macro_module)

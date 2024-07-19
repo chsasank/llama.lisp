@@ -1,8 +1,8 @@
-((c-lisp
-   (define ((error_check void) (res int))
-     (if (gt res 0) (call exit 1))
-     (ret res))
-   (define ((main int))
-     (declare res int)
-     (set res (call error (call print 5)))
-     (ret 0))))
+(c-lisp
+  (define ((error_check void) (res int))
+    (if (gt res 0) (call exit 1))
+    (ret res))
+  (define ((main int))
+    (declare res int)
+    (set res (call error (call print 5)))
+    (ret 0)))
