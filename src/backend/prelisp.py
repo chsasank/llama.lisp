@@ -9,18 +9,29 @@ sys.path.append(os.getcwd())
 def prelisp(expr, module_name):
     assert isinstance(module_name, str) and module_name.endswith(".py")
     module = importlib.import_module(module_name[: -len(".py")])
-    return preprocess(expr, module)
+    return preprocess(expr, module)[0]
 
 
 def preprocess(expr, env):
     if isinstance(expr, list):
         if expr[0] == "unquote":
             assert len(expr) == 2
-            return expand_macro(expr[1], env)
+            return expand_macro(expr[1], env), "append"
+        elif expr[0] == 'unquote-splicing':
+            assert len(expr) == 2
+            return expand_macro(expr[1], env), "extend"
         else:
-            return [preprocess(x, env) for x in expr]
+            res = []
+            for x in expr:
+                out, mode = preprocess(x, env)
+                if mode == 'append':
+                    res.append(out)
+                else:
+                    res.extend(out)
+            
+            return res, "append"
     else:
-        return expr
+        return expr, "append"
 
 
 def expand_macro(expr, env):
