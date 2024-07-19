@@ -4,5 +4,6 @@
     (ret res))
   (define ((main int))
     (declare res int)
-    (set res (call error (call print 5)))
+    (declare res float)
+    (set res (call error (call print 3)))
     (ret 0)))

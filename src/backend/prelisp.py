@@ -19,7 +19,9 @@ def preprocess(expr, env):
             return expand_macro(expr[1], env), "append"
         elif expr[0] == 'unquote-splicing':
             assert len(expr) == 2
-            return expand_macro(expr[1], env), "extend"
+            out = expand_macro(expr[1], env)
+            assert isinstance(out, list)
+            return out, "extend"
         else:
             res = []
             for x in expr:

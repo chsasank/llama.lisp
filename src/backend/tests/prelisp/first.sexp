@@ -6,5 +6,6 @@
 
     (define ((main int))
         (declare res ,cudevice)
+        (declare res ,(cudevice2))
         (set res ,(myError (call print 5)))
         (ret 0)))
