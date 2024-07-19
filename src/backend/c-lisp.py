@@ -17,7 +17,6 @@ class BrilispCodeGenerator:
         self.symbol_types = {}  # Variable name -> type
         self.scopes = []  # Stack of scope tags
         self.function_types = {}  # Function name > (ret-type, (arg-types...))
-        self.pointer_types = {}  # For internal use, e.g. temporary pointer variables
 
         self.fixed_op_types = {
             # <opcode>: <result type>
@@ -178,7 +177,7 @@ class BrilispCodeGenerator:
                 "break",
             )
         ]
-        cond_expr_instr, cond_sym = self.gen_expr(stmt[1])
+        cond_expr_instr, cond_sym, _ = self.gen_expr(stmt[1])
         loop_stmt_instr = self.gen_stmt(stmt[2:])
 
         return [
@@ -206,9 +205,9 @@ class BrilispCodeGenerator:
                 "break",
             )
         ]
-        init_expr_instr, _ = self.gen_expr(stmt[1][0])
-        cond_expr_instr, cond_sym = self.gen_expr(stmt[1][1])
-        iter_expr_instr, _ = self.gen_expr(stmt[1][2])
+        init_expr_instr, _, _ = self.gen_expr(stmt[1][0])
+        cond_expr_instr, cond_sym, _ = self.gen_expr(stmt[1][1])
+        iter_expr_instr, _, _ = self.gen_expr(stmt[1][2])
         loop_stmt_instr = self.gen_stmt(stmt[2:])
 
         return [
@@ -236,7 +235,7 @@ class BrilispCodeGenerator:
             )
         ]
 
-        cond_instr_list, cond_sym = self.gen_expr(stmt[1])
+        cond_instr_list, cond_sym, _ = self.gen_expr(stmt[1])
         true_instr_list = self.gen_stmt(stmt[2])
         if len(stmt) == 3:
             false_instr_list = []
@@ -278,7 +277,7 @@ class BrilispCodeGenerator:
             return [self.ret_jmp_instr]
 
         elif len(stmt) == 2:
-            res_instrs, res_sym = self.gen_expr(stmt[1])
+            res_instrs, res_sym, _ = self.gen_expr(stmt[1])
             instr_list = [
                 *res_instrs,
                 ["store", self.ret_ptr_sym, res_sym],
@@ -321,7 +320,8 @@ class BrilispCodeGenerator:
 
         def gen_literal_expr(expr):
             res_sym = random_label(CLISP_PREFIX)
-            return [["set", [res_sym, self.get_literal_type(expr)], ["const", expr]]], res_sym
+            res_type = self.get_literal_type(expr)
+            return [["set", [res_sym, res_type], ["const", expr]]], res_sym, res_type
 
         # set
         def is_set_expr(expr):
@@ -333,11 +333,9 @@ class BrilispCodeGenerator:
 
             name = expr[1]
             scoped_name = self.scoped_lookup(name)
-            instr_list, res_sym = self.gen_expr(expr[2])
-            instr_list.append(
-                ["set", [scoped_name, self.symbol_types[scoped_name]], ["id", res_sym]]
-            )
-            return instr_list, scoped_name
+            instr_list, res_sym, res_type = self.gen_expr(expr[2])
+            instr_list.append(["set", [scoped_name, res_type], ["id", res_sym]])
+            return instr_list, scoped_name, res_type
 
         # call
         def is_call_expr(expr):
@@ -347,23 +345,24 @@ class BrilispCodeGenerator:
             instr_list = []
             arg_syms = []
             for arg in expr[2:]:
-                arg_instr_list, arg_sym = self.gen_expr(arg)
+                arg_instr_list, arg_sym, arg_typ = self.gen_expr(arg)
                 arg_syms.append(arg_sym)
                 instr_list.extend(arg_instr_list)
 
             name = expr[1]
             if name not in self.function_types:
                 raise CodegenError(f"Call to undeclared function: {name}")
-            
+
             res_sym = random_label(CLISP_PREFIX)
+            ret_type = self.function_types[name][0]
             instr_list.append(
                 [
                     "set",
-                    [res_sym, self.function_types[name][0]],
+                    [res_sym, ret_type],
                     ["call", name, *arg_syms],
                 ]
             )
-            return instr_list, res_sym
+            return instr_list, res_sym, ret_type
 
         # var
         def is_var_expr(expr):
@@ -371,10 +370,7 @@ class BrilispCodeGenerator:
 
         def gen_var_expr(expr):
             scoped_name = self.scoped_lookup(expr)
-            typ = self.symbol_types[scoped_name]
-            if typ[0] == "ptr":
-                self.pointer_types[scoped_name] = typ
-            return [], scoped_name
+            return [], scoped_name, self.symbol_types[scoped_name]
 
         # fixed type
         def is_fixed_type_expr(expr):
@@ -387,19 +383,23 @@ class BrilispCodeGenerator:
 
             if not (len(expr) == n_ops + 1):
                 raise CodegenError(f"`{opcode}` takes only {n_ops} operands: {expr}")
-            
-            in_syms = []
+
+            input_syms = []
             input_instrs = []
             for n in range(n_ops):
-                inp_instrs, inp_sym = self.gen_expr(expr[n + 1])
+                inp_instrs, inp_sym, inp_typ = self.gen_expr(expr[n + 1])
                 input_instrs.extend(inp_instrs)
-                in_syms.append(inp_sym)
+                input_syms.append(inp_sym)
 
             res_sym = random_label(CLISP_PREFIX)
-            return [
-                *input_instrs,
-                ["set", [res_sym, typ], [opcode, *in_syms]],
-            ], res_sym
+            return (
+                [
+                    *input_instrs,
+                    ["set", [res_sym, typ], [opcode, *input_syms]],
+                ],
+                res_sym,
+                typ,
+            )
 
         # ptradd
         def is_ptradd_expr(expr):
@@ -409,17 +409,19 @@ class BrilispCodeGenerator:
             if len(expr) != 3:
                 raise CodegenError(f"Bad ptradd expression: {expr}")
 
-            offset_instrs, offset_sym = self.gen_expr(expr[2])
-            
+            offset_instrs, offset_sym, offset_type = self.gen_expr(expr[2])
             ptr_name = self.scoped_lookup(expr[1])
             ptr_type = self.symbol_types[ptr_name]
             res_sym = random_label(CLISP_PREFIX)
 
-            self.pointer_types[res_sym] = ptr_type
-            return [
-                *offset_instrs,
-                ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset_sym]],
-            ], res_sym
+            return (
+                [
+                    *offset_instrs,
+                    ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset_sym]],
+                ],
+                res_sym,
+                ptr_type,
+            )
 
         # load
         def is_load_expr(expr):
@@ -429,12 +431,16 @@ class BrilispCodeGenerator:
             if len(expr) != 2:
                 raise CodegenError(f"Bad load expression: {expr}")
 
-            ptr_instrs, ptr_sym = self.gen_expr(expr[1])
+            ptr_instrs, ptr_sym, ptr_type = self.gen_expr(expr[1])
             res_sym = random_label(CLISP_PREFIX)
-            return [
-                *ptr_instrs,
-                ["set", [res_sym, self.pointer_types[ptr_sym][1]], ["load", ptr_sym]],
-            ], res_sym
+            return (
+                [
+                    *ptr_instrs,
+                    ["set", [res_sym, ptr_type[1]], ["load", ptr_sym]],
+                ],
+                res_sym,
+                ptr_type[1],
+            )
 
         # store
         def is_store_expr(expr):
@@ -444,14 +450,17 @@ class BrilispCodeGenerator:
             if len(expr) != 3:
                 raise CodegenError(f"Bad store expression: {expr}")
 
-            ptr_instrs, ptr_sym = self.gen_expr(expr[1])
-            val_instrs, val_sym = self.gen_expr(expr[2])
-
-            return [
-                *ptr_instrs,
-                *val_instrs,
-                ["store", ptr_sym, val_sym],
-            ], val_sym
+            ptr_instrs, ptr_sym, ptr_type = self.gen_expr(expr[1])
+            val_instrs, val_sym, val_type = self.gen_expr(expr[2])
+            return (
+                [
+                    *ptr_instrs,
+                    *val_instrs,
+                    ["store", ptr_sym, val_sym],
+                ],
+                val_sym,
+                val_type,
+            )
 
         # alloc
         def is_alloc_expr(expr):
@@ -463,12 +472,15 @@ class BrilispCodeGenerator:
 
             ptr_type = ["ptr", expr[1]]
             res_sym = random_label(CLISP_PREFIX)
-            self.pointer_types[res_sym] = ptr_type
-            size_instrs, size_sym = self.gen_expr(expr[2])
-            return [
-                *size_instrs,
-                ["set", [res_sym, ptr_type], ["alloc", size_sym]],
-            ], res_sym
+            size_instrs, size_sym, _ = self.gen_expr(expr[2])
+            return (
+                [
+                    *size_instrs,
+                    ["set", [res_sym, ptr_type], ["alloc", size_sym]],
+                ],
+                res_sym,
+                ptr_type,
+            )
 
         if is_literal_expr(expr):
             return gen_literal_expr(expr)
