@@ -1,3 +1,5 @@
+#include "add_dot.c"
+
 void kernel(float* a, float* b, float* c, int m, int n, int k){
     
     int lda = m;

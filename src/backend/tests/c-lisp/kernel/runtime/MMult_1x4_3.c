@@ -1,3 +1,5 @@
+#include "add_dot.c"
+
 void add_dot1x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) {
     add_dot(k, a, lda, &b[0 * ldb], &c[0 * ldc]);
     add_dot(k, a, lda, &b[1 * ldb], &c[1 * ldc]);

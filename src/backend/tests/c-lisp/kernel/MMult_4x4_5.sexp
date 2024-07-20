@@ -9,6 +9,8 @@
             (c (ptr float))
             (ldc int))
 
+        (declare p int)
+
         (store (ptradd c (add 0 (mul 0 ldc))) 0.0)
         (store (ptradd c (add 0 (mul 1 ldc))) 0.0)
         (store (ptradd c (add 0 (mul 2 ldc))) 0.0)
