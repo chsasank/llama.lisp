@@ -13,6 +13,7 @@ int main(int argc, char* argv[]){
     int m, n, k;
 
     char* routine = argv[1];
+    int print_mat = atoi(argv[2]);
 
     if(!strcmp(routine, "once")) {
         m = M;
@@ -35,6 +36,7 @@ int main(int argc, char* argv[]){
         __kernel(A, B, C_kernel, m, n, k);
         clock_t kernel_end = clock();
 
+
         double elapsed_kernel = (double)(kernel_end - kernel_start) / CLOCKS_PER_SEC;
         double elapsed_ref = (double)(ref_end - ref_start) / CLOCKS_PER_SEC;
 
@@ -45,6 +47,17 @@ int main(int argc, char* argv[]){
         bool allclose = all_close((float*)C_kernel, (float*)C_ref, m, n, 1e3, 1e5, true);
 
         printf("%d, %.3f, %.3f\n", allclose, ref_flops, kernel_flops);
+
+        if (print_mat) {
+            printf("A\n");
+            print_matrix(A, m, k);
+            printf("B\n");
+            print_matrix(B, k, n);
+            printf("Reference\n");
+            print_matrix(C_ref, m, n);
+            printf("Kernel\n");
+            print_matrix(C_kernel, m, n);
+        }
 
         fflush(stdout);
 

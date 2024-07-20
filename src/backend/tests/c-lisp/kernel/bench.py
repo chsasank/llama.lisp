@@ -23,15 +23,29 @@ parser.add_argument(
     help="Mode"
 )
 
+parser.add_argument(
+    "-p",
+    type=int,
+    default=0,
+    help="Print resultant matrix"
+)
+
+parser.add_argument(
+    "-pl",
+    type=int,
+    default=0,
+    help="Plot the results"
+)
+
 args = parser.parse_args()
 
 os.system("rm tmp/data.csv")
 os.system(f"./compile.sh {args.k}")
-os.system(f"./build/kernel_bench {args.m} | tee tmp/data.csv")
+os.system(f"./build/kernel_bench {args.m} {args.p}| tee tmp/data_{args.k}_{args.m}.csv")
 
 
-if args.m == "many":
-    df = pd.read_csv("tmp/data.csv", names=["size", "allclose", "ref_gflops", "kernel_gflops"])
+if args.pl == 1:
+    df = pd.read_csv(f"tmp/data_{args.k}_{args.m}.csv", names=["size", "allclose", "ref_gflops", "kernel_gflops"])
     
     sns.set_style("darkgrid")
     sns.lineplot(x="size", y="ref_gflops", data=df, label="Reference GFLOPS")
@@ -40,7 +54,7 @@ if args.m == "many":
     plt.legend(title="GFLOPS")
     plt.xlabel("Size")
     plt.ylabel("GFLOPS")
-    plt.ylim(1, 4)
+    plt.ylim(0, 10)
     plt.title(f"Performance of Kernel: {args.k}")
 
     output_dir = "plots"
