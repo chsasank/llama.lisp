@@ -30,6 +30,9 @@ char null_char () {
 void * null_ptr () {
     return NULL;
 }
+int64_t big_zero () {
+    return 0;
+}
 
 /* Barebones output support */
 void print (int n) {
