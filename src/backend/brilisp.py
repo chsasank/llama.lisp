@@ -54,44 +54,51 @@ def gen_instr(instr):
 
     def is_value(instr):
         value_op = {
+            # Integer arithmetic
             "add",
             "mul",
             "sub",
             "div",
+            # Integer comparison
             "eq",
             "ne",
             "lt",
             "gt",
             "le",
             "ge",
+            # Boolean arithmetic
             "not",
             "and",
             "or",
+            # Pointer operations
             "alloc",
             "load",
             "ptradd",
             "id",
+            # Floating-point arithmetic
             "fadd",
             "fsub",
             "fmul",
             "fdiv",
+            # Floating-point comparison
             "feq",
             "fne",
             "flt",
             "fgt",
             "fle",
             "fge",
+            # Type conversion
             "sitofp",
             "fptosi",
-            "sext",
-            "trunc",
-            "fptrunc",
-            "fpext",
-            "fptoui",
             "uitofp",
-            "ptrtoint",
+            "fptoui",
             "inttoptr",
+            "ptrtoint",
+            "sext",
             "zext",
+            "trunc",
+            "fpext",
+            "fptrunc",
             "bitcast",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)

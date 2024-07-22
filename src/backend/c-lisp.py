@@ -21,45 +21,6 @@ class BrilispCodeGenerator:
         # Function name > (ret-type, (arg-types...))
         self.function_types = {}
 
-        int_types = {"int8", "int16", "int", "int32", "int64"}
-        float_types = {"float", "double"}
-        self.arith_op_types = {
-            ## opcode -> possible operand and result types
-            # Integer arithmetic
-            "add": int_types,
-            "sub": int_types,
-            "mul": int_types,
-            "div": int_types,
-            # Floating-point arithmetic
-            "fadd": float_types,
-            "fsub": float_types,
-            "fmul": float_types,
-            "fdiv": float_types,
-        }
-        self.comp_op_types = {
-            ## opcode -> possible operand and result types
-            # Integer comparison
-            "eq": int_types,
-            "ne": int_types,
-            "lt": int_types,
-            "gt": int_types,
-            "le": int_types,
-            "ge": int_types,
-            # Floating-point comparison
-            "feq": float_types,
-            "fne": float_types,
-            "flt": float_types,
-            "fgt": float_types,
-            "fle": float_types,
-            "fge": float_types,
-        }
-        self.logic_op_types = {
-            ## opcode -> number of operands
-            # Boolean logic
-            "and",
-            "or",
-        }
-
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
         if not prog[0] == "c-lisp":
@@ -420,21 +381,56 @@ class BrilispCodeGenerator:
                 )
             return gen_compute_expr
 
+        int_types = {"int8", "int16", "int", "int32", "int64"}
+        float_types = {"float", "double"}
+
         # arithmetic
+        arith_op_types = {
+            ## opcode -> possible operand and result types
+            # Integer arithmetic
+            "add": int_types,
+            "sub": int_types,
+            "mul": int_types,
+            "div": int_types,
+            # Floating-point arithmetic
+            "fadd": float_types,
+            "fsub": float_types,
+            "fmul": float_types,
+            "fdiv": float_types,
+        }
+
         def is_arith_expr(expr):
-            return expr[0] in self.arith_op_types
+            return expr[0] in arith_op_types
 
         gen_arith_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: self.arith_op_types[opcode],
+            allowed_types_getter = lambda opcode: arith_op_types[opcode],
             result_type_getter = lambda operand_types: operand_types[0],
         )
 
         # comparison
+        comp_op_types = {
+            ## opcode -> possible operand and result types
+            # Integer comparison
+            "eq": int_types,
+            "ne": int_types,
+            "lt": int_types,
+            "gt": int_types,
+            "le": int_types,
+            "ge": int_types,
+            # Floating-point comparison
+            "feq": float_types,
+            "fne": float_types,
+            "flt": float_types,
+            "fgt": float_types,
+            "fle": float_types,
+            "fge": float_types,
+        }
+
         def is_comp_expr(expr):
-            return expr[0] in self.comp_op_types
+            return expr[0] in comp_op_types
 
         gen_comp_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: self.comp_op_types[opcode],
+            allowed_types_getter = lambda opcode: comp_op_types[opcode],
             result_type_getter = lambda operand_types: "bool",
         )
 
@@ -447,13 +443,20 @@ class BrilispCodeGenerator:
             result_type_getter = lambda operand_types: "bool",
         )
 
+        self.logic_op_types = {
+            ## opcode -> number of operands
+            # Boolean logic
+            "and",
+            "or",
+        }
+
         # boolean not. Cannot be expressed using gen_compute_expr_wrapper
         def is_not_expr(expr):
             return expr[0] == "not"
 
         def gen_not_expr(expr):
             if len(expr) != 2:
-                raise CodegenError(f"not takes exactly 1 operand")
+                raise CodegenError(f"`not` takes only 1 operands")
             input_instr_list, input_sym, input_type = self.gen_expr(expr[1])
             if input_type != "bool":
                 raise CodegenError(f"Operand to `not` must be bool")
@@ -462,7 +465,6 @@ class BrilispCodeGenerator:
                 *input_instr_list,
                 ["set", [res_sym, "bool"], ["not", input_sym]]
             ], res_sym, "bool"
-
 
         # ptradd
         def is_ptradd_expr(expr):
@@ -515,6 +517,10 @@ class BrilispCodeGenerator:
 
             ptr_instrs, ptr_sym, ptr_type = self.gen_expr(expr[1])
             val_instrs, val_sym, val_type = self.gen_expr(expr[2])
+            if ptr_type[1] != val_type:
+                # TODO: Error test
+                raise CodegenError(f"Cannot store {val_type} value to {ptr_type}")
+
             return (
                 [
                     *ptr_instrs,
@@ -545,19 +551,40 @@ class BrilispCodeGenerator:
                 ptr_type,
             )
 
-        # pointer to variable
-        def is_ptr_to_expr(expr):
-            return expr[0] == "ptr-to"
+        # typecasting
+        cast_ops = {
+            ## opcode -> operand type indicator, result type indicator
+            # Type conversion
+            "sitofp",
+            "fptosi",
+            "uitofp",
+            "fptoui",
+            "inttoptr",
+            "ptrtoint",
+            "sext",
+            "zext",
+            "trunc",
+            "fpext",
+            "fptrunc",
+            "bitcast",
+        }
 
-        def gen_ptr_to_expr(expr):
-            if not verify_shape(expr, [str, str]):
-                raise CodegenError(f"Bad ptr-to expression: {expr}")
+        def is_cast_expr(expr):
+            return expr[0] in cast_ops
 
-            scoped_name = self.scoped_lookup(expr[1])
-            res_type = self.symbol_types[scoped_name]
+        def gen_cast_expr(expr):
+            opcode = expr[0]
+            if len(expr) != 3:
+                raise CodegenError(f"`{opcode}` takes exactly 2 operands")
+
+            # TODO: Type checking
+            operand_instrs, operand_sym, operand_type = self.gen_expr(expr[1])
             res_sym = random_label(CLISP_PREFIX)
+            res_type = expr[2]
+
             return [
-                ["set", [res_sym, ["ptr", res_type]], ["ptr-to", scoped_name]]
+                *operand_instrs,
+                ["set", [res_sym, res_type], [opcode, operand_sym, res_type]],
             ], res_sym, res_type
 
         if is_literal_expr(expr):
@@ -584,6 +611,8 @@ class BrilispCodeGenerator:
             return gen_store_expr(expr)
         elif is_alloc_expr(expr):
             return gen_alloc_expr(expr)
+        elif is_cast_expr(expr):
+            return gen_cast_expr(expr)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 
