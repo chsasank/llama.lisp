@@ -13,41 +13,52 @@ class CodegenError(Exception):
 
 class BrilispCodeGenerator:
     def __init__(self):
-        # Type tracking
-        self.symbol_types = {}  # Variable name -> type
-        self.scopes = []  # Stack of scope tags
-        self.function_types = {}  # Function name > (ret-type, (arg-types...))
+        ## Type tracking
+        # Variable name -> type
+        self.symbol_types = {}
+        # Stack of scope tags
+        self.scopes = []
+        # Function name > (ret-type, (arg-types...))
+        self.function_types = {}
 
-        self.fixed_op_types = {
-            # <opcode>: <result type>
+        int_types = {"int8", "int16", "int", "int32", "int64"}
+        float_types = {"float", "double"}
+        self.arith_op_types = {
+            ## opcode -> possible operand and result types
             # Integer arithmetic
-            "add": ("int", 2),
-            "sub": ("int", 2),
-            "mul": ("int", 2),
-            "div": ("int", 2),
-            # Integer comparison
-            "eq": ("bool", 2),
-            "ne": ("bool", 2),
-            "lt": ("bool", 2),
-            "gt": ("bool", 2),
-            "le": ("bool", 2),
-            "ge": ("bool", 2),
+            "add": int_types,
+            "sub": int_types,
+            "mul": int_types,
+            "div": int_types,
             # Floating-point arithmetic
-            "fadd": ("float", 2),
-            "fsub": ("float", 2),
-            "fmul": ("float", 2),
-            "fdiv": ("float", 2),
+            "fadd": float_types,
+            "fsub": float_types,
+            "fmul": float_types,
+            "fdiv": float_types,
+        }
+        self.comp_op_types = {
+            ## opcode -> possible operand and result types
+            # Integer comparison
+            "eq": int_types,
+            "ne": int_types,
+            "lt": int_types,
+            "gt": int_types,
+            "le": int_types,
+            "ge": int_types,
             # Floating-point comparison
-            "feq": ("bool", 2),
-            "fne": ("bool", 2),
-            "flt": ("bool", 2),
-            "fgt": ("bool", 2),
-            "fle": ("bool", 2),
-            "fge": ("bool", 2),
+            "feq": float_types,
+            "fne": float_types,
+            "flt": float_types,
+            "fgt": float_types,
+            "fle": float_types,
+            "fge": float_types,
+        }
+        self.logic_op_types = {
+            ## opcode -> number of operands
             # Boolean logic
-            "and": ("bool", 2),
-            "or": ("bool", 2),
-            "not": ("bool", 1),
+            "and": 2,
+            "or": 2,
+            "not": 1,
         }
 
     def c_lisp(self, prog):
@@ -372,33 +383,107 @@ class BrilispCodeGenerator:
             scoped_name = self.scoped_lookup(expr)
             return [], scoped_name, self.symbol_types[scoped_name]
 
-        # fixed type
-        def is_fixed_type_expr(expr):
-            return expr[0] in self.fixed_op_types
+        # arithmetic
+        def is_arith_expr(expr):
+            return expr[0] in self.arith_op_types
 
-        def gen_fixed_type_expr(expr):
-            instr_list = []
+        def gen_arith_expr(expr):
             opcode = expr[0]
-            typ, n_ops = self.fixed_op_types[opcode]
+            if not verify_shape(expr, [str, None, None]):
+                raise CodegenError(f"opcode {opcode} takes exactly 2 operands")
 
-            if not (len(expr) == n_ops + 1):
-                raise CodegenError(f"`{opcode}` takes only {n_ops} operands: {expr}")
-
-            input_syms = []
-            input_instrs = []
-            for n in range(n_ops):
-                inp_instrs, inp_sym, inp_typ = self.gen_expr(expr[n + 1])
-                input_instrs.extend(inp_instrs)
-                input_syms.append(inp_sym)
+            input_instr_list, operand_syms, operand_types = [], [], []
+            allowed_types = self.arith_op_types[opcode]
+            for ex in expr[1:]:
+                instrs, sym, typ = self.gen_expr(ex)
+                if not (isinstance(typ, str) and typ in allowed_types):
+                    raise CodegenError(
+                        f"Inputs to {opcode} must be one of {allowed_types}"
+                    )
+                input_instr_list += instrs
+                operand_types.append(typ)
+                operand_syms.append(sym)
+            if operand_types[0] != operand_types[1]:
+                raise CodegenError(f"Operands to {opcode} must have same width")
 
             res_sym = random_label(CLISP_PREFIX)
+            res_type = operand_types[0]
             return (
                 [
-                    *input_instrs,
-                    ["set", [res_sym, typ], [opcode, *input_syms]],
+                    *input_instr_list,
+                    ["set", [res_sym, res_type], [opcode, *operand_syms]],
                 ],
                 res_sym,
-                typ,
+                res_type,
+            )
+
+        # comparison
+        def is_comp_expr(expr):
+            return expr[0] in self.comp_op_types
+
+        def gen_comp_expr(expr):
+            opcode = expr[0]
+            if not verify_shape(expr, [str, None, None]):
+                raise CodegenError(f"opcode {opcode} takes exactly 2 operands")
+
+            input_instr_list, operand_syms, operand_types = [], [], []
+            allowed_types = self.comp_op_types[opcode]
+            for ex in expr[1:]:
+                instrs, sym, typ = self.gen_expr(ex)
+                if not (isinstance(typ, str) and typ in allowed_types):
+                    raise CodegenError(
+                        f"Inputs to {opcode} must be one of {allowed_types}"
+                    )
+                input_instr_list += instrs
+                operand_types.append(typ)
+                operand_syms.append(sym)
+            if operand_types[0] != operand_types[1]:
+                raise CodegenError(f"Operands to {opcode} must have same width")
+
+            res_sym = random_label(CLISP_PREFIX)
+            res_type = "bool"
+            return (
+                [
+                    *input_instr_list,
+                    ["set", [res_sym, res_type], [opcode, *operand_syms]],
+                ],
+                res_sym,
+                res_type,
+            )
+
+        # boolean logic
+        def is_logic_expr(expr):
+            return expr[0] in self.logic_op_types
+
+        def gen_logic_expr(expr):
+            opcode = expr[0]
+            n_ops = self.logic_op_types[opcode]
+            if not len(expr) == n_ops + 1:
+                raise CodegenError(f"{opcode} takes exactly 1 operand")
+
+            input_instr_list, operand_syms, operand_types = [], [], []
+            allowed_types = {"bool"}
+            for ex in expr[1:]:
+                instrs, sym, typ = self.gen_expr(ex)
+                if not (isinstance(typ, str) and typ in allowed_types):
+                    raise CodegenError(
+                        f"Inputs to {opcode} must be one of {allowed_types}"
+                    )
+                input_instr_list += instrs
+                operand_types.append(typ)
+                operand_syms.append(sym)
+            if n_ops == 2 and operand_types[0] != operand_types[1]:
+                raise CodegenError(f"Operands to {opcode} must have same width")
+
+            res_sym = random_label(CLISP_PREFIX)
+            res_type = "bool"
+            return (
+                [
+                    *input_instr_list,
+                    ["set", [res_sym, res_type], [opcode, *operand_syms]],
+                ],
+                res_sym,
+                res_type,
             )
 
         # ptradd
@@ -482,6 +567,75 @@ class BrilispCodeGenerator:
                 ptr_type,
             )
 
+        # struct member access
+        def is_member_ref_expr(expr):
+            return expr[0] == "member-ref"
+
+        def gen_member_ref_expr(expr):
+            if not len(expr) == 3:
+                raise CodegenError(f"Bad member-ref expression: {expr}")
+
+            name, field = expr[1:]
+            scoped_name = self.scoped_lookup(name)
+            struct_type = self.symbol_types[scoped_name]
+            if not self.is_struct_type(struct_type):
+                raise CodegenError(f"Not a struct type: {struct_type}")
+            struct_ptr_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
+            field_idx, field_type = self.struct_types[struct_type[1]][field]
+            return [
+                [
+                    "set",
+                    [struct_ptr_sym, ["ptr", struct_type]],
+                    ["ptr-to", scoped_name],
+                ],
+                [
+                    "set",
+                    [res_sym, ["ptr", field_type]],
+                    ["ptradd", struct_ptr_sym, 0, field_idx],
+                ],
+            ], res_sym, field_type
+
+        # struct member access through pointer
+        def is_ptr_member_ref_expr(expr):
+            return expr[0] == "ptr-member-ref"
+
+        def gen_ptr_member_ref_expr(expr):
+            if not len(expr) == 3:
+                raise CodegenError(f"Bad ptr-member-ref expression: {expr}")
+
+            name, field = expr[1], expr[2]
+            scoped_name = self.scoped_lookup(name)
+            struct_ptr_type = self.symbol_types[scoped_name]
+            if not struct_ptr_type[0] == "ptr":
+                raise CodegenError(f"Not a pointer: {name}")
+            if not self.is_struct_type(struct_ptr_type[1]):
+                raise CodegenError(f"Not a struct type: {struct_type}")
+            struct_type = struct_ptr_type[1][1]
+            field_idx, field_type = self.struct_types[struct_type][field]
+            res_sym = random_label(CLISP_PREFIX)
+            return [
+                [
+                    "set",
+                    [res_sym, ["ptr", field_type]],
+                    ["ptradd", scoped_name, 0, field_idx],
+                ]
+            ], res_sym, field_type
+
+        # pointer to variable
+        def is_ptr_to_expr(expr):
+            return expr[0] == "ptr-to"
+
+        def gen_ptr_to_expr(expr):
+            if not verify_shape(expr, [str, str]):
+                raise CodegenError(f"Bad ptr-to expression: {expr}")
+
+            scoped_name = self.scoped_lookup(expr[1])
+            res_type = self.symbol_types[scoped_name]
+            res_sym = random_label(CLISP_PREFIX)
+            return [
+                ["set", [res_sym, ["ptr", res_type]], ["ptr-to", scoped_name]]
+            ], res_sym, res_type
+
         if is_literal_expr(expr):
             return gen_literal_expr(expr)
         elif is_set_expr(expr):
@@ -490,8 +644,14 @@ class BrilispCodeGenerator:
             return gen_call_expr(expr)
         elif is_var_expr(expr):
             return gen_var_expr(expr)
-        elif is_fixed_type_expr(expr):
-            return gen_fixed_type_expr(expr)
+        elif is_arith_expr(expr):
+            return gen_arith_expr(expr)
+        elif is_comp_expr(expr):
+            return gen_comp_expr(expr)
+        elif is_logic_expr(expr):
+            return gen_logic_expr(expr)
+        #elif is_fixed_type_expr(expr):
+        #    return gen_fixed_type_expr(expr)
         elif is_ptradd_expr(expr):
             return gen_ptradd_expr(expr)
         elif is_load_expr(expr):
