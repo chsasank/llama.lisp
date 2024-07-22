@@ -1,0 +1,1 @@
+command = "guile ../../utils/sexp-json.scm < {filename} | python ../../prelisp.py macros.py | guile ../../utils/json-sexp.scm" 
