@@ -565,6 +565,19 @@ class BrilispCodeGenerator:
                 ]
             ], res_sym
 
+        # pointer to variable
+        def is_ptr_to_expr(expr):
+            return expr[0] == "ptr-to"
+
+        def gen_ptr_to_expr(expr):
+            if not verify_shape(expr, [str, str]):
+                raise CodegenError(f"Bad ptr-to expression: {expr}")
+
+            scoped_name = self.scoped_lookup(expr[1])
+            res_type = self.symbol_types[scoped_name]
+            res_sym = random_label(CLISP_PREFIX)
+            return [["set", [res_sym, ["ptr", res_type]], ["ptr-to", scoped_name]]], res_sym
+
         if is_literal_expr(expr):
             return gen_literal_expr(expr)
         elif is_set_expr(expr):
@@ -587,6 +600,8 @@ class BrilispCodeGenerator:
             return gen_member_ref_expr(expr)
         elif is_ptr_member_ref_expr(expr):
             return gen_ptr_member_ref_expr(expr)
+        elif is_ptr_to_expr(expr):
+            return gen_ptr_to_expr(expr)
         else:
             raise CodegenError(f"Bad expression: {expr}")
 

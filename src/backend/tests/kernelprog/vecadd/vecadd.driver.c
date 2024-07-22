@@ -3,49 +3,18 @@
 #include <cuda.h>
 #include <math.h>
 
-#define CLISP_TRANS
-
-/* Host-side code to launch the kernel function and
+/* Host-side code to launch an arbitrary kernel function and
    validate the results against those of a reference function */
 
-#ifdef CLISP_TRANS
-char * ReadingStdinMsg = "Reading kernel from standard input...";
-char * KernelNameStr = "kernel";
-char * ErrorStatusMsg = "Non-zero return status";
-char * reading_stdin_msg () {
-    return ReadingStdinMsg;
-}
-char * kernel_name_str () {
-    return KernelNameStr;
-}
-char * error_status_msg () {
-    return ErrorStatusMsg;
-}
-char eof_char () {
-    return EOF;
-}
-char null_char () {
-    return '\0';
-}
-void print (int n) {
-    printf("%d\n", n);
-}
-#endif
-
-#ifndef CLISP_TRANS
 // Reference implementation, defined per kernel
 void ref_kernel(float * a, float * b, float * res, int N) {
     for (int i = 0; i < N; i++)
         res[i] = a[i] + b[i];
 }
-#else
-void ref_kernel(float * a, float * b, float * res, int N);
-#endif
 
 // CUDA error checking
 #define ERR_CHECK(X) \
     error_check(X, #X)
-#ifndef CLISP_TRANS
 void error_check(int res, char * call_str) {
     if (res) {
         printf("%s returned non-zero status %d\n", call_str, res);
@@ -53,12 +22,7 @@ void error_check(int res, char * call_str) {
     }
 }
 
-#else
-void error_check(int res, char * call_str);
-#endif
-
 // Read a PTX image containing a kernel from stdin
-#ifndef CLISP_TRANS
 void read_module(char * buf) {
     printf("Reading kernel from standard input...\n");
 
@@ -68,34 +32,26 @@ void read_module(char * buf) {
     }
     *buf = '\0';
 }
-#else
-void read_module(char * buf);
-#endif
 
-#ifndef _CLISP_TRANS // [WIP]
-void init (int * devCount_p, CUdevice * device_p,
-           CUcontext * context_p, CUmodule * module_p,
-           CUfunction * kernel_func_p) {
-
+int main (int argc, char ** argv) {
+    int devCount;
+    CUdevice device;
+    CUcontext context;
+    CUmodule module;
+    char kernel_ptx[4000];
+    CUfunction kernel_func;
+      
     // CUDA initialization and context creation
     ERR_CHECK(cuInit(0));
-    ERR_CHECK(cuDeviceGetCount(devCount_p));
-    ERR_CHECK(cuDeviceGet(device_p, 0));
-    ERR_CHECK(cuCtxCreate(context_p, 0, *device_p));
+    ERR_CHECK(cuDeviceGetCount(&devCount));
+    ERR_CHECK(cuDeviceGet(&device, 0));
+    ERR_CHECK(cuCtxCreate(&context, 0, device));
 
     // Load the kernel image and get a handle to the kernel function
-    char kernel_ptx[4000];
     read_module(kernel_ptx);
-    ERR_CHECK(cuModuleLoadData(module_p, kernel_ptx));
-    ERR_CHECK(cuModuleGetFunction(kernel_func_p, *module_p, "kernel"));
-}
-#else
-void init (int * devCount_p, CUdevice * device_p,
-           CUcontext * context_p, CUmodule * module_p,
-           CUfunction * kernel_func_p);
-#endif
+    ERR_CHECK(cuModuleLoadData(&module, kernel_ptx));
+    ERR_CHECK(cuModuleGetFunction(&kernel_func, module, "kernel"));
 
-void run (CUfunction * kernel_func_p, CUmodule * module_p, CUcontext * context_p) {
     // Allocate input and result
     int N = 1024;
     float
@@ -124,7 +80,7 @@ void run (CUfunction * kernel_func_p, CUmodule * module_p, CUcontext * context_p
     void * KernelParams [] = { &dev_a, &dev_b, &dev_res };
     int BlockSize = 32;
     int GridSize = (N + BlockSize - 1) / BlockSize;
-    ERR_CHECK(cuLaunchKernel(*kernel_func_p,
+    ERR_CHECK(cuLaunchKernel(kernel_func,
                              // Grid sizes X, Y, Z
                              GridSize, 1, 1,
                              // Block sizes X, Y, Z
@@ -149,17 +105,6 @@ void run (CUfunction * kernel_func_p, CUmodule * module_p, CUcontext * context_p
     ERR_CHECK(cuMemFree(dev_a));
     ERR_CHECK(cuMemFree(dev_b));
     ERR_CHECK(cuMemFree(dev_res));
-    ERR_CHECK(cuModuleUnload(*module_p));
-    ERR_CHECK(cuCtxDestroy(*context_p));
-}
-
-int main () {
-    int devCount;
-    CUdevice device;
-    CUcontext context;
-    CUmodule module;
-    CUfunction kernel_func;
-
-    init(&devCount, &device, &context, &module, &kernel_func);
-    run(&kernel_func, &module, &context);
+    ERR_CHECK(cuModuleUnload(module));
+    ERR_CHECK(cuCtxDestroy(context));
 }
