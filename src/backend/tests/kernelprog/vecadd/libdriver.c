@@ -21,18 +21,6 @@ char * MaxErrMsg = "Max error:";
 char * max_err_msg () {
     return MaxErrMsg;
 }
-char eof_char () {
-    return EOF;
-}
-char null_char () {
-    return '\0';
-}
-void * null_ptr () {
-    return NULL;
-}
-int64_t big_zero () {
-    return 0;
-}
 
 /* Barebones output support */
 void print (int n) {

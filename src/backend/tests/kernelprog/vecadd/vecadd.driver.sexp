@@ -1,27 +1,10 @@
 (c-lisp
-    (define-struct CUfunction
-        (dummy (ptr int)))
-    (define-struct CUdeviceptr
-        (dummy (ptr int))
-        (dummy2 (ptr int)))
-    (define-struct CUmodule
-        (dummy (ptr int)))
-    (define-struct CUcontext
-        (dummy (ptr int)))
-    (define-struct CUdevice
-        (dummy int)
-        (dummy2 int))
-
     ;; Constants that we can't currently define in C-Lisp
     ;; TODO
     (define ((reading_stdin_msg (ptr int8))))
-    (define ((eof_char int8)))
-    (define ((null_char int8)))
     (define ((kernel_name_str (ptr int8))))
     (define ((error_status_msg (ptr int8))))
     (define ((max_err_msg (ptr int8))))
-    (define ((null_ptr (ptr int))))
-    (define ((big_zero int64)))
 
     ;; External linkage
     (define ((puts int) (s (ptr int8))))
@@ -39,7 +22,6 @@
     (define ((cuInit int) (flags int)))
     (define ((cuDeviceGetCount int) (n (ptr int))))
     (define ((cuDeviceGet int)
-        ;(dev (ptr (struct CUdevice)))
         (dev (ptr int))
         (ordinal int)))
     (define ((cuCtxCreate int)
@@ -98,22 +80,24 @@
         (declare c int8)
         (while (ne (set c (call getchar))
                    ;; TODO [macro]: use 'EOF' inline
-                   (call eof_char))
+                   ,EOF)
                 (store buf c)
                 (set buf (ptradd buf 1)))
         ;; TODO: set null character inline
-        (store buf (call null_char))
+        (store buf (trunc 0 int8))
         (ret))
 
     ;; [WIP]
     (define ((main void))
 
         (declare i int)
+        (declare nullptr (ptr int)) (set nullptr (inttoptr 0 (ptr int)))
+
         (declare devCount int) (set devCount 0)
         (declare device int) (set device 0)
-        (declare context (ptr int)) (set context (call null_ptr))
-        (declare module (ptr int)) (set module (call null_ptr))
-        (declare kernel_func (ptr int)) (set kernel_func (call null_ptr))
+        (declare context (ptr int)) (set context nullptr)
+        (declare module (ptr int)) (set module nullptr)
+        (declare kernel_func (ptr int)) (set kernel_func nullptr)
 
         ;; CUDA initialization and context creation
         ;; TODO [macro]: Wrap API calls with error-checking macros
@@ -154,9 +138,9 @@
 
         ;; Copy data to device
         ; CUdeviceptr <=> (ptr int)
-        (declare dev_a int64) (set dev_a (call big_zero))
-        (declare dev_b int64) (set dev_b (call big_zero))
-        (declare dev_res int64) (set dev_res (call big_zero))
+        (declare dev_a int64) (set dev_a (sext 0 int64))
+        (declare dev_b int64) (set dev_b dev_a)
+        (declare dev_res int64) (set dev_res dev_a)
         (call cuMemAlloc (ptr-to dev_a) sz)
         (call cuMemAlloc (ptr-to dev_b) sz)
         (call cuMemAlloc (ptr-to dev_res) sz)
@@ -181,7 +165,7 @@
                              BlockSize 1 1
                              ; Shared mem size, stream id, kernel params, extra options
                              ; TODO: specify NULL inline
-                             0 (call null_ptr) KernelParams (call null_ptr)))
+                             0 nullptr KernelParams nullptr))
         (call print (call cuCtxSynchronize))
 
         ;; Retieve and verify results

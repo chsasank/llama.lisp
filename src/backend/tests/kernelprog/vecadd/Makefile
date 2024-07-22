@@ -11,7 +11,7 @@ TRIPLE = target triple = \"nvptx64-nvidia-cuda\"
 
 # C-Lisp driver to LLVM
 %.driver.ll: %.driver.sexp
-	guile ../../../utils/sexp-json.scm < $(word 1, $^) | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | sed -e '/^target/d' > $@
+	guile ../../../utils/sexp-json.scm < $(word 1, $^) | python ../../../prelisp.py vecadd-macros.py | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | sed -e '/^target/d' > $@
 
 # LLVM kernel to PTX
 %.ptx: %.ll
