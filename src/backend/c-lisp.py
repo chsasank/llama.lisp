@@ -56,9 +56,8 @@ class BrilispCodeGenerator:
         self.logic_op_types = {
             ## opcode -> number of operands
             # Boolean logic
-            "and": 2,
-            "or": 2,
-            "not": 1,
+            "and",
+            "or",
         }
 
     def c_lisp(self, prog):
@@ -383,108 +382,87 @@ class BrilispCodeGenerator:
             scoped_name = self.scoped_lookup(expr)
             return [], scoped_name, self.symbol_types[scoped_name]
 
+        def gen_compute_expr_wrapper(*, allowed_types_getter, result_type_getter):
+            """
+            Closure to generalize codegen for computation expressions. Assumes that the
+            opcode takes 2 operands of the same type.
+            allowed_types_getter(opcode) should return a set of allowed operand types
+            result_type_getter(operand_types) should return the result type
+            """
+            def gen_compute_expr(expr):
+                opcode = expr[0]
+                if not verify_shape(expr, [str, None, None]):
+                    raise CodegenError(f"opcode {opcode} takes exactly 2 operands")
+
+                input_instr_list, operand_syms, operand_types = [], [], []
+                allowed_types = allowed_types_getter(opcode)
+                for ex in expr[1:]:
+                    instrs, sym, typ = self.gen_expr(ex)
+                    if not (isinstance(typ, str) and typ in allowed_types):
+                        raise CodegenError(
+                            f"Operands to {opcode} must be one of {allowed_types}"
+                        )
+                    input_instr_list += instrs
+                    operand_types.append(typ)
+                    operand_syms.append(sym)
+                if operand_types[0] != operand_types[1]:
+                    raise CodegenError(f"Operands to `{opcode}` must have same width")
+
+                res_sym = random_label(CLISP_PREFIX)
+                res_type = result_type_getter(operand_types)
+                return (
+                    [
+                        *input_instr_list,
+                        ["set", [res_sym, res_type], [opcode, *operand_syms]],
+                    ],
+                    res_sym,
+                    res_type,
+                )
+            return gen_compute_expr
+
         # arithmetic
         def is_arith_expr(expr):
             return expr[0] in self.arith_op_types
 
-        def gen_arith_expr(expr):
-            opcode = expr[0]
-            if not verify_shape(expr, [str, None, None]):
-                raise CodegenError(f"opcode {opcode} takes exactly 2 operands")
-
-            input_instr_list, operand_syms, operand_types = [], [], []
-            allowed_types = self.arith_op_types[opcode]
-            for ex in expr[1:]:
-                instrs, sym, typ = self.gen_expr(ex)
-                if not (isinstance(typ, str) and typ in allowed_types):
-                    raise CodegenError(
-                        f"Inputs to {opcode} must be one of {allowed_types}"
-                    )
-                input_instr_list += instrs
-                operand_types.append(typ)
-                operand_syms.append(sym)
-            if operand_types[0] != operand_types[1]:
-                raise CodegenError(f"Operands to {opcode} must have same width")
-
-            res_sym = random_label(CLISP_PREFIX)
-            res_type = operand_types[0]
-            return (
-                [
-                    *input_instr_list,
-                    ["set", [res_sym, res_type], [opcode, *operand_syms]],
-                ],
-                res_sym,
-                res_type,
-            )
+        gen_arith_expr = gen_compute_expr_wrapper(
+            allowed_types_getter = lambda opcode: self.arith_op_types[opcode],
+            result_type_getter = lambda operand_types: operand_types[0],
+        )
 
         # comparison
         def is_comp_expr(expr):
             return expr[0] in self.comp_op_types
 
-        def gen_comp_expr(expr):
-            opcode = expr[0]
-            if not verify_shape(expr, [str, None, None]):
-                raise CodegenError(f"opcode {opcode} takes exactly 2 operands")
-
-            input_instr_list, operand_syms, operand_types = [], [], []
-            allowed_types = self.comp_op_types[opcode]
-            for ex in expr[1:]:
-                instrs, sym, typ = self.gen_expr(ex)
-                if not (isinstance(typ, str) and typ in allowed_types):
-                    raise CodegenError(
-                        f"Inputs to {opcode} must be one of {allowed_types}"
-                    )
-                input_instr_list += instrs
-                operand_types.append(typ)
-                operand_syms.append(sym)
-            if operand_types[0] != operand_types[1]:
-                raise CodegenError(f"Operands to {opcode} must have same width")
-
-            res_sym = random_label(CLISP_PREFIX)
-            res_type = "bool"
-            return (
-                [
-                    *input_instr_list,
-                    ["set", [res_sym, res_type], [opcode, *operand_syms]],
-                ],
-                res_sym,
-                res_type,
-            )
+        gen_comp_expr = gen_compute_expr_wrapper(
+            allowed_types_getter = lambda opcode: self.comp_op_types[opcode],
+            result_type_getter = lambda operand_types: "bool",
+        )
 
         # boolean logic
         def is_logic_expr(expr):
             return expr[0] in self.logic_op_types
 
-        def gen_logic_expr(expr):
-            opcode = expr[0]
-            n_ops = self.logic_op_types[opcode]
-            if not len(expr) == n_ops + 1:
-                raise CodegenError(f"{opcode} takes exactly 1 operand")
+        gen_logic_expr = gen_compute_expr_wrapper(
+            allowed_types_getter = lambda opcode: "bool",
+            result_type_getter = lambda operand_types: "bool",
+        )
 
-            input_instr_list, operand_syms, operand_types = [], [], []
-            allowed_types = {"bool"}
-            for ex in expr[1:]:
-                instrs, sym, typ = self.gen_expr(ex)
-                if not (isinstance(typ, str) and typ in allowed_types):
-                    raise CodegenError(
-                        f"Inputs to {opcode} must be one of {allowed_types}"
-                    )
-                input_instr_list += instrs
-                operand_types.append(typ)
-                operand_syms.append(sym)
-            if n_ops == 2 and operand_types[0] != operand_types[1]:
-                raise CodegenError(f"Operands to {opcode} must have same width")
+        # boolean not. Cannot be expressed using gen_compute_expr_wrapper
+        def is_not_expr(expr):
+            return expr[0] == "not"
 
+        def gen_not_expr(expr):
+            if len(expr) != 2:
+                raise CodegenError(f"not takes exactly 1 operand")
+            input_instr_list, input_sym, input_type = self.gen_expr(expr[1])
+            if input_type != "bool":
+                raise CodegenError(f"Operand to `not` must be bool")
             res_sym = random_label(CLISP_PREFIX)
-            res_type = "bool"
-            return (
-                [
-                    *input_instr_list,
-                    ["set", [res_sym, res_type], [opcode, *operand_syms]],
-                ],
-                res_sym,
-                res_type,
-            )
+            return [
+                *input_instr_list,
+                ["set", [res_sym, "bool"], ["not", input_sym]]
+            ], res_sym, "bool"
+
 
         # ptradd
         def is_ptradd_expr(expr):
@@ -567,60 +545,6 @@ class BrilispCodeGenerator:
                 ptr_type,
             )
 
-        # struct member access
-        def is_member_ref_expr(expr):
-            return expr[0] == "member-ref"
-
-        def gen_member_ref_expr(expr):
-            if not len(expr) == 3:
-                raise CodegenError(f"Bad member-ref expression: {expr}")
-
-            name, field = expr[1:]
-            scoped_name = self.scoped_lookup(name)
-            struct_type = self.symbol_types[scoped_name]
-            if not self.is_struct_type(struct_type):
-                raise CodegenError(f"Not a struct type: {struct_type}")
-            struct_ptr_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
-            field_idx, field_type = self.struct_types[struct_type[1]][field]
-            return [
-                [
-                    "set",
-                    [struct_ptr_sym, ["ptr", struct_type]],
-                    ["ptr-to", scoped_name],
-                ],
-                [
-                    "set",
-                    [res_sym, ["ptr", field_type]],
-                    ["ptradd", struct_ptr_sym, 0, field_idx],
-                ],
-            ], res_sym, field_type
-
-        # struct member access through pointer
-        def is_ptr_member_ref_expr(expr):
-            return expr[0] == "ptr-member-ref"
-
-        def gen_ptr_member_ref_expr(expr):
-            if not len(expr) == 3:
-                raise CodegenError(f"Bad ptr-member-ref expression: {expr}")
-
-            name, field = expr[1], expr[2]
-            scoped_name = self.scoped_lookup(name)
-            struct_ptr_type = self.symbol_types[scoped_name]
-            if not struct_ptr_type[0] == "ptr":
-                raise CodegenError(f"Not a pointer: {name}")
-            if not self.is_struct_type(struct_ptr_type[1]):
-                raise CodegenError(f"Not a struct type: {struct_type}")
-            struct_type = struct_ptr_type[1][1]
-            field_idx, field_type = self.struct_types[struct_type][field]
-            res_sym = random_label(CLISP_PREFIX)
-            return [
-                [
-                    "set",
-                    [res_sym, ["ptr", field_type]],
-                    ["ptradd", scoped_name, 0, field_idx],
-                ]
-            ], res_sym, field_type
-
         # pointer to variable
         def is_ptr_to_expr(expr):
             return expr[0] == "ptr-to"
@@ -650,8 +574,8 @@ class BrilispCodeGenerator:
             return gen_comp_expr(expr)
         elif is_logic_expr(expr):
             return gen_logic_expr(expr)
-        #elif is_fixed_type_expr(expr):
-        #    return gen_fixed_type_expr(expr)
+        elif is_not_expr(expr):
+            return gen_not_expr(expr)
         elif is_ptradd_expr(expr):
             return gen_ptradd_expr(expr)
         elif is_load_expr(expr):
