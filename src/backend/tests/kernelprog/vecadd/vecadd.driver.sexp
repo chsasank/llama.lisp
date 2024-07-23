@@ -18,43 +18,15 @@
     (define ((fabsf float) (a float)))
     (define ((fmaxf float) (a float) (b float)))
     (define ((free void) (p (ptr float))))
-    ; From <cuda.h> (-lcuda)
-    (define ((cuInit int) (flags int)))
-    (define ((cuDeviceGetCount int) (n (ptr int))))
-    (define ((cuDeviceGet int)
-        (dev (ptr int))
-        (ordinal int)))
-    (define ((cuCtxCreate int)
-        (context (ptr (ptr int)))
-        (flags int)
-        (device int)))
-    (define ((cuModuleLoadData int)
-        (module (ptr (ptr int)))
-        (data (ptr int8))))
-    (define ((cuModuleGetFunction int)
-        (func (ptr (ptr int)))
-        (module (ptr int))
-        (name (ptr int8))))
 
-    (define ((cuMemAlloc int) (pntr (ptr int64)) (n int)))
-    ;(define ((cuMemAlloc int) (pntr (ptr int)) (n int)))
-    (define ((cuMemFree int) (pntr int64)))
-    (define ((cuMemcpyHtoD int)
-        (d_pntr int64)
-        (h_pntr (ptr float))
-        (sz int)))
-    (define ((cuMemcpyDtoH int)
-        (h_pntr (ptr float))
-        (d_pntr int64)
-        (sz int)))
-    (define ((cuLaunchKernel int)
-        (func (ptr int))
-        (grdx int) (grdy int) (grdz int)
-        (blkx int) (blky int) (blkz int)
-        (shmem int) (stream (ptr int)) (params (ptr (ptr int64))) (exopts (ptr int))))
-    (define ((cuCtxSynchronize int)))
-    (define ((cuModuleUnload int) (mod (ptr int))))
-    (define ((cuCtxDestroy int) (ctx (ptr int))))
+    ; Signatures from Numba's CUDA driver
+    ,@(get_cuda_signatures
+        ; Housekeeping functions
+        cuInit cuDeviceGet cuDeviceGetCount cuCtxCreate cuCtxDestroy cuCtxSynchronize
+        ; JIT and execution functions
+        cuModuleLoadDataEx cuModuleUnload cuModuleGetFunction cuLaunchKernel
+        ; Memory management functions
+        cuMemAlloc cuMemFree cuMemcpyDtoH cuMemcpyHtoD)
 
     (define ((ref_kernel void) (a (ptr float)) (b (ptr float)) (res (ptr float)) (N int))
         (declare i int)
@@ -91,13 +63,13 @@
     (define ((main void))
 
         (declare i int)
-        (declare nullptr (ptr int)) (set nullptr (inttoptr 0 (ptr int)))
+        (declare nullptr (ptr int8)) (set nullptr (inttoptr 0 (ptr int8)))
 
         (declare devCount int) (set devCount 0)
         (declare device int) (set device 0)
-        (declare context (ptr int)) (set context nullptr)
-        (declare module (ptr int)) (set module nullptr)
-        (declare kernel_func (ptr int)) (set kernel_func nullptr)
+        (declare context (ptr int8)) (set context nullptr)
+        (declare module (ptr int8)) (set module nullptr)
+        (declare kernel_func (ptr int8)) (set kernel_func nullptr)
 
         ;; CUDA initialization and context creation
         ;; TODO [macro]: Wrap API calls with error-checking macros
@@ -110,9 +82,12 @@
         (declare kernel_ptx (ptr int8))
         (set kernel_ptx (alloc int8 4000))
         (call read_module kernel_ptx)
-        (call cuModuleLoadData (ptr-to module) kernel_ptx)
+        (call cuModuleLoadDataEx
+            ,(void_ptr_to module) kernel_ptx
+            ; num options, options, option values
+            0 (inttoptr 0 (ptr int)) (inttoptr 0 (ptr (ptr int8))))
         ;; TODO [string]: define kernel name inline
-        (call cuModuleGetFunction (ptr-to kernel_func) module (call kernel_name_str))
+        (call cuModuleGetFunction ,(void_ptr_to kernel_func) module (call kernel_name_str))
 
         ;; Allocate input and result
         (declare N int)
@@ -141,11 +116,12 @@
         (declare dev_a int64) (set dev_a (sext 0 int64))
         (declare dev_b int64) (set dev_b dev_a)
         (declare dev_res int64) (set dev_res dev_a)
-        (call cuMemAlloc (ptr-to dev_a) sz)
-        (call cuMemAlloc (ptr-to dev_b) sz)
-        (call cuMemAlloc (ptr-to dev_res) sz)
-        (call cuMemcpyHtoD dev_a a sz)
-        (call cuMemcpyHtoD dev_b b sz)
+        (declare sz_64 int64) (set sz_64 (sext sz int64))
+        (call cuMemAlloc (ptr-to dev_a) sz_64)
+        (call cuMemAlloc (ptr-to dev_b) sz_64)
+        (call cuMemAlloc (ptr-to dev_res) sz_64)
+        (call cuMemcpyHtoD dev_a (bitcast a (ptr int8)) sz_64)
+        (call cuMemcpyHtoD dev_b (bitcast b (ptr int8)) sz_64)
 
         ;; Launch the kernel and wait
         ; Array of CUdeviceptr *
@@ -165,11 +141,11 @@
                              BlockSize 1 1
                              ; Shared mem size, stream id, kernel params, extra options
                              ; TODO: specify NULL inline
-                             0 nullptr KernelParams nullptr))
+                             0 nullptr (bitcast KernelParams (ptr (ptr int8))) (bitcast nullptr (ptr (ptr int8)))))
         (call print (call cuCtxSynchronize))
 
         ;; Retieve and verify results
-        (call cuMemcpyDtoH res_device dev_res sz)
+        (call cuMemcpyDtoH (bitcast res_device (ptr int8)) dev_res sz_64)
         (declare max_err float) (set max_err 0.0)
         (for ((set i 0)
               (lt i N)
