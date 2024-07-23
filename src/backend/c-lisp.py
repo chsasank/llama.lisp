@@ -11,6 +11,13 @@ class CodegenError(Exception):
     pass
 
 
+class Expression:
+    def __init__(self, instructions, symbol, typ):
+        self.instructions = instructions
+        self.symbol = symbol
+        self.typ = typ
+
+
 class BrilispCodeGenerator:
     def __init__(self):
         ## Type tracking
@@ -125,7 +132,7 @@ class BrilispCodeGenerator:
                 elif self.is_while_stmt(stmt):
                     return self.gen_while_stmt(stmt)
                 else:
-                    return self.gen_expr(stmt)[0]
+                    return self.gen_expr(stmt).instructions
             else:
                 return self.gen_expr(stmt)[0]
         except Exception as e:
@@ -148,13 +155,13 @@ class BrilispCodeGenerator:
                 "break",
             )
         ]
-        cond_expr_instr, cond_sym, _ = self.gen_expr(stmt[1])
+        cond_expr = self.gen_expr(stmt[1])
         loop_stmt_instr = self.gen_stmt(stmt[2:])
 
         return [
             ["label", loop_lbl],
-            *cond_expr_instr,
-            ["br", cond_sym, cont_lbl, break_lbl],
+            *cond_expr.instructions,
+            ["br", cond_expr.symbol, cont_lbl, break_lbl],
             ["label", cont_lbl],
             *loop_stmt_instr,
             ["jmp", loop_lbl],
@@ -176,19 +183,19 @@ class BrilispCodeGenerator:
                 "break",
             )
         ]
-        init_expr_instr, _, _ = self.gen_expr(stmt[1][0])
-        cond_expr_instr, cond_sym, _ = self.gen_expr(stmt[1][1])
-        iter_expr_instr, _, _ = self.gen_expr(stmt[1][2])
+        init_expr = self.gen_expr(stmt[1][0])
+        cond_expr = self.gen_expr(stmt[1][1])
+        iter_expr = self.gen_expr(stmt[1][2])
         loop_stmt_instr = self.gen_stmt(stmt[2:])
 
         return [
-            *init_expr_instr,
+            *init_expr.instructions,
             ["label", loop_lbl],
-            *cond_expr_instr,
-            ["br", cond_sym, cont_lbl, break_lbl],
+            *cond_expr.instructions,
+            ["br", cond_expr.symbol, cont_lbl, break_lbl],
             ["label", cont_lbl],
             *loop_stmt_instr,
-            *iter_expr_instr,
+            *iter_expr.instructions,
             ["jmp", loop_lbl],
             ["label", break_lbl],
         ]
@@ -206,7 +213,7 @@ class BrilispCodeGenerator:
             )
         ]
 
-        cond_instr_list, cond_sym, _ = self.gen_expr(stmt[1])
+        cond_expr = self.gen_expr(stmt[1])
         true_instr_list = self.gen_stmt(stmt[2])
         if len(stmt) == 3:
             false_instr_list = []
@@ -216,8 +223,8 @@ class BrilispCodeGenerator:
             raise CodegenError(f"Bad if statement: {stmt}")
 
         return [
-            *cond_instr_list,
-            ["br", cond_sym, true_lbl, false_lbl],
+            *cond_expr.instructions,
+            ["br", cond_expr.symbol, true_lbl, false_lbl],
             ["label", true_lbl],
             *true_instr_list,
             ["jmp", out_lbl],
@@ -248,10 +255,10 @@ class BrilispCodeGenerator:
             return [self.ret_jmp_instr]
 
         elif len(stmt) == 2:
-            res_instrs, res_sym, _ = self.gen_expr(stmt[1])
+            res_expr = self.gen_expr(stmt[1])
             instr_list = [
-                *res_instrs,
-                ["store", self.ret_ptr_sym, res_sym],
+                *res_expr.instructions,
+                ["store", self.ret_ptr_sym, res_expr.symbol],
                 self.ret_jmp_instr,
             ]
             return instr_list
@@ -292,7 +299,9 @@ class BrilispCodeGenerator:
         def gen_literal_expr(expr):
             res_sym = random_label(CLISP_PREFIX)
             res_type = self.get_literal_type(expr)
-            return [["set", [res_sym, res_type], ["const", expr]]], res_sym, res_type
+            return Expression(
+                [["set", [res_sym, res_type], ["const", expr]]], res_sym, res_type
+            )
 
         # set
         def is_set_expr(expr):
@@ -304,9 +313,9 @@ class BrilispCodeGenerator:
 
             name = expr[1]
             scoped_name = self.scoped_lookup(name)
-            instr_list, res_sym, res_type = self.gen_expr(expr[2])
-            instr_list.append(["set", [scoped_name, res_type], ["id", res_sym]])
-            return instr_list, scoped_name, res_type
+            res = self.gen_expr(expr[2])
+            res.instructions.append(["set", [scoped_name, res.typ], ["id", res.symbol]])
+            return Expression(res.instructions, scoped_name, res.typ)
 
         # call
         def is_call_expr(expr):
@@ -316,9 +325,9 @@ class BrilispCodeGenerator:
             instr_list = []
             arg_syms = []
             for arg in expr[2:]:
-                arg_instr_list, arg_sym, arg_typ = self.gen_expr(arg)
-                arg_syms.append(arg_sym)
-                instr_list.extend(arg_instr_list)
+                arg = self.gen_expr(arg)
+                arg_syms.append(arg.symbol)
+                instr_list.extend(arg.instructions)
 
             name = expr[1]
             if name not in self.function_types:
@@ -333,7 +342,7 @@ class BrilispCodeGenerator:
                     ["call", name, *arg_syms],
                 ]
             )
-            return instr_list, res_sym, ret_type
+            return Expression(instr_list, res_sym, ret_type)
 
         # var
         def is_var_expr(expr):
@@ -341,7 +350,7 @@ class BrilispCodeGenerator:
 
         def gen_var_expr(expr):
             scoped_name = self.scoped_lookup(expr)
-            return [], scoped_name, self.symbol_types[scoped_name]
+            return Expression([], scoped_name, self.symbol_types[scoped_name])
 
         def gen_compute_expr_wrapper(*, allowed_types_getter, result_type_getter):
             """
@@ -359,20 +368,22 @@ class BrilispCodeGenerator:
                 input_instr_list, operand_syms, operand_types = [], [], []
                 allowed_types = allowed_types_getter(opcode)
                 for ex in expr[1:]:
-                    instrs, sym, typ = self.gen_expr(ex)
-                    if not (isinstance(typ, str) and typ in allowed_types):
+                    expr_obj = self.gen_expr(ex)
+                    if not (
+                        isinstance(expr_obj.typ, str) and expr_obj.typ in allowed_types
+                    ):
                         raise CodegenError(
                             f"Operands to {opcode} must be one of {allowed_types}"
                         )
-                    input_instr_list += instrs
-                    operand_types.append(typ)
-                    operand_syms.append(sym)
+                    input_instr_list += expr_obj.instructions
+                    operand_types.append(expr_obj.typ)
+                    operand_syms.append(expr_obj.symbol)
                 if operand_types[0] != operand_types[1]:
                     raise CodegenError(f"Operands to `{opcode}` must have same width")
 
                 res_sym = random_label(CLISP_PREFIX)
                 res_type = result_type_getter(operand_types)
-                return (
+                return Expression(
                     [
                         *input_instr_list,
                         ["set", [res_sym, res_type], [opcode, *operand_syms]],
@@ -459,12 +470,15 @@ class BrilispCodeGenerator:
         def gen_not_expr(expr):
             if len(expr) != 2:
                 raise CodegenError(f"`not` takes only 1 operands")
-            input_instr_list, input_sym, input_type = self.gen_expr(expr[1])
-            if input_type != "bool":
+            input_expr = self.gen_expr(expr[1])
+            if input_expr.typ != "bool":
                 raise CodegenError(f"Operand to `not` must be bool")
             res_sym = random_label(CLISP_PREFIX)
-            return (
-                [*input_instr_list, ["set", [res_sym, "bool"], ["not", input_sym]]],
+            return Expression(
+                [
+                    *input_expr.instructions,
+                    ["set", [res_sym, "bool"], ["not", input_expr.symbol]],
+                ],
                 res_sym,
                 "bool",
             )
@@ -477,15 +491,15 @@ class BrilispCodeGenerator:
             if len(expr) != 3:
                 raise CodegenError(f"Bad ptradd expression: {expr}")
 
-            offset_instrs, offset_sym, offset_type = self.gen_expr(expr[2])
+            offset = self.gen_expr(expr[2])
             ptr_name = self.scoped_lookup(expr[1])
             ptr_type = self.symbol_types[ptr_name]
             res_sym = random_label(CLISP_PREFIX)
 
-            return (
+            return Expression(
                 [
-                    *offset_instrs,
-                    ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset_sym]],
+                    *offset.instructions,
+                    ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset.symbol]],
                 ],
                 res_sym,
                 ptr_type,
@@ -499,15 +513,15 @@ class BrilispCodeGenerator:
             if len(expr) != 2:
                 raise CodegenError(f"Bad load expression: {expr}")
 
-            ptr_instrs, ptr_sym, ptr_type = self.gen_expr(expr[1])
+            ptr = self.gen_expr(expr[1])
             res_sym = random_label(CLISP_PREFIX)
-            return (
+            return Expression(
                 [
-                    *ptr_instrs,
-                    ["set", [res_sym, ptr_type[1]], ["load", ptr_sym]],
+                    *ptr.instructions,
+                    ["set", [res_sym, ptr.typ[1]], ["load", ptr.symbol]],
                 ],
                 res_sym,
-                ptr_type[1],
+                ptr.typ[1],
             )
 
         # store
@@ -518,20 +532,20 @@ class BrilispCodeGenerator:
             if len(expr) != 3:
                 raise CodegenError(f"Bad store expression: {expr}")
 
-            ptr_instrs, ptr_sym, ptr_type = self.gen_expr(expr[1])
-            val_instrs, val_sym, val_type = self.gen_expr(expr[2])
-            if ptr_type[1] != val_type:
+            ptr = self.gen_expr(expr[1])
+            val = self.gen_expr(expr[2])
+            if ptr.typ[1] != val.typ:
                 # TODO: Error test
-                raise CodegenError(f"Cannot store {val_type} value to {ptr_type}")
+                raise CodegenError(f"Cannot store {val.typ} value to {ptr.typ}")
 
-            return (
+            return Expression(
                 [
-                    *ptr_instrs,
-                    *val_instrs,
-                    ["store", ptr_sym, val_sym],
+                    *ptr.instructions,
+                    *val.instructions,
+                    ["store", ptr.symbol, val.symbol],
                 ],
-                val_sym,
-                val_type,
+                val.symbol,
+                val.typ,
             )
 
         # alloc
@@ -544,11 +558,11 @@ class BrilispCodeGenerator:
 
             ptr_type = ["ptr", expr[1]]
             res_sym = random_label(CLISP_PREFIX)
-            size_instrs, size_sym, _ = self.gen_expr(expr[2])
-            return (
+            size = self.gen_expr(expr[2])
+            return Expression(
                 [
-                    *size_instrs,
-                    ["set", [res_sym, ptr_type], ["alloc", size_sym]],
+                    *size.instructions,
+                    ["set", [res_sym, ptr_type], ["alloc", size.symbol]],
                 ],
                 res_sym,
                 ptr_type,
@@ -581,47 +595,52 @@ class BrilispCodeGenerator:
                 raise CodegenError(f"`{opcode}` takes exactly 2 operands")
 
             # TODO: Type checking
-            operand_instrs, operand_sym, operand_type = self.gen_expr(expr[1])
+            operand = self.gen_expr(expr[1])
             res_sym = random_label(CLISP_PREFIX)
             res_type = expr[2]
 
-            return (
+            return Expression(
                 [
-                    *operand_instrs,
-                    ["set", [res_sym, res_type], [opcode, operand_sym, res_type]],
+                    *operand.instructions,
+                    ["set", [res_sym, res_type], [opcode, operand.symbol, res_type]],
                 ],
                 res_sym,
                 res_type,
             )
 
         if is_literal_expr(expr):
-            return gen_literal_expr(expr)
+            retval = gen_literal_expr(expr)
         elif is_set_expr(expr):
-            return gen_set_expr(expr)
+            retval = gen_set_expr(expr)
         elif is_call_expr(expr):
-            return gen_call_expr(expr)
+            retval = gen_call_expr(expr)
         elif is_var_expr(expr):
-            return gen_var_expr(expr)
+            retval = gen_var_expr(expr)
         elif is_arith_expr(expr):
-            return gen_arith_expr(expr)
+            retval = gen_arith_expr(expr)
         elif is_comp_expr(expr):
-            return gen_comp_expr(expr)
+            retval = gen_comp_expr(expr)
         elif is_logic_expr(expr):
-            return gen_logic_expr(expr)
+            retval = gen_logic_expr(expr)
         elif is_not_expr(expr):
-            return gen_not_expr(expr)
+            retval = gen_not_expr(expr)
         elif is_ptradd_expr(expr):
-            return gen_ptradd_expr(expr)
+            retval = gen_ptradd_expr(expr)
         elif is_load_expr(expr):
-            return gen_load_expr(expr)
+            retval = gen_load_expr(expr)
         elif is_store_expr(expr):
-            return gen_store_expr(expr)
+            retval = gen_store_expr(expr)
         elif is_alloc_expr(expr):
-            return gen_alloc_expr(expr)
+            retval = gen_alloc_expr(expr)
         elif is_cast_expr(expr):
-            return gen_cast_expr(expr)
+            retval = gen_cast_expr(expr)
         else:
             raise CodegenError(f"Bad expression: {expr}")
+        # Sanity check
+        if isinstance(retval, Expression):
+            return retval
+        else:
+            raise Exception(f"Return value of gen_*_expr must be an Expression object")
 
 
 if __name__ == "__main__":
