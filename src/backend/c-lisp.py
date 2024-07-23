@@ -350,6 +350,7 @@ class BrilispCodeGenerator:
             allowed_types_getter(opcode) should return a set of allowed operand types
             result_type_getter(operand_types) should return the result type
             """
+
             def gen_compute_expr(expr):
                 opcode = expr[0]
                 if not verify_shape(expr, [str, None, None]):
@@ -379,6 +380,7 @@ class BrilispCodeGenerator:
                     res_sym,
                     res_type,
                 )
+
             return gen_compute_expr
 
         int_types = {"int8", "int16", "int", "int32", "int64"}
@@ -403,8 +405,8 @@ class BrilispCodeGenerator:
             return expr[0] in arith_op_types
 
         gen_arith_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: arith_op_types[opcode],
-            result_type_getter = lambda operand_types: operand_types[0],
+            allowed_types_getter=lambda opcode: arith_op_types[opcode],
+            result_type_getter=lambda operand_types: operand_types[0],
         )
 
         # comparison
@@ -430,8 +432,8 @@ class BrilispCodeGenerator:
             return expr[0] in comp_op_types
 
         gen_comp_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: comp_op_types[opcode],
-            result_type_getter = lambda operand_types: "bool",
+            allowed_types_getter=lambda opcode: comp_op_types[opcode],
+            result_type_getter=lambda operand_types: "bool",
         )
 
         # boolean logic
@@ -439,8 +441,8 @@ class BrilispCodeGenerator:
             return expr[0] in self.logic_op_types
 
         gen_logic_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: "bool",
-            result_type_getter = lambda operand_types: "bool",
+            allowed_types_getter=lambda opcode: "bool",
+            result_type_getter=lambda operand_types: "bool",
         )
 
         self.logic_op_types = {
@@ -461,10 +463,11 @@ class BrilispCodeGenerator:
             if input_type != "bool":
                 raise CodegenError(f"Operand to `not` must be bool")
             res_sym = random_label(CLISP_PREFIX)
-            return [
-                *input_instr_list,
-                ["set", [res_sym, "bool"], ["not", input_sym]]
-            ], res_sym, "bool"
+            return (
+                [*input_instr_list, ["set", [res_sym, "bool"], ["not", input_sym]]],
+                res_sym,
+                "bool",
+            )
 
         # ptradd
         def is_ptradd_expr(expr):
@@ -582,10 +585,14 @@ class BrilispCodeGenerator:
             res_sym = random_label(CLISP_PREFIX)
             res_type = expr[2]
 
-            return [
-                *operand_instrs,
-                ["set", [res_sym, res_type], [opcode, operand_sym, res_type]],
-            ], res_sym, res_type
+            return (
+                [
+                    *operand_instrs,
+                    ["set", [res_sym, res_type], [opcode, operand_sym, res_type]],
+                ],
+                res_sym,
+                res_type,
+            )
 
         if is_literal_expr(expr):
             return gen_literal_expr(expr)
