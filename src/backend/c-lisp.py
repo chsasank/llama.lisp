@@ -22,6 +22,8 @@ class BrilispCodeGenerator:
         self.function_types = {}
         # Struct type name -> {field name -> (index number, type)}
         self.struct_types = {}
+        # All symbols that have been assigned at least once
+        self.assigned_symbols = set()
 
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
@@ -252,14 +254,8 @@ class BrilispCodeGenerator:
     def gen_struct_init(self, stmt):
         name, typ = stmt[1:]
         scoped_name = self.scoped_lookup(name)
-        struct_ptr_sym, alloc_size_sym = [
-            random_label(CLISP_PREFIX, [extra]) for extra in ("ptr", "size")
-        ]
-        return [
-            ["set", [alloc_size_sym, "int"], ["const", 1]],
-            ["set", [struct_ptr_sym, ["ptr", typ]], ["alloc", alloc_size_sym]],
-            ["set", [scoped_name, typ], ["load", struct_ptr_sym]],
-        ]
+        self.assigned_symbols.add(scoped_name)
+        return [["set", [scoped_name, typ], ["const", None]]]
 
     def is_decl_stmt(self, stmt):
         return stmt[0] == "declare"
@@ -343,6 +339,7 @@ class BrilispCodeGenerator:
 
             name = expr[1]
             scoped_name = self.scoped_lookup(name)
+            self.assigned_symbols.add(scoped_name)
             instr_list, res_sym, res_type = self.gen_expr(expr[2])
             instr_list.append(["set", [scoped_name, res_type], ["id", res_sym]])
             return instr_list, scoped_name, res_type
@@ -389,6 +386,7 @@ class BrilispCodeGenerator:
             allowed_types_getter(opcode) should return a set of allowed operand types
             result_type_getter(operand_types) should return the result type
             """
+
             def gen_compute_expr(expr):
                 opcode = expr[0]
                 if not verify_shape(expr, [str, None, None]):
@@ -418,6 +416,7 @@ class BrilispCodeGenerator:
                     res_sym,
                     res_type,
                 )
+
             return gen_compute_expr
 
         int_types = {"int8", "int16", "int", "int32", "int64"}
@@ -442,8 +441,8 @@ class BrilispCodeGenerator:
             return expr[0] in arith_op_types
 
         gen_arith_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: arith_op_types[opcode],
-            result_type_getter = lambda operand_types: operand_types[0],
+            allowed_types_getter=lambda opcode: arith_op_types[opcode],
+            result_type_getter=lambda operand_types: operand_types[0],
         )
 
         # comparison
@@ -469,8 +468,8 @@ class BrilispCodeGenerator:
             return expr[0] in comp_op_types
 
         gen_comp_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: comp_op_types[opcode],
-            result_type_getter = lambda operand_types: "bool",
+            allowed_types_getter=lambda opcode: comp_op_types[opcode],
+            result_type_getter=lambda operand_types: "bool",
         )
 
         # boolean logic
@@ -478,8 +477,8 @@ class BrilispCodeGenerator:
             return expr[0] in self.logic_op_types
 
         gen_logic_expr = gen_compute_expr_wrapper(
-            allowed_types_getter = lambda opcode: "bool",
-            result_type_getter = lambda operand_types: "bool",
+            allowed_types_getter=lambda opcode: "bool",
+            result_type_getter=lambda operand_types: "bool",
         )
 
         self.logic_op_types = {
@@ -500,10 +499,11 @@ class BrilispCodeGenerator:
             if input_type != "bool":
                 raise CodegenError(f"Operand to `not` must be bool")
             res_sym = random_label(CLISP_PREFIX)
-            return [
-                *input_instr_list,
-                ["set", [res_sym, "bool"], ["not", input_sym]]
-            ], res_sym, "bool"
+            return (
+                [*input_instr_list, ["set", [res_sym, "bool"], ["not", input_sym]]],
+                res_sym,
+                "bool",
+            )
 
         # ptradd
         def is_ptradd_expr(expr):
@@ -621,10 +621,14 @@ class BrilispCodeGenerator:
             res_sym = random_label(CLISP_PREFIX)
             res_type = expr[2]
 
-            return [
-                *operand_instrs,
-                ["set", [res_sym, res_type], [opcode, operand_sym, res_type]],
-            ], res_sym, res_type
+            return (
+                [
+                    *operand_instrs,
+                    ["set", [res_sym, res_type], [opcode, operand_sym, res_type]],
+                ],
+                res_sym,
+                res_type,
+            )
 
         # struct member access
         def is_member_ref_expr(expr):
@@ -641,14 +645,22 @@ class BrilispCodeGenerator:
                 raise CodegenError(f"Not a struct type: {struct_type}")
             struct_ptr_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
             field_idx, field_type = self.struct_types[struct_type[1]][field]
-            return [
-                ["set", [struct_ptr_sym, ["ptr", struct_type]], ["ptr-to", scoped_name]],
+            return (
                 [
-                    "set",
-                    [res_sym, ["ptr", field_type]],
-                    ["ptradd", struct_ptr_sym, 0, field_idx],
+                    [
+                        "set",
+                        [struct_ptr_sym, ["ptr", struct_type]],
+                        ["ptr-to", scoped_name],
+                    ],
+                    [
+                        "set",
+                        [res_sym, ["ptr", field_type]],
+                        ["ptradd", struct_ptr_sym, 0, field_idx],
+                    ],
                 ],
-            ], res_sym, ["ptr", field_type]
+                res_sym,
+                ["ptr", field_type],
+            )
 
         # struct member access through pointer
         def is_ptr_member_ref_expr(expr):
@@ -668,13 +680,17 @@ class BrilispCodeGenerator:
             struct_type = struct_ptr_type[1][1]
             field_idx, field_type = self.struct_types[struct_type][field]
             res_sym = random_label(CLISP_PREFIX)
-            return [
+            return (
                 [
-                    "set",
-                    [res_sym, ["ptr", field_type]],
-                    ["ptradd", scoped_name, 0, field_idx],
-                ]
-            ], res_sym, ["ptr", field_type]
+                    [
+                        "set",
+                        [res_sym, ["ptr", field_type]],
+                        ["ptradd", scoped_name, 0, field_idx],
+                    ]
+                ],
+                res_sym,
+                ["ptr", field_type],
+            )
 
         # pointer to variable
         def is_ptr_to_expr(expr):
@@ -684,10 +700,17 @@ class BrilispCodeGenerator:
             if not verify_shape(expr, [str, str]):
                 raise CodegenError(f"Bad ptr-to expression: {expr}")
 
-            scoped_name = self.scoped_lookup(expr[1])
-            res_type = self.symbol_types[scoped_name]
+            pointee_sym = self.scoped_lookup(expr[1])
+            pointee_type = self.symbol_types[pointee_sym]
             res_sym = random_label(CLISP_PREFIX)
-            return [["set", [res_sym, ["ptr", res_type]], ["ptr-to", scoped_name]]], res_sym, ["ptr", res_type]
+            instr_list = []
+            if pointee_sym not in self.assigned_symbols:
+                # A symbol needs to be assigned before we can get a pointer to it
+                instr_list.append(["set", [pointee_sym, pointee_type], ["const", None]])
+            instr_list.append(
+                ["set", [res_sym, ["ptr", pointee_type]], ["ptr-to", pointee_sym]]
+            )
+            return instr_list, res_sym, ["ptr", pointee_type]
 
         if is_literal_expr(expr):
             return gen_literal_expr(expr)

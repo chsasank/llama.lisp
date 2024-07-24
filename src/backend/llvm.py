@@ -183,8 +183,13 @@ class LLVMCodeGenerator(object):
 
         def gen_const(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            if instr.value is None:
+                # `None` represents LLVM `undef` for us
+                value = ir.Undefined
+            else:
+                value = instr.value
             self.gen_symbol_store(
-                instr.dest, ir.Constant(self.gen_type(instr.type), instr.value)
+                instr.dest, ir.Constant(self.gen_type(instr.type), value)
             )
 
         def gen_value(instr):
