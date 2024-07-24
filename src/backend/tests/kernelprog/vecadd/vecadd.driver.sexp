@@ -51,25 +51,22 @@
 
         (declare c int8)
         (while (ne (set c (call getchar))
-                   ;; TODO [macro]: use 'EOF' inline
                    ,EOF)
                 (store buf c)
                 (set buf (ptradd buf 1)))
-        ;; TODO: set null character inline
         (store buf (trunc 0 int8))
         (ret))
 
-    ;; [WIP]
-    (define ((main void))
 
+    (define ((main void))
         (declare i int)
         (declare nullptr (ptr int8)) (set nullptr (inttoptr 0 (ptr int8)))
 
-        (declare devCount int) (set devCount 0)
-        (declare device int) (set device 0)
-        (declare context (ptr int8)) (set context nullptr)
-        (declare module (ptr int8)) (set module nullptr)
-        (declare kernel_func (ptr int8)) (set kernel_func nullptr)
+        (declare devCount int)
+        (declare device int)
+        (declare context (ptr int8))
+        (declare module (ptr int8))
+        (declare kernel_func (ptr int8))
 
         ;; CUDA initialization and context creation
         ;; TODO [macro]: Wrap API calls with error-checking macros
@@ -90,8 +87,7 @@
         (call cuModuleGetFunction ,(void_ptr_to kernel_func) module (call kernel_name_str))
 
         ;; Allocate input and result
-        (declare N int)
-        (set N 32)
+        (declare N int) (set N 32)
         (declare sz int) (set sz (mul N 4))
         (declare a (ptr float))
         (declare b (ptr float))
@@ -140,7 +136,6 @@
                              ; Block sizes X, Y, Z
                              BlockSize 1 1
                              ; Shared mem size, stream id, kernel params, extra options
-                             ; TODO: specify NULL inline
                              0 nullptr (bitcast KernelParams (ptr (ptr int8))) (bitcast nullptr (ptr (ptr int8)))))
         (call print (call cuCtxSynchronize))
 
