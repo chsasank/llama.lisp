@@ -13,7 +13,7 @@ void add_dot4x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) 
     for(int p = 0; p < k; p++)
         c[0 + 2 * ldc] += a[0 + p * lda] * b[p + 2 * ldb]; 
     for(int p = 0; p < k; p++)
-        c[0 + 3 * ldc] += a[0 + p * lda] * b[p + 2 * ldb]; 
+        c[0 + 3 * ldc] += a[0 + p * lda] * b[p + 3 * ldb]; 
 
     // Second row
     c[1 + 0 * ldc] = 0.;
@@ -28,7 +28,7 @@ void add_dot4x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) 
     for(int p = 0; p < k; p++)
         c[1 + 2 * ldc] += a[1 + p * lda] * b[p + 2 * ldb]; 
     for(int p = 0; p < k; p++)
-        c[1 + 3 * ldc] += a[1 + p * lda] * b[p + 2 * ldb]; 
+        c[1 + 3 * ldc] += a[1 + p * lda] * b[p + 3 * ldb]; 
 
     // Third row
     c[2 + 0 * ldc] = 0.;
@@ -43,7 +43,7 @@ void add_dot4x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) 
     for(int p = 0; p < k; p++)
         c[2 + 2 * ldc] += a[2 + p * lda] * b[p + 2 * ldb]; 
     for(int p = 0; p < k; p++)
-        c[2 + 3 * ldc] += a[2 + p * lda] * b[p + 2 * ldb]; 
+        c[2 + 3 * ldc] += a[2 + p * lda] * b[p + 3 * ldb]; 
 
     // Fourth row
     c[3 + 0 * ldc] = 0.;
@@ -58,7 +58,7 @@ void add_dot4x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) 
     for(int p = 0; p < k; p++)
         c[3 + 2 * ldc] += a[3 + p * lda] * b[p + 2 * ldb]; 
     for(int p = 0; p < k; p++)
-        c[3 + 3 * ldc] += a[3 + p * lda] * b[p + 2 * ldb]; 
+        c[3 + 3 * ldc] += a[3 + p * lda] * b[p + 3 * ldb]; 
 }
 
 void kernel(float* a, float* b, float* c, int m, int n, int k) {
