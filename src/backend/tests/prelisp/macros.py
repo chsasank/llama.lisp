@@ -38,3 +38,10 @@ def store_vals(p, a, b, c, lda, ldb, ldc):
             out.append(ln)
     
     return out
+
+def arr_idx(arr, ld_size, i, j):
+    "Assuming column major"
+    return ("ptradd", arr, ("add", i, ("mul", j, ld_size)))
+
+def muladd(c, a, b):
+    return ("store", c, ("fadd", ("load", c), ("fmul", ("load", a), ("load", b))))
