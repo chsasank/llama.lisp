@@ -1,3 +1,5 @@
+;; ARGS: 12345
+
 (c-lisp
     (define ((print int) (n int)))
     (define ((fprint float) (n float)))
@@ -73,13 +75,33 @@
         (call fprint fnum)
         (call print (fptoui fnum int)))
 
+    ; ptrtoint, inttoptr
+    (define ((str-mid void) (start-ptr (ptr int8)))
+        (declare end-ptr (ptr int8))
+        (set end-ptr start-ptr)
+        (while (ne (load end-ptr) (trunc 0 int8))
+            (set end-ptr (ptradd end-ptr 1)))
 
 
-    (define ((main void))
+        (declare sum int64)
+        (set sum (add
+            (ptrtoint end-ptr int64)
+            (ptrtoint start-ptr int64)))
+
+        (declare mid-ptr (ptr int8))
+        (set mid-ptr(inttoptr
+            (div sum (sext 2 int64))
+            (ptr int8)))
+        (call putchar (zext (load mid-ptr) int)))
+
+    (define ((main void) (argc int) (argv (ptr (ptr int8))))
         (call bitcast-test)
         (call putchar 10)
         (call fp-conv)
         (call putchar 10)
         (call int-conv)
         (call putchar 10)
-        (call int-fp)))
+        (call int-fp)
+        (call putchar 10)
+        (call str-mid (load (ptradd argv 1)))
+        (call putchar 10)))
