@@ -1,3 +1,4 @@
+;; CMD: guile ../../utils/sexp-json.scm < {filename} | guile ../../utils/json-sexp.scm
 (brilisp
     (define ((puts int) (s (ptr int8))))
 

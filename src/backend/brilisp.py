@@ -113,7 +113,7 @@ def gen_instr(instr):
             "fptrunc",
             "bitcast",
             # String reference
-            "string",
+            "string-ref",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 

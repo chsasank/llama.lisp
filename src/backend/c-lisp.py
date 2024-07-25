@@ -361,7 +361,7 @@ class StringExpression(Expression):
         str_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
         self.ctx.string_literals[str_sym] = expr[1]
         return ExpressionResult(
-            [["set", [res_sym, ["ptr", "int8"]], ["string", str_sym]]],
+            [["set", [res_sym, ["ptr", "int8"]], ["string-ref", str_sym]]],
             res_sym,
             ["ptr", "int8"],
         )

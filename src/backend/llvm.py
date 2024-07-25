@@ -262,6 +262,11 @@ class LLVMCodeGenerator(object):
 
         def gen_string_ref(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            # Clang emits something like this, to get a character pointer to
+            # a string constant:
+            # store i8* getelementptr inbounds
+            #   ([14 x i8], [14 x i8]* @.str, i64 0, i64 0),
+            #   i8** %1, align 8
             self.gen_symbol_store(
                 instr.dest,
                 self.builder.gep(
@@ -298,7 +303,7 @@ class LLVMCodeGenerator(object):
                     gen_ptradd(instr)
                 elif instr.op == "id":
                     gen_id(instr)
-                elif instr.op == "string":
+                elif instr.op == "string-ref":
                     gen_string_ref(instr)
                 elif instr.op in value_ops:
                     gen_value(instr)
