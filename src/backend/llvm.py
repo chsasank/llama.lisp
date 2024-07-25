@@ -40,6 +40,8 @@ class LLVMCodeGenerator(object):
         self.func_bbs = {}
 
     def generate(self, bril_prog):
+        for string in bril_prog.strings:
+            self.gen_string_defn(string)
         for fn in bril_prog.functions:
             self.gen_function(fn)
 
@@ -258,6 +260,16 @@ class LLVMCodeGenerator(object):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             self.gen_symbol_store(instr.dest, self.gen_symbol_load(instr.args[0]))
 
+        def gen_string_ref(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.gep(
+                    self.module.get_global(instr.args[0]),
+                    [ir.Constant(ir.IntType(1), 0)] * 2,
+                ),
+            )
+
         for instr in instrs:
             try:
                 if "label" in instr:
@@ -286,6 +298,8 @@ class LLVMCodeGenerator(object):
                     gen_ptradd(instr)
                 elif instr.op == "id":
                     gen_id(instr)
+                elif instr.op == "string":
+                    gen_string_ref(instr)
                 elif instr.op in value_ops:
                     gen_value(instr)
                 elif instr.op in cmp_ops:
@@ -386,6 +400,17 @@ class LLVMCodeGenerator(object):
             self.builder.position_at_end(self.func_alloca_bb)
             self.builder.branch(bb_entry)  # Cannot use implicit fallthroughs
         return func
+
+
+    def gen_string_defn(self, string):
+        string_arr = bytearray(string.value + "\x00", encoding="UTF-8")
+        typ = ir.ArrayType(ir.IntType(8), len(string_arr))
+        global_var = ir.GlobalVariable(
+            module=self.module,
+            typ=typ,
+            name=string.name,
+        )
+        global_var.initializer = ir.Constant(typ, string_arr)
 
 
 def main():
