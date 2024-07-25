@@ -28,13 +28,30 @@ class BrilispCodeGenerator:
         self.scopes = []
         # Function name > (ret-type, (arg-types...))
         self.function_types = {}
+        # String literals
+        self.string_literals = {}
 
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
         if not prog[0] == "c-lisp":
             raise CodegenError("Input not a C-Lisp program")
 
-        return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
+        brilisp_funcs = []
+        for defn in prog[1:]:
+            if defn[0] == "define":
+                brilisp_funcs.append(self.gen_function(defn))
+            else:
+                raise CodegenError(f"Not a function: {defn}")
+
+        brilisp_strings = [
+            ["define-string", name, ["string", val]]
+            for name, val in self.string_literals.items()
+        ]
+        return [
+            "brilisp",
+            *brilisp_strings,
+            *brilisp_funcs,
+        ]
 
     def construct_scoped_name(self, name, scopes):
         return ".".join([name] + scopes)
@@ -334,6 +351,22 @@ class LiteralExpression(Expression):
         return ExpressionResult(instructions, res_sym, res_type)
 
 
+class StringExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "string"
+
+    def compile(self, expr):
+        if not verify_shape(expr, ["string", str]):
+            raise CodegenError(f"Invalid string literal: {expr}")
+
+        str_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
+        self.ctx.string_literals[str_sym] = expr[1]
+        res_typ = ["ptr", "int8"]
+        instrs = [["set", [res_sym, res_typ], ["string-ref", str_sym]]]
+        return ExpressionResult(instrs, res_sym, res_typ)
+
+
 class SetExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
@@ -445,9 +478,7 @@ class BinOpExpression(Expression):
             allowed_types = self.op_codes[opcode][0]
             match, expected_type = type_match(expr_obj.typ, allowed_types)
             if not match:
-                raise CodegenError(
-                    f"Operands to {opcode} must be {expected_type}"
-                )
+                raise CodegenError(f"Operands to {opcode} must be {expected_type}")
             input_instr_list += expr_obj.instructions
             operand_types.append(expr_obj.typ)
             operand_syms.append(expr_obj.symbol)
@@ -612,6 +643,7 @@ class CastExpression(Expression):
 
         return ExpressionResult(instrs, res_sym, res_type)
 
+
 def type_match(typ, pattern):
     """
     Verify type `typ` against `pattern`.
@@ -637,6 +669,7 @@ def type_match(typ, pattern):
         return typ[0] == "ptr", "a pointer type"
     else:
         return typ == pattern, str(pattern)
+
 
 if __name__ == "__main__":
     brilisp_code_generator = BrilispCodeGenerator()
