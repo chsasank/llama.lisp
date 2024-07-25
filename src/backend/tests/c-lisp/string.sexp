@@ -5,9 +5,9 @@
 
     (define ((main void) (argc int) (argv (ptr (ptr int8))))
         (declare success-msg (ptr int8))
-        (set success-msg (string "Strings are working!! 🥳"))
+        (set success-msg "Strings are working!! 🥳")
         (if (eq 0
                 (call strcmp
                     (load (ptradd argv 1))
-                    (string "Identify_Me")))
+                    "Identify_Me"))
             (call puts success-msg))))

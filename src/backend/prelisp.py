@@ -17,7 +17,7 @@ def preprocess(expr, env):
         if expr[0] == "unquote":
             assert len(expr) == 2
             return expand_macro(expr[1], env), "append"
-        elif expr[0] == 'unquote-splicing':
+        elif expr[0] == "unquote-splicing":
             assert len(expr) == 2
             out = expand_macro(expr[1], env)
             assert isinstance(out, list)
@@ -26,11 +26,11 @@ def preprocess(expr, env):
             res = []
             for x in expr:
                 out, mode = preprocess(x, env)
-                if mode == 'append':
+                if mode == "append":
                     res.append(out)
                 else:
                     res.extend(out)
-            
+
             return res, "append"
     else:
         return expr, "append"
@@ -39,7 +39,7 @@ def preprocess(expr, env):
 def expand_macro(expr, env):
     if isinstance(expr, list):
         fn_name, fn_args = expr[0], expr[1:]
-        fn_name = fn_name.replace('-', '_')
+        fn_name = fn_name.replace("-", "_")
         fn = getattr(env, fn_name)
         fn_args = [preprocess(x, env)[0] for x in fn_args]
         expr_out = fn(*fn_args)

@@ -15,9 +15,10 @@ def is_string(expr):
 
 
 def gen_string(expr):
+    assert expr[2][0] == "string"
     return {
         "name": expr[1],
-        "value": expr[2],
+        "value": expr[2][1],
     }
 
 
