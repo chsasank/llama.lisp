@@ -398,39 +398,36 @@ class VarExpression(Expression):
 
 
 class BinOpExpression(Expression):
-    int_types = {"int8", "int16", "int", "int32", "int64"}
-    float_types = {"float", "double"}
-
     op_codes = {
         ## opcode -> possible operand and result types
         ## None -> same as input type
         # Integer arithmetic
-        "add": (int_types, None),
-        "sub": (int_types, None),
-        "mul": (int_types, None),
-        "div": (int_types, None),
+        "add": ("_int", None),
+        "sub": ("_int", None),
+        "mul": ("_int", None),
+        "div": ("_int", None),
         # Floating-point arithmetic
-        "fadd": (float_types, None),
-        "fsub": (float_types, None),
-        "fmul": (float_types, None),
-        "fdiv": (float_types, None),
+        "fadd": ("_float", None),
+        "fsub": ("_float", None),
+        "fmul": ("_float", None),
+        "fdiv": ("_float", None),
         # Integer comparison
-        "eq": (int_types, "bool"),
-        "ne": (int_types, "bool"),
-        "lt": (int_types, "bool"),
-        "gt": (int_types, "bool"),
-        "le": (int_types, "bool"),
-        "ge": (int_types, "bool"),
+        "eq": ("_int", "bool"),
+        "ne": ("_int", "bool"),
+        "lt": ("_int", "bool"),
+        "gt": ("_int", "bool"),
+        "le": ("_int", "bool"),
+        "ge": ("_int", "bool"),
         # Floating-point comparison
-        "feq": (float_types, "bool"),
-        "fne": (float_types, "bool"),
-        "flt": (float_types, "bool"),
-        "fgt": (float_types, "bool"),
-        "fle": (float_types, "bool"),
-        "fge": (float_types, "bool"),
+        "feq": ("_float", "bool"),
+        "fne": ("_float", "bool"),
+        "flt": ("_float", "bool"),
+        "fgt": ("_float", "bool"),
+        "fle": ("_float", "bool"),
+        "fge": ("_float", "bool"),
         # Boolean logic
-        "and": ({"bool"}, "bool"),
-        "or": ({"bool"}, "bool"),
+        "and": ("bool", "bool"),
+        "or": ("bool", "bool"),
     }
 
     @classmethod
@@ -446,9 +443,10 @@ class BinOpExpression(Expression):
         for ex in expr[1:]:
             expr_obj = super().compile(ex)
             allowed_types = self.op_codes[opcode][0]
-            if not (isinstance(expr_obj.typ, str) and expr_obj.typ in allowed_types):
+            match, expected_type = type_match(expr_obj.typ, allowed_types)
+            if not match:
                 raise CodegenError(
-                    f"Operands to {opcode} must be one of {allowed_types}"
+                    f"Operands to {opcode} must be {expected_type}"
                 )
             input_instr_list += expr_obj.instructions
             operand_types.append(expr_obj.typ)
@@ -571,20 +569,21 @@ class AllocExpression(Expression):
 
 class CastExpression(Expression):
     cast_ops = {
-        ## opcode -> operand type indicator, result type indicator
+        ## opcode -> allowed operand types, allowed result type
+        ## `"ptr"` indicates pointer, `None` indicates any
         # Type conversion
-        "sitofp",
-        "fptosi",
-        "uitofp",
-        "fptoui",
-        "inttoptr",
-        "ptrtoint",
-        "sext",
-        "zext",
-        "trunc",
-        "fpext",
-        "fptrunc",
-        "bitcast",
+        "sitofp": ("_int", "_float"),
+        "fptosi": ("_float", "_int"),
+        "uitofp": ("_int", "_float"),
+        "fptoui": ("_float", "_int"),
+        "inttoptr": ("_int", "_ptr"),
+        "ptrtoint": ("_ptr", "_int"),
+        "sext": ("_int", "_int"),
+        "zext": ("_int", "_int"),
+        "trunc": ("_int", "_int"),
+        "fpext": ("_float", "_float"),
+        "fptrunc": ("_float", "_float"),
+        "bitcast": (None, None),
     }
 
     @classmethod
@@ -596,10 +595,16 @@ class CastExpression(Expression):
         if len(expr) != 3:
             raise CodegenError(f"`{opcode}` takes exactly 2 operands")
 
-        # TODO: Type checking
         operand = super().compile(expr[1])
         res_sym = random_label(CLISP_PREFIX)
         res_type = expr[2]
+        op_input_type, op_res_type = self.cast_ops[opcode]
+        match, expected_type = type_match(operand.typ, op_input_type)
+        if not match:
+            raise CodegenError(f"Operand to {opcode} must be {expected_type}")
+        match, expected_type = type_match(res_type, op_res_type)
+        if not match:
+            raise CodegenError(f"{opcode} produces {expected_type}")
         instrs = [
             *operand.instructions,
             ["set", [res_sym, res_type], [opcode, operand.symbol, res_type]],
@@ -607,6 +612,31 @@ class CastExpression(Expression):
 
         return ExpressionResult(instrs, res_sym, res_type)
 
+def type_match(typ, pattern):
+    """
+    Verify type `typ` against `pattern`.
+    Returns `match`, `expected_type`, where
+    - match: whether the type matches
+    - expected_type: a description of the expected type(s). Useful for error reporting
+
+    `pattern` can either be an actual type, i.e. "int", ["ptr", "int"], or
+    - "_ptr": any pointer
+    - "_int": integer type
+    - "_float": floating-point type
+    - None: any type
+    """
+    int_types = {"int8", "int16", "int", "int32", "int64"}
+    float_types = {"float", "double"}
+    if pattern is None:
+        return True, ""
+    elif pattern == "_int":
+        return typ in int_types, f"one of {int_types}"
+    elif pattern == "_float":
+        return typ in float_types, f"one of {float_types}"
+    elif pattern == "_ptr":
+        return typ[0] == "ptr", "a pointer type"
+    else:
+        return typ == pattern, str(pattern)
 
 if __name__ == "__main__":
     brilisp_code_generator = BrilispCodeGenerator()
