@@ -197,15 +197,15 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
-    functions, structs, strings = [], [], []
+    functions, strings = [], [], []
     for x in body:
         if is_function(x):
             functions.append(gen_function(x))
         elif is_string(x):
             strings.append(gen_string(x))
         else:
-            raise Exception(f"{x} is neither function nor struct")
-    return {"functions": functions, "structs": structs, "strings": strings}
+            raise Exception(f"{x} is neither function nor string")
+    return {"functions": functions, "strings": strings}
 
 
 def main():

@@ -43,8 +43,7 @@ class BrilispCodeGenerator:
             else:
                 raise CodegenError(f"Not a function: {defn}")
         brilisp_prog.extend(
-            ["define-string", name, val]
-            for name, val in self.string_literals.items()
+            ["define-string", name, val] for name, val in self.string_literals.items()
         )
         return brilisp_prog
 
@@ -345,6 +344,7 @@ class LiteralExpression(Expression):
         instructions = [["set", [res_sym, res_type], ["const", expr]]]
         return ExpressionResult(instructions, res_sym, res_type)
 
+
 class StringExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
@@ -356,12 +356,11 @@ class StringExpression(Expression):
 
         str_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
         self.ctx.string_literals[str_sym] = expr[1]
-        return ExpressionResult([
-            ["set", [res_sym, ["ptr", "int8"]], ["string", str_sym]]
-        ], res_sym, ["ptr", "int8"])
-
-
-
+        return ExpressionResult(
+            [["set", [res_sym, ["ptr", "int8"]], ["string", str_sym]]],
+            res_sym,
+            ["ptr", "int8"],
+        )
 
 
 class SetExpression(Expression):
@@ -475,9 +474,7 @@ class BinOpExpression(Expression):
             allowed_types = self.op_codes[opcode][0]
             match, expected_type = type_match(expr_obj.typ, allowed_types)
             if not match:
-                raise CodegenError(
-                    f"Operands to {opcode} must be {expected_type}"
-                )
+                raise CodegenError(f"Operands to {opcode} must be {expected_type}")
             input_instr_list += expr_obj.instructions
             operand_types.append(expr_obj.typ)
             operand_syms.append(expr_obj.symbol)
@@ -642,6 +639,7 @@ class CastExpression(Expression):
 
         return ExpressionResult(instrs, res_sym, res_type)
 
+
 def type_match(typ, pattern):
     """
     Verify type `typ` against `pattern`.
@@ -667,6 +665,7 @@ def type_match(typ, pattern):
         return typ[0] == "ptr", "a pointer type"
     else:
         return typ == pattern, str(pattern)
+
 
 if __name__ == "__main__":
     brilisp_code_generator = BrilispCodeGenerator()

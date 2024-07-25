@@ -401,7 +401,6 @@ class LLVMCodeGenerator(object):
             self.builder.branch(bb_entry)  # Cannot use implicit fallthroughs
         return func
 
-
     def gen_string_defn(self, string):
         string_arr = bytearray(string.value + "\x00", encoding="UTF-8")
         typ = ir.ArrayType(ir.IntType(8), len(string_arr))
