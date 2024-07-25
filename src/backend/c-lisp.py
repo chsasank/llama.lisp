@@ -28,13 +28,25 @@ class BrilispCodeGenerator:
         self.scopes = []
         # Function name > (ret-type, (arg-types...))
         self.function_types = {}
+        # String literals
+        self.string_literals = {}
 
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
         if not prog[0] == "c-lisp":
             raise CodegenError("Input not a C-Lisp program")
 
-        return ["brilisp"] + [self.gen_function(fn) for fn in prog[1:]]
+        brilisp_prog = ["brilisp"]
+        for defn in prog[1:]:
+            if defn[0] == "define":
+                brilisp_prog.append(self.gen_function(defn))
+            else:
+                raise CodegenError(f"Not a function: {defn}")
+        brilisp_prog.extend(
+            ["define-string", name, val]
+            for name, val in self.string_literals.items()
+        )
+        return brilisp_prog
 
     def construct_scoped_name(self, name, scopes):
         return ".".join([name] + scopes)
@@ -332,6 +344,24 @@ class LiteralExpression(Expression):
         res_type = self.get_literal_type(expr)
         instructions = [["set", [res_sym, res_type], ["const", expr]]]
         return ExpressionResult(instructions, res_sym, res_type)
+
+class StringExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "string"
+
+    def compile(self, expr):
+        if not verify_shape(expr, ["string", str]):
+            raise CodegenError(f"Invalid string literal: {expr}")
+
+        str_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
+        self.ctx.string_literals[str_sym] = expr[1]
+        return ExpressionResult([
+            ["set", [res_sym, ["ptr", "int8"]], ["string", str_sym]]
+        ], res_sym, ["ptr", "int8"])
+
+
+
 
 
 class SetExpression(Expression):
