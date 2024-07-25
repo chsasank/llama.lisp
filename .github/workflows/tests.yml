@@ -11,13 +11,11 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
-  steps:
-    - uses: actions/checkout@v4
-    - name: Build docker images
-      run: docker build -t local .
-    - name: Run tests
-      run: docker run -it -v $PWD:/srv -w/srv local turnt src/backend/tests/*/*.sexp
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build docker images
+        run: docker build -t local .
+      - name: Run tests
+        run: docker run -it -v $PWD:/srv -w/srv local turnt src/backend/tests/*/*.sexp
 
