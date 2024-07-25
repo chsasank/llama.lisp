@@ -39,7 +39,9 @@ def preprocess(expr, env):
 def expand_macro(expr, env):
     if isinstance(expr, list):
         fn_name, fn_args = expr[0], expr[1:]
+        fn_name = fn_name.replace('-', '_')
         fn = getattr(env, fn_name)
+        fn_args = [preprocess(x, env)[0] for x in fn_args]
         expr_out = fn(*fn_args)
         return clean_python_output(expr_out)
     elif isinstance(expr, str):
