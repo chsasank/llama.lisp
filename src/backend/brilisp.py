@@ -197,7 +197,7 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
-    functions, strings = [], [], []
+    functions, strings = [], []
     for x in body:
         if is_function(x):
             functions.append(gen_function(x))
