@@ -11,6 +11,10 @@ def verify_shape(obj, template):
     else:
         if not isinstance(obj, list):
             return False
+        
+        if len(obj) != len(template):
+            return False
+
         for c in range(len(obj)):
             if not verify_shape(obj[c], template[c]):
                 return False
