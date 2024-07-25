@@ -42,12 +42,14 @@ class BrilispCodeGenerator:
                 brilisp_funcs.append(self.gen_function(defn))
             else:
                 raise CodegenError(f"Not a function: {defn}")
+
+        brilisp_strings = [
+            ["define-string", name, ["string", val]]
+            for name, val in self.string_literals.items()
+        ]
         return [
             "brilisp",
-            *(
-                ["define-string", name, ["string", val]]
-                for name, val in self.string_literals.items()
-            ),
+            *brilisp_strings,
             *brilisp_funcs,
         ]
 
@@ -360,11 +362,9 @@ class StringExpression(Expression):
 
         str_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
         self.ctx.string_literals[str_sym] = expr[1]
-        return ExpressionResult(
-            [["set", [res_sym, ["ptr", "int8"]], ["string-ref", str_sym]]],
-            res_sym,
-            ["ptr", "int8"],
-        )
+        res_typ = ["ptr", "int8"]
+        instrs = [["set", [res_sym, res_typ], ["string-ref", str_sym]]]
+        return ExpressionResult(instrs, res_sym, res_typ)
 
 
 class SetExpression(Expression):
