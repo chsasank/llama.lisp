@@ -18,11 +18,8 @@ TRIPLE = target triple = \"nvptx64-nvidia-cuda\"
 	llc -mcpu=sm_75 -O0 -o $@ $<
 
 # Driver/host-side control code
-%.driver: %.driver.ll libdriver.o
-	clang -o $@ -I/usr/local/cuda/include -lcuda -lm $< libdriver.o
+%.driver: %.driver.ll
+	clang -o $@ -lcuda -lm $<
 
 %.run: %.driver %.ptx
 	LD_LIBRARY_PATH="/lib/x86_64-linux-gnu/" ./$(word 1, $^) < $(word 2, $^)
-
-clean:
-	rm -rf *.ll *.ptx driver

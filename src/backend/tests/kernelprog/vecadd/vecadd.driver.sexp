@@ -1,15 +1,5 @@
 (c-lisp
-    ;; Constants that we can't currently define in C-Lisp
-    ;; TODO
-    (define ((reading_stdin_msg (ptr int8))))
-    (define ((kernel_name_str (ptr int8))))
-    (define ((error_status_msg (ptr int8))))
-    (define ((max_err_msg (ptr int8))))
-
     ;; External linkage
-    (define ((puts int) (s (ptr int8))))
-    (define ((print void) (n int)))
-    (define ((fprint void) (n float)))
     (define ((getchar int8)))
     (define ((exit void) (status int)))
     (define ((malloc (ptr float)) (sz int)))
@@ -18,6 +8,9 @@
     (define ((fabsf float) (a float)))
     (define ((fmaxf float) (a float) (b float)))
     (define ((free void) (p (ptr float))))
+
+    ; Wrapper around `printf` from <stdio.h>
+    ,(define_printf)
 
     ; Signatures from Numba's CUDA driver
     ,@(get_cuda_signatures
@@ -37,17 +30,14 @@
                    (fadd (load (ptradd a i))
                          (load (ptradd b i))))))
 
-    ;; TODO [macro] [string]: macro the call to this function
     (define ((error_check void) (res int) (call_str (ptr int8)))
         (if (ne res 0)
-            ((call puts (call error_status_msg))
-             (call puts call_str)
-             (call print res)
+            (,(printf call_str)
+             ,(printf ": Non-zero return status %d \n" res)
              (call exit res))))
 
     (define ((read_module void) (buf (ptr int8)))
-        ;; TODO [string]: define message string here
-        (call puts (call reading_stdin_msg))
+        ,(printf "Reading kernel from standard input...\n")
 
         (declare c int8)
         (while (ne (set c (call getchar))
@@ -69,22 +59,20 @@
         (declare kernel_func (ptr int8))
 
         ;; CUDA initialization and context creation
-        ;; TODO [macro]: Wrap API calls with error-checking macros
-        (call cuInit 0)
-        (call cuDeviceGetCount (ptr-to devCount))
-        (call cuDeviceGet (ptr-to device) 0)
-        (call cuCtxCreate (ptr-to context) 0 device)
+        ,(error_check (call cuInit 0))
+        ,(error_check (call cuDeviceGetCount (ptr-to devCount)))
+        ,(error_check (call cuDeviceGet (ptr-to device) 0))
+        ,(error_check (call cuCtxCreate (ptr-to context) 0 device))
 
         ;; Load the kernel image and get a handle to the kernel function
         (declare kernel_ptx (ptr int8))
         (set kernel_ptx (alloc int8 4000))
         (call read_module kernel_ptx)
-        (call cuModuleLoadDataEx
+        ,(error_check (call cuModuleLoadDataEx
             ,(void_ptr_to module) kernel_ptx
             ; num options, options, option values
-            0 (inttoptr 0 (ptr int)) (inttoptr 0 (ptr (ptr int8))))
-        ;; TODO [string]: define kernel name inline
-        (call cuModuleGetFunction ,(void_ptr_to kernel_func) module (call kernel_name_str))
+            0 (inttoptr 0 (ptr int)) (inttoptr 0 (ptr (ptr int8)))))
+        ,(error_check (call cuModuleGetFunction ,(void_ptr_to kernel_func) module "kernel"))
 
         ;; Allocate input and result
         (declare N int) (set N 32)
@@ -113,11 +101,11 @@
         (declare dev_b int64) (set dev_b dev_a)
         (declare dev_res int64) (set dev_res dev_a)
         (declare sz_64 int64) (set sz_64 (sext sz int64))
-        (call cuMemAlloc (ptr-to dev_a) sz_64)
-        (call cuMemAlloc (ptr-to dev_b) sz_64)
-        (call cuMemAlloc (ptr-to dev_res) sz_64)
-        (call cuMemcpyHtoD dev_a (bitcast a (ptr int8)) sz_64)
-        (call cuMemcpyHtoD dev_b (bitcast b (ptr int8)) sz_64)
+        ,(error_check (call cuMemAlloc (ptr-to dev_a) sz_64))
+        ,(error_check (call cuMemAlloc (ptr-to dev_b) sz_64))
+        ,(error_check (call cuMemAlloc (ptr-to dev_res) sz_64))
+        ,(error_check (call cuMemcpyHtoD dev_a (bitcast a (ptr int8)) sz_64))
+        ,(error_check (call cuMemcpyHtoD dev_b (bitcast b (ptr int8)) sz_64))
 
         ;; Launch the kernel and wait
         ; Array of CUdeviceptr *
@@ -130,17 +118,17 @@
         (declare GridSize int)
         (set GridSize (div (sub (add N BlockSize) 1)
                             BlockSize))
-        (call print (call cuLaunchKernel kernel_func
+        ,(error_check (call cuLaunchKernel kernel_func
                              ; Grid sizes X, Y, Z
                              GridSize 1 1
                              ; Block sizes X, Y, Z
                              BlockSize 1 1
                              ; Shared mem size, stream id, kernel params, extra options
                              0 nullptr (bitcast KernelParams (ptr (ptr int8))) (bitcast nullptr (ptr (ptr int8)))))
-        (call print (call cuCtxSynchronize))
+        ,(error_check (call cuCtxSynchronize))
 
         ;; Retieve and verify results
-        (call cuMemcpyDtoH (bitcast res_device (ptr int8)) dev_res sz_64)
+        ,(error_check (call cuMemcpyDtoH (bitcast res_device (ptr int8)) dev_res sz_64))
         (declare max_err float) (set max_err 0.0)
         (for ((set i 0)
               (lt i N)
@@ -150,17 +138,16 @@
                             (load (ptradd res_device i))))
             (set max_err
                  (call fmaxf max_err (call fabsf diff))))
-        (call puts (call max_err_msg))
-        (call fprint max_err)
+        ,(printf "Max error: %f\n" max_err)
 
         ;; Cleanup
         (call free a)
         (call free b)
         (call free res_host)
         (call free res_device)
-        (call cuMemFree dev_a)
-        (call cuMemFree dev_b)
-        (call cuMemFree dev_res)
-        (call cuModuleUnload module)
-        (call cuCtxDestroy context)
+        ,(error_check (call cuMemFree dev_a))
+        ,(error_check (call cuMemFree dev_b))
+        ,(error_check (call cuMemFree dev_res))
+        ,(error_check (call cuModuleUnload module))
+        ,(error_check (call cuCtxDestroy context))
         (ret)))
