@@ -16,7 +16,6 @@
                 (declare sum float)
                 (set sum 0.0)
                 (for ((set p 0) (lt p k) (set p (add p 1)))
-                    ; sum += A[p * m + i] * B[j * k + p]
                     (set sum (fadd
                         (fmul 
                             (load (ptradd A (add (mul p m) i)))
