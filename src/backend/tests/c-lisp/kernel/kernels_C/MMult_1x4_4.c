@@ -7,16 +7,16 @@ void add_dot1x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) 
     int p;
 
     for(p = 0; p < k; p++)
-        c[0] += a[p * lda] * b[p];
+        c[0 + 0 * ldc] += a[0 + p * lda] * b[p + 0 * ldb];
 
     for(p = 0; p < k; p++)
-        c[1 * ldc] += a[p * lda] * b[p + ldb * 1];
+        c[0 + 1 * ldc] += a[0 + p * lda] * b[p + 1 * ldb];
 
     for(p = 0; p < k; p++)
-        c[2 * ldc] += a[p * lda] * b[p + ldb * 2];
+        c[0 + 2 * ldc] += a[0 + p * lda] * b[p + 2 * ldb];
 
     for(p = 0; p < k; p++)
-        c[3 * ldc] += a[p * lda] * b[p + ldb * 3];
+        c[0 + 3 * ldc] += a[0 + p * lda] * b[p + 3 * ldb];
 
 }       
 
