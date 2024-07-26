@@ -10,6 +10,18 @@ def is_function(expr):
     return isinstance(expr, list) and (expr[0] == "define")
 
 
+def is_string(expr):
+    return isinstance(expr, list) and (expr[0] == "define-string")
+
+
+def gen_string(expr):
+    assert expr[2][0] == "string"
+    return {
+        "name": expr[1],
+        "value": expr[2][1],
+    }
+
+
 def gen_function(expr):
     header = expr[1]
     name = header[0][0]
@@ -26,7 +38,12 @@ def gen_function(expr):
 
 def gen_type(typ):
     if is_list(typ):
-        return {typ[0]: gen_type(typ[1])}
+        assert typ[0] == "ptr"
+        retval = {"ptr": gen_type(typ[1])}
+        if len(typ) > 2 and is_list(typ[2]):
+            assert typ[2][0] == "addrspace"
+            retval["addrspace"] = typ[2][1]
+        return retval
     else:
         return typ
 
@@ -49,45 +66,54 @@ def gen_instr(instr):
 
     def is_value(instr):
         value_op = {
+            # Integer arithmetic
             "add",
             "mul",
             "sub",
             "div",
+            # Integer comparison
             "eq",
             "ne",
             "lt",
             "gt",
             "le",
             "ge",
+            # Boolean arithmetic
             "not",
             "and",
             "or",
+            # Pointer operations
             "alloc",
             "load",
             "ptradd",
             "id",
+            # Floating-point arithmetic
             "fadd",
             "fsub",
             "fmul",
             "fdiv",
+            # Floating-point comparison
             "feq",
             "fne",
             "flt",
             "fgt",
             "fle",
             "fge",
+            # Type conversion
             "sitofp",
             "fptosi",
-            "sext",
-            "trunc",
-            "fptrunc",
-            "fpext",
-            "fptoui",
             "uitofp",
-            "ptrtoint",
+            "fptoui",
             "inttoptr",
+            "ptrtoint",
+            "sext",
             "zext",
+            "trunc",
+            "fpext",
+            "fptrunc",
             "bitcast",
+            # String reference
+            "string-ref",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 
@@ -172,9 +198,15 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
+    functions, strings = [], []
     for x in body:
-        assert is_function(x), f"{x} is not a function"
-    return {"functions": [gen_function(x) for x in body]}
+        if is_function(x):
+            functions.append(gen_function(x))
+        elif is_string(x):
+            strings.append(gen_string(x))
+        else:
+            raise Exception(f"{x} is neither function nor string")
+    return {"functions": functions, "strings": strings}
 
 
 def main():
