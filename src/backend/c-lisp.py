@@ -777,9 +777,9 @@ def type_match(typ, pattern):
     if pattern is None:
         return True, ""
     elif pattern == "_int":
-        return typ in int_types, f"one of {int_types}"
+        return isinstance(typ, str) and typ in int_types, f"one of {int_types}"
     elif pattern == "_float":
-        return typ in float_types, f"one of {float_types}"
+        return isinstance(typ, str) and typ in float_types, f"one of {float_types}"
     elif pattern == "_ptr":
         return typ[0] == "ptr", "a pointer type"
     elif pattern == "_struct":

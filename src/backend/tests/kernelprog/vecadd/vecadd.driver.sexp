@@ -12,14 +12,8 @@
     ; Wrapper around `printf` from <stdio.h>
     ,(define_printf)
 
-    ; Signatures from Numba's CUDA driver
-    ,@(get_cuda_signatures
-        ; Housekeeping functions
-        cuInit cuDeviceGet cuDeviceGetCount cuCtxCreate cuCtxDestroy cuCtxSynchronize
-        ; JIT and execution functions
-        cuModuleLoadDataEx cuModuleUnload cuModuleGetFunction cuLaunchKernel
-        ; Memory management functions
-        cuMemAlloc cuMemFree cuMemcpyDtoH cuMemcpyHtoD)
+    ; Function signatures and type aliases from Numba's CUDA driver
+    ,@(get_cuda_signatures)
 
     (define ((ref_kernel void) (a (ptr float)) (b (ptr float)) (res (ptr float)) (N int))
         (declare i int)
@@ -50,13 +44,12 @@
 
     (define ((main void))
         (declare i int)
-        (declare nullptr (ptr int8)) (set nullptr (inttoptr 0 (ptr int8)))
 
         (declare devCount int)
-        (declare device int)
-        (declare context (ptr int8))
-        (declare module (ptr int8))
-        (declare kernel_func (ptr int8))
+        (declare device ,cu_device)
+        (declare context ,cu_context)
+        (declare module ,cu_module)
+        (declare kernel_func ,cu_function)
 
         ;; CUDA initialization and context creation
         ,(error_check (call cuInit 0))
@@ -104,8 +97,8 @@
         ,(error_check (call cuMemAlloc (ptr-to dev_a) sz_64))
         ,(error_check (call cuMemAlloc (ptr-to dev_b) sz_64))
         ,(error_check (call cuMemAlloc (ptr-to dev_res) sz_64))
-        ,(error_check (call cuMemcpyHtoD dev_a (bitcast a (ptr int8)) sz_64))
-        ,(error_check (call cuMemcpyHtoD dev_b (bitcast b (ptr int8)) sz_64))
+        ,(error_check (call cuMemcpyHtoD dev_a (bitcast a ,voidptr) sz_64))
+        ,(error_check (call cuMemcpyHtoD dev_b (bitcast b ,voidptr) sz_64))
 
         ;; Launch the kernel and wait
         ; Array of CUdeviceptr *
@@ -124,11 +117,11 @@
                              ; Block sizes X, Y, Z
                              BlockSize 1 1
                              ; Shared mem size, stream id, kernel params, extra options
-                             0 nullptr (bitcast KernelParams (ptr (ptr int8))) (bitcast nullptr (ptr (ptr int8)))))
+                             0 ,nullptr (bitcast KernelParams (ptr (ptr int8))) (bitcast ,nullptr (ptr (ptr int8)))))
         ,(error_check (call cuCtxSynchronize))
 
         ;; Retieve and verify results
-        ,(error_check (call cuMemcpyDtoH (bitcast res_device (ptr int8)) dev_res sz_64))
+        ,(error_check (call cuMemcpyDtoH (bitcast res_device ,voidptr) dev_res sz_64))
         (declare max_err float) (set max_err 0.0)
         (for ((set i 0)
               (lt i N)

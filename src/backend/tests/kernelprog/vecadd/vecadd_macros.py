@@ -1,4 +1,15 @@
-from numba_drvapi import API_PROTOTYPES
+# from numba_drvapi import (
+#     API_PROTOTYPES,
+#     cu_device
+#     cu_context
+#     cu_module
+#     cu_jit_option
+#     cu_jit_input_type
+#     cu_function
+#     cu_device_ptr
+#     cu_stream
+# )
+import numba_drvapi
 from ctypes import (
     c_byte,
     c_char_p,
@@ -13,6 +24,7 @@ from ctypes import (
     c_ulong,
     POINTER,
 )
+import sys
 
 
 def get_eof():
@@ -27,18 +39,23 @@ def get_eof():
         raise Exception("Could not determine the EOF character for this platform. Please set it manually")
     return eof_char
 
-EOF = ["trunc", get_eof(), "int8"]
 
-
-def get_cuda_signatures(*funcs):
+#def get_cuda_signatures(*funcs):
+def get_cuda_signatures():
     """ Grab CUDA typedefs and signatures from Numba's CUDA driver """
     signatures = []
-    for func in funcs:
-        ctypes_types = API_PROTOTYPES[func] # (ret_type, arg1_type, arg2_type, ...)
+    for func in numba_drvapi.API_PROTOTYPES:
+        ctypes_types = numba_drvapi.API_PROTOTYPES[func] # (ret_type, arg1_type, arg2_type, ...)
         clisp_types = [get_clisp_type(typ) for typ in ctypes_types]
         parm_list = [(chr(ord('a') + t), typ) for t, typ in enumerate(clisp_types[1:])]
         ret_type = clisp_types[0]
         signatures.append(["define", [[func, ret_type], *parm_list]])
+    globe = globals() # The global scope of this module
+    for memb in dir(numba_drvapi):
+        # All numba_drvapi.cu_* variables are CUDA data types as named by Numba
+        if memb.startswith("cu_"):
+            # Dynamicall create the macro variable
+            globe[memb] = get_clisp_type(getattr(numba_drvapi, memb))
 
     return signatures
 
@@ -48,19 +65,26 @@ def get_clisp_type(c_type):
     type_map = {
         ## C type-> C-Lisp type
         ## Keys here are the _type_ attributes of ctypes types
-        "b": "int8",
+        "b": "int8", "B": "int8",
         "i": "int", "I": "int",
+        "f": "float",
         "P": ptr_int8, # Opaque pointer
         "z": ptr_int8, # Character pointer
         "L": "int64",
     }
-    if 'contents' in dir(c_type):
+    dir_type = dir(c_type)
+    if 'contents' in dir_type:
         # This is a pointer type
         return ["ptr", get_clisp_type(c_type._type_)]
-    elif c_type._type_ in type_map:
+    elif '_length_' in dir_type:
+        # This is an array type
+        return ["ptr", get_clisp_type(c_type._type_)]
+    elif '_type_' in dir_type and c_type._type_ in type_map:
         # This is one of the fundamental types
         return type_map[c_type._type_]
-    else: raise Exception(f"Unknown type {c_type}")
+    else:
+        print(f"[WARNING]: Unknown type {c_type}; overriding with (ptr int8)", file=sys.stderr)
+        return ["ptr", "int8"]
 
 
 def define_printf():
@@ -84,5 +108,16 @@ def error_check(expr):
 void_ptr_to = lambda obj: ["bitcast", ["ptr-to", obj], ["ptr", "int8"]]
 
 
+# Useful constants and type aliases
+voidptr = ["ptr", "int8"]
+nullptr = ["inttoptr", 0, voidptr]
+EOF = ["trunc", get_eof(), "int8"]
+
+
 if __name__ == "__main__":
+    import json
     print(f"Determined EOF value: {EOF}")
+    sigs = get_cuda_signatures()
+    sigs_f = open("sigs", "w")
+    json.dump(sigs, sigs_f)
+    print("Wrote signatures to ./sigs")
