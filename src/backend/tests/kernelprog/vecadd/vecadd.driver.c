@@ -35,11 +35,11 @@ void read_module(char * buf) {
 
 int main (int argc, char ** argv) {
     int devCount;
-    int device;
-    void * context;
-    void * module;
+    CUdevice device;
+    CUcontext context;
+    CUmodule module;
     char kernel_ptx[4000];
-    void * kernel_func;
+    CUfunction kernel_func;
 
     // CUDA initialization and context creation
     ERR_CHECK(cuInit(0));
@@ -64,12 +64,12 @@ int main (int argc, char ** argv) {
         a[i] = rand();
         b[i] = rand();
     }
-    
+
     // Run the reference implementation
     ref_kernel(a, b, res_host, N);
 
     // Copy data to the device
-    uint64_t dev_a, dev_b, dev_res;
+    CUdeviceptr dev_a, dev_b, dev_res;
     ERR_CHECK(cuMemAlloc(&dev_a, sizeof(float) * N));
     ERR_CHECK(cuMemAlloc(&dev_b, sizeof(float) * N));
     ERR_CHECK(cuMemAlloc(&dev_res, sizeof(float) * N));

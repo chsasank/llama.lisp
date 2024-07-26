@@ -1,36 +1,11 @@
-# from numba_drvapi import (
-#     API_PROTOTYPES,
-#     cu_device
-#     cu_context
-#     cu_module
-#     cu_jit_option
-#     cu_jit_input_type
-#     cu_function
-#     cu_device_ptr
-#     cu_stream
-# )
 import numba_drvapi
-from ctypes import (
-    c_byte,
-    c_char_p,
-    # c_float,
-    c_int,
-    # c_size_t,
-    c_uint,
-    # c_uint8,
-    c_void_p,
-    # py_object,
-    # CFUNCTYPE,
-    c_ulong,
-    POINTER,
-)
 import sys
 
 
 def get_eof():
     """ EOF is platform-dependent """
     stdio_h = open("/usr/include/stdio.h")
-    eof_char = None # Set the correct value here if the script cannot determine it
+    eof_char = None # NOTE: Set the correct value here if the script cannot determine it
     for line in stdio_h:
         if line.startswith("#define EOF"):
             eof_char = eval(line.split()[2])
@@ -40,7 +15,6 @@ def get_eof():
     return eof_char
 
 
-#def get_cuda_signatures(*funcs):
 def get_cuda_signatures():
     """ Grab CUDA typedefs and signatures from Numba's CUDA driver """
     signatures = []
@@ -54,7 +28,7 @@ def get_cuda_signatures():
     for memb in dir(numba_drvapi):
         # All numba_drvapi.cu_* variables are CUDA data types as named by Numba
         if memb.startswith("cu_"):
-            # Dynamicall create the macro variable
+            # Dynamically create the macro variable
             globe[memb] = get_clisp_type(getattr(numba_drvapi, memb))
 
     return signatures
