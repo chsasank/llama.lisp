@@ -41,31 +41,8 @@
 
         (for ((set j 0) (lt j n) (set j (add j 4)))
             (for ((set i 0) (lt i m) (set i (add i 1)))
-                (call __add_dot 
-                    k 
-                    (ptradd a (add i (mul 0 lda))) 
-                    lda 
-                    (ptradd b (add 0 (mul (add j 0) ldb)))
-                    (ptradd c (add i (mul (add j 0) ldc))))
-
-                (call __add_dot 
-                    k 
-                    (ptradd a (add i (mul 0 lda))) 
-                    lda 
-                    (ptradd b (add 0 (mul (add j 1) ldb)))
-                    (ptradd c (add i (mul (add j 1) ldc))))
-
-                (call __add_dot 
-                    k 
-                    (ptradd a (add i (mul 0 lda))) 
-                    lda 
-                    (ptradd b (add 0 (mul (add j 2) ldb)))
-                    (ptradd c (add i (mul (add j 2) ldc))))
-
-                (call __add_dot 
-                    k 
-                    (ptradd a (add i (mul 0 lda))) 
-                    lda 
-                    (ptradd b (add 0 (mul (add j 3) ldb)))
-                    (ptradd c (add i (mul (add j 3) ldc))))))
+                ,@(call_add_dot a b c lda ldb ldc 0 i j k)
+                ,@(call_add_dot a b c lda ldb ldc 1 i j k)
+                ,@(call_add_dot a b c lda ldb ldc 2 i j k)
+                ,@(call_add_dot a b c lda ldb ldc 3 i j k)))
     (ret)))
