@@ -9,33 +9,12 @@
                                 (ldc int))
         (declare p int)
 
-        (store c 0.0)
-        (store (ptradd c (mul 1 ldc)) 0.0)
-        (store (ptradd c (mul 2 ldc)) 0.0)
-        (store (ptradd c (mul 3 ldc)) 0.0)
+        ,@(init_c c ldc)
 
         (for ((set p 0) (lt p k) (set p (add p 1)))
-            (store (ptradd c (mul 0 ldc))
-                (fadd (load (ptradd c (mul 0 ldc)))
-                      (fmul (load (ptradd a (mul p lda)))
-                            (load (ptradd b (add p (mul 0 ldb)))))))
-
-            (store (ptradd c (mul 1 ldc))
-                (fadd (load (ptradd c (mul 1 ldc)))
-                      (fmul (load (ptradd a (mul p lda)))
-                            (load (ptradd b (add p (mul 1 ldb)))))))
-
-            (store (ptradd c (mul 2 ldc))
-                (fadd (load (ptradd c (mul 2 ldc)))
-                      (fmul (load (ptradd a (mul p lda)))
-                            (load (ptradd b (add p (mul 2 ldb)))))))
-
-            (store (ptradd c (mul 3 ldc))
-                (fadd (load (ptradd c (mul 3 ldc)))
-                      (fmul (load (ptradd a (mul p lda)))
-                            (load (ptradd b (add p (mul 3 ldb)))))))
-        )
-    )
+            ,@(elemental_muladd_1x4 a b c lda ldb ldc p))
+            
+        (ret))
 
     (define ((__kernel void) (a (ptr float))
                                   (b (ptr float))
