@@ -28,33 +28,7 @@
                                 (ldb int)
                                 (c (ptr float))
                                 (ldc int))
-        (call __add_dot
-            k
-            a
-            lda
-            (ptradd b (mul 0 ldb))
-            (ptradd c (mul 0 ldc)))
-        
-        (call __add_dot
-            k
-            a
-            lda
-            (ptradd b (mul 1 ldb))
-            (ptradd c (mul 1 ldc)))
-
-        (call __add_dot
-            k
-            a
-            lda
-            (ptradd b (mul 2 ldb))
-            (ptradd c (mul 2 ldc)))
-
-        (call __add_dot
-            k
-            a
-            lda
-            (ptradd b (mul 3 ldb))
-            (ptradd c (mul 3 ldc)))
+        ,@(elemental_muladd_1x4 a b c k lda ldb ldc)
     (ret))
 
     (define ((__kernel void) (a (ptr float))
