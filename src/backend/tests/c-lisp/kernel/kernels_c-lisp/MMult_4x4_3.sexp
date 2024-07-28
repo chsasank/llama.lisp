@@ -31,28 +31,16 @@
             (ldc int))
 
         ;; First row
-        (call __add_dot k (ptradd a 0) lda (ptradd b (mul 0 ldb)) (ptradd c (add 0 (mul 0 ldc))))
-        (call __add_dot k (ptradd a 0) lda (ptradd b (mul 1 ldb)) (ptradd c (add 0 (mul 1 ldc))))
-        (call __add_dot k (ptradd a 0) lda (ptradd b (mul 2 ldb)) (ptradd c (add 0 (mul 2 ldc))))
-        (call __add_dot k (ptradd a 0) lda (ptradd b (mul 3 ldb)) (ptradd c (add 0 (mul 3 ldc))))
+        ,@(row_muladd k a b c lda ldb ldc 0)
 
         ;; Second row
-        (call __add_dot k (ptradd a 1) lda (ptradd b (mul 0 ldb)) (ptradd c (add 1 (mul 0 ldc))))
-        (call __add_dot k (ptradd a 1) lda (ptradd b (mul 1 ldb)) (ptradd c (add 1 (mul 1 ldc))))
-        (call __add_dot k (ptradd a 1) lda (ptradd b (mul 2 ldb)) (ptradd c (add 1 (mul 2 ldc))))
-        (call __add_dot k (ptradd a 1) lda (ptradd b (mul 3 ldb)) (ptradd c (add 1 (mul 3 ldc))))
+        ,@(row_muladd k a b c lda ldb ldc 1)
 
         ;; Third row
-        (call __add_dot k (ptradd a 2) lda (ptradd b (mul 0 ldb)) (ptradd c (add 2 (mul 0 ldc))))
-        (call __add_dot k (ptradd a 2) lda (ptradd b (mul 1 ldb)) (ptradd c (add 2 (mul 1 ldc))))
-        (call __add_dot k (ptradd a 2) lda (ptradd b (mul 2 ldb)) (ptradd c (add 2 (mul 2 ldc))))
-        (call __add_dot k (ptradd a 2) lda (ptradd b (mul 3 ldb)) (ptradd c (add 2 (mul 3 ldc))))
+        ,@(row_muladd k a b c lda ldb ldc 2)
 
         ;; Fourth row
-        (call __add_dot k (ptradd a 3) lda (ptradd b (mul 0 ldb)) (ptradd c (add 3 (mul 0 ldc))))
-        (call __add_dot k (ptradd a 3) lda (ptradd b (mul 1 ldb)) (ptradd c (add 3 (mul 1 ldc))))
-        (call __add_dot k (ptradd a 3) lda (ptradd b (mul 2 ldb)) (ptradd c (add 3 (mul 2 ldc))))
-        (call __add_dot k (ptradd a 3) lda (ptradd b (mul 3 ldb)) (ptradd c (add 3 (mul 3 ldc)))))
+        ,@(row_muladd k a b c lda ldb ldc 3))
 
     (define ((__kernel void) (a (ptr float))
                                   (b (ptr float))
