@@ -6,7 +6,9 @@ import argparse
 from datetime import datetime
 import subprocess
 
-parser = argparse.ArgumentParser(description=" -k, type of kernel to be benchmarked. cat ./kernels.txt for more info")
+parser = argparse.ArgumentParser(
+    description=" -k, type of kernel to be benchmarked. cat ./kernels.txt for more info"
+)
 
 parser.add_argument("-k", type=str, default="MMult1", help="kernel name")
 parser.add_argument("-m", type=str, default="once", help="Mode")
@@ -95,14 +97,16 @@ print(f"Compiling matrix.c to object file:\n{compile_cmd}")
 subprocess.run(compile_cmd, shell=True, check=True)
 
 # Link all objects
-objects = " ".join(map(lambda x: f"{BUILD_DIRECTORY}/obj/{x}", os.listdir(f"{BUILD_DIRECTORY}/obj")))
+objects = " ".join(
+    map(lambda x: f"{BUILD_DIRECTORY}/obj/{x}", os.listdir(f"{BUILD_DIRECTORY}/obj"))
+)
 link_cmd = f"{CC} {OPTIMIZATION} {FLAGS} -o {executable} {objects}"
 print(f"Linking object files to create executable:\n{link_cmd}")
 subprocess.run(link_cmd, shell=True, check=True)
 
 # Execute the executable and store output
 now = datetime.now()
-formatted_time = now.strftime('%Y:%m:%d:%H:%M:%S')
+formatted_time = now.strftime("%Y:%m:%d:%H:%M:%S")
 output_csv = f"{TMP}/{args.k}_{formatted_time}.csv"
 execution_cmd = f"{executable} {args.m} {args.p} | tee {output_csv}"
 print(f"Executing kernel benchmark:\n{execution_cmd}")
@@ -127,9 +131,9 @@ try:
         print(f"Saving plot to: {save_path}")
         plt.savefig(save_path)
         plt.close()
-    
+
     else:
-        os.system(f"rm {output_csv}")        
+        os.system(f"rm {output_csv}")
 
 except KeyboardInterrupt:
     print("\nBenchmarking interupted")
