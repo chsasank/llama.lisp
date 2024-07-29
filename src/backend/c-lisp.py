@@ -559,7 +559,9 @@ class StructPtrAddExpression(Expression):
 
     def is_struct_pointer_type(self, typ):
         return (
-            typ[0] == "ptr"
+            isinstance(typ, list)
+            and typ[0] == "ptr"
+            and isinstance(typ[1], list)
             and typ[1][0] == "struct"
             and typ[1][1] in self.ctx.struct_types
         )
