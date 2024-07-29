@@ -40,7 +40,7 @@ int main (int argc, char ** argv) {
     CUmodule module;
     char kernel_ptx[4000];
     CUfunction kernel_func;
-      
+
     // CUDA initialization and context creation
     ERR_CHECK(cuInit(0));
     ERR_CHECK(cuDeviceGetCount(&devCount));
@@ -64,7 +64,7 @@ int main (int argc, char ** argv) {
         a[i] = rand();
         b[i] = rand();
     }
-    
+
     // Run the reference implementation
     ref_kernel(a, b, res_host, N);
 

@@ -6,6 +6,17 @@ def is_list(x):
     return isinstance(x, list)
 
 
+def is_struct(expr):
+    return isinstance(expr, list) and (expr[0] == "define-struct")
+
+
+def gen_struct(expr):
+    return {
+        "name": expr[1],
+        "elements": [gen_type(typ) for typ in expr[2]],
+    }
+
+
 def is_function(expr):
     return isinstance(expr, list) and (expr[0] == "define")
 
@@ -38,12 +49,16 @@ def gen_function(expr):
 
 def gen_type(typ):
     if is_list(typ):
-        assert typ[0] == "ptr"
-        retval = {"ptr": gen_type(typ[1])}
-        if len(typ) > 2 and is_list(typ[2]):
-            assert typ[2][0] == "addrspace"
-            retval["addrspace"] = typ[2][1]
-        return retval
+        if typ[0] == "ptr":
+            retval = {"ptr": gen_type(typ[1])}
+            if len(typ) > 2 and is_list(typ[2]):
+                assert typ[2][0] == "addrspace"
+                retval["addrspace"] = typ[2][1]
+            return retval
+        elif typ[0] == "struct":
+            return {"struct": gen_type(typ[1])}
+        else:
+            raise Exception("Invalid type: {typ}")
     else:
         return typ
 
@@ -86,6 +101,7 @@ def gen_instr(instr):
             "alloc",
             "load",
             "ptradd",
+            "ptr-to",
             "id",
             # Floating-point arithmetic
             "fadd",
@@ -198,15 +214,17 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
-    functions, strings = [], []
+    functions, strings, structs = [], [], []
     for x in body:
         if is_function(x):
             functions.append(gen_function(x))
         elif is_string(x):
             strings.append(gen_string(x))
+        elif is_struct(x):
+            structs.append(gen_struct(x))
         else:
-            raise Exception(f"{x} is neither function nor string")
-    return {"functions": functions, "strings": strings}
+            raise Exception(f"{x} is neither function nor string nor struct")
+    return {"functions": functions, "strings": strings, "structs": structs}
 
 
 def main():

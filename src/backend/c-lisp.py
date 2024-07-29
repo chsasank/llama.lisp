@@ -21,13 +21,16 @@ class ExpressionResult:
 ## Main Generator
 class BrilispCodeGenerator:
     def __init__(self):
-        ## Type tracking
-        # Variable name -> type
-        self.symbol_types = {}
         # Stack of scope tags
         self.scopes = []
+
+        ## Type tracking
+        # Variable name -> type
+        self.variable_types = {}
         # Function name > (ret-type, (arg-types...))
         self.function_types = {}
+        # Struct type name -> {field name -> (index number, type)}
+        self.struct_types = {}
         # String literals
         self.string_literals = {}
 
@@ -37,11 +40,14 @@ class BrilispCodeGenerator:
             raise CodegenError("Input not a C-Lisp program")
 
         brilisp_funcs = []
+        brilisp_structs = []
         for defn in prog[1:]:
             if defn[0] == "define":
                 brilisp_funcs.append(self.gen_function(defn))
+            elif defn[0] == "define-struct":
+                brilisp_structs.append(self.gen_struct(defn))
             else:
-                raise CodegenError(f"Not a function: {defn}")
+                raise CodegenError(f"Neither function nor struct definition: {defn}")
 
         brilisp_strings = [
             ["define-string", name, ["string", val]]
@@ -50,6 +56,7 @@ class BrilispCodeGenerator:
         return [
             "brilisp",
             *brilisp_strings,
+            *brilisp_structs,
             *brilisp_funcs,
         ]
 
@@ -61,7 +68,7 @@ class BrilispCodeGenerator:
         # be as specific as possible first
         for s in range(len(self.scopes), -1, -1):
             scoped_name = self.construct_scoped_name(name, self.scopes[:s])
-            if scoped_name in self.symbol_types:
+            if scoped_name in self.variable_types:
                 return scoped_name
         raise CodegenError(f"Undeclared symbol: {name}")
 
@@ -74,14 +81,14 @@ class BrilispCodeGenerator:
                 raise CodegenError(f"Bad function prototype: {func[1]}")
 
         # Clear the symbol table and scope stack
-        self.symbol_types = {}
+        self.variable_types = {}
         self.scopes = []
 
         name, ret_type = func[1][0]
         parm_types = []
         for parm in func[1][1:]:
             parm_types.append(parm[1])
-            self.symbol_types[parm[0]] = parm[1]
+            self.variable_types[parm[0]] = parm[1]
         self.function_types[name] = [ret_type, parm_types]
 
         # If the function has a body, we need to codegen for it
@@ -132,27 +139,34 @@ class BrilispCodeGenerator:
             *body_instrs,
         ]
 
+    def gen_struct(self, struct):
+        name = struct[1]
+        struct_membs = []
+        self.struct_types[name] = {}
+        for idx, (field, typ) in enumerate(struct[2:]):
+            self.struct_types[name][field] = (idx, typ)
+            struct_membs.append(typ)
+
+        return ["define-struct", name, struct_membs]
+
     def gen_stmt(self, stmt):
         try:
-            if isinstance(stmt, list):
-                if not stmt:
-                    return []  #  Null statement
-                elif self.is_compound_stmt(stmt):
-                    return self.gen_compound_stmt(stmt)
-                elif self.is_ret_stmt(stmt):
-                    return self.gen_ret_stmt(stmt)
-                elif self.is_decl_stmt(stmt):
-                    return self.gen_decl_stmt(stmt)
-                elif self.is_if_stmt(stmt):
-                    return self.gen_if_stmt(stmt)
-                elif self.is_for_stmt(stmt):
-                    return self.gen_for_stmt(stmt)
-                elif self.is_while_stmt(stmt):
-                    return self.gen_while_stmt(stmt)
-                else:
-                    return self.gen_expr(stmt).instructions
+            if not stmt:
+                return []  #  Null statement
+            elif self.is_compound_stmt(stmt):
+                return self.gen_compound_stmt(stmt)
+            elif self.is_ret_stmt(stmt):
+                return self.gen_ret_stmt(stmt)
+            elif self.is_decl_stmt(stmt):
+                return self.gen_decl_stmt(stmt)
+            elif self.is_if_stmt(stmt):
+                return self.gen_if_stmt(stmt)
+            elif self.is_for_stmt(stmt):
+                return self.gen_for_stmt(stmt)
+            elif self.is_while_stmt(stmt):
+                return self.gen_while_stmt(stmt)
             else:
-                return self.gen_expr(stmt)[0]
+                return self.gen_expr(stmt).instructions
         except Exception as e:
             print(f"Error in statement: {stmt}", file=sys.stderr)
             raise e
@@ -260,10 +274,12 @@ class BrilispCodeGenerator:
 
         name, typ = stmt[1], stmt[2]
         scoped_name = self.construct_scoped_name(name, self.scopes)
-        if scoped_name in self.symbol_types:
+        if scoped_name in self.variable_types:
             raise CodegenError(f"Re-declaration of variable {name}")
-        self.symbol_types[scoped_name] = typ
-        return []
+        self.variable_types[scoped_name] = typ
+
+        instr_list = [["set", [scoped_name, typ], ["const", None]]]
+        return instr_list
 
     def is_ret_stmt(self, stmt):
         return stmt[0] == "ret"
@@ -426,7 +442,7 @@ class VarExpression(Expression):
     def compile(self, expr):
         instructions = []
         symbol = self.ctx.scoped_lookup(expr)
-        typ = self.ctx.symbol_types[symbol]
+        typ = self.ctx.variable_types[symbol]
         return ExpressionResult(instructions, symbol, typ)
 
 
@@ -494,7 +510,6 @@ class BinOpExpression(Expression):
         instructions = input_instr_list + [
             ["set", [res_sym, res_type], [opcode, *operand_syms]]
         ]
-
         return ExpressionResult(instructions, res_sym, res_type)
 
 
@@ -528,14 +543,52 @@ class PtrAddExpression(Expression):
 
         offset = super().compile(expr[2])
         ptr_name = self.ctx.scoped_lookup(expr[1])
-        ptr_type = self.ctx.symbol_types[ptr_name]
+        ptr_type = self.ctx.variable_types[ptr_name]
         res_sym = random_label(CLISP_PREFIX)
 
         instrs = offset.instructions + [
             ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset.symbol]]
         ]
-
         return ExpressionResult(instrs, res_sym, ptr_type)
+
+
+class StructPtrAddExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "sptradd"
+
+    def is_struct_pointer_type(self, typ):
+        return (
+            isinstance(typ, list)
+            and typ[0] == "ptr"
+            and isinstance(typ[1], list)
+            and typ[1][0] == "struct"
+            and typ[1][1] in self.ctx.struct_types
+        )
+
+    def compile(self, expr):
+        if not len(expr) == 3:
+            raise CodegenError(f"Bad sptradd expression: {expr}")
+
+        struct_ptr = super().compile(expr[1])
+        field = expr[2]
+
+        if not self.is_struct_pointer_type(struct_ptr.typ):
+            raise CodegenError(f"Not a struct pointer: {expr[1]} {struct_ptr.typ}")
+
+        struct_name = struct_ptr.typ[1][1]
+        field_idx, field_type = self.ctx.struct_types[struct_name][field]
+        res_sym = random_label(CLISP_PREFIX)
+        res_type = ["ptr", field_type]
+
+        instrs = struct_ptr.instructions + [
+            [
+                "set",
+                [res_sym, res_type],
+                ["ptradd", struct_ptr.symbol, 0, field_idx],
+            ]
+        ]
+        return ExpressionResult(instrs, res_sym, res_type)
 
 
 class LoadExpression(Expression):
@@ -575,7 +628,6 @@ class StoreExpression(Expression):
             *val.instructions,
             ["store", ptr.symbol, val.symbol],
         ]
-
         return ExpressionResult(instrs, val.symbol, val.typ)
 
 
@@ -640,8 +692,26 @@ class CastExpression(Expression):
             *operand.instructions,
             ["set", [res_sym, res_type], [opcode, operand.symbol, res_type]],
         ]
-
         return ExpressionResult(instrs, res_sym, res_type)
+
+
+class PtrToExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "ptr-to"
+
+    def compile(self, expr):
+        if not verify_shape(expr, [str, str]):
+            raise CodegenError(f"Bad ptr-to expression: {expr}")
+
+        pointee_sym = self.ctx.scoped_lookup(expr[1])
+        pointee_type = self.ctx.variable_types[pointee_sym]
+        res_sym = random_label(CLISP_PREFIX)
+        instr_list = []
+        instr_list.append(
+            ["set", [res_sym, ["ptr", pointee_type]], ["ptr-to", pointee_sym]]
+        )
+        return ExpressionResult(instr_list, res_sym, ["ptr", pointee_type])
 
 
 def type_match(typ, pattern):
@@ -662,11 +732,13 @@ def type_match(typ, pattern):
     if pattern is None:
         return True, ""
     elif pattern == "_int":
-        return typ in int_types, f"one of {int_types}"
+        return isinstance(typ, str) and typ in int_types, f"one of {int_types}"
     elif pattern == "_float":
-        return typ in float_types, f"one of {float_types}"
+        return isinstance(typ, str) and typ in float_types, f"one of {float_types}"
     elif pattern == "_ptr":
         return typ[0] == "ptr", "a pointer type"
+    elif pattern == "_struct":
+        return typ[0] == "struct", "a struct type"
     else:
         return typ == pattern, str(pattern)
 

@@ -1,6 +1,8 @@
 import random
 import string
 
+random.seed(10)
+
 
 def random_label(prefix="", extra_prefixes=[], length=8):
     """

@@ -7,18 +7,19 @@ TRIPLE = target triple = \"nvptx64-nvidia-cuda\"
 	sed -e "s/^target datalayout.*/$(DATALAYOUT)/" -i $@
 	sed -e "s/^target triple.*/$(TRIPLE)/" -i $@
 	echo '!nvvm.annotations = !{!0}' >> $@
-	echo '!0 = !{void (float*, float*, float*)* @kernel, !"kernel", i32 1}' >> $@
+	echo '!0 = !{void (float addrspace(1)*, float addrspace(1)*, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
+
+# C-Lisp driver to LLVM
+%.driver.ll: %.driver.sexp cuda_macros.py
+	guile ../../../utils/sexp-json.scm < $(word 1, $^) | python ../../../prelisp.py cuda_macros.py | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | sed -e '/^target/d' > $@
 
 # LLVM kernel to PTX
 %.ptx: %.ll
 	llc -mcpu=sm_75 -O0 -o $@ $<
 
 # Driver/host-side control code
-%.driver: %.driver.c
-	clang -o $@ -I/usr/local/cuda/include -lcuda $<
+%.driver: %.driver.ll
+	clang -o $@ -lcuda -lm $<
 
 %.run: %.driver %.ptx
 	LD_LIBRARY_PATH="/lib/x86_64-linux-gnu/" ./$(word 1, $^) < $(word 2, $^)
-
-clean:
-	rm -rf *.ll *.ptx driver
