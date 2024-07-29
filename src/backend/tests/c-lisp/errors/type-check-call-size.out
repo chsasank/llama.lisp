@@ -1,0 +1,2 @@
+Error in statement: ['call', 'func_print', 'k', 'j', 'm']
+CodegenError: Expected types: ['int', 'int'], Received: ['int', 'int', 'int']

@@ -413,14 +413,22 @@ class CallExpression(Expression):
     def compile(self, expr):
         instr_list = []
         arg_syms = []
-        for arg in expr[2:]:
-            arg = super().compile(arg)
-            arg_syms.append(arg.symbol)
-            instr_list.extend(arg.instructions)
-
+        arg_types = []
         name = expr[1]
         if name not in self.ctx.function_types:
             raise CodegenError(f"Call to undeclared function: {name}")
+
+        for arg in expr[2:]:
+            arg = super().compile(arg)
+            arg_types.append(arg.typ)
+            arg_syms.append(arg.symbol)
+            instr_list.extend(arg.instructions)
+
+        expected_arg_types = self.ctx.function_types[name][1]
+        if arg_types != expected_arg_types:
+            raise CodegenError(
+                f"Expected types: {expected_arg_types}, Received: {arg_types}"
+            )
 
         res_sym = random_label(CLISP_PREFIX)
         ret_type = self.ctx.function_types[name][0]
