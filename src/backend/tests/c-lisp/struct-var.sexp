@@ -7,14 +7,14 @@
     (define ((fprint float) (n float)))
 
     (define ((node-print void) (node (struct Node)))
-        (call print (load (member-ref node i)))
-        (call fprint (load (member-ref node f)))
+        (call print (load (sptradd (ptr-to node) i)))
+        (call fprint (load (sptradd (ptr-to node) f)))
         (ret))
 
     (define ((struct-init void) (node (ptr (struct Node))))
         (declare val (struct Node))
-        (store (member-ref val i) 4)
-        (store (member-ref val f) 5.0)
+        (store (sptradd (ptr-to val) i) 4)
+        (store (sptradd (ptr-to val) f) 5.0)
 
         (store node val)
         (ret))

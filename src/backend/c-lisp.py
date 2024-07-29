@@ -24,14 +24,15 @@ class BrilispCodeGenerator:
         ## Type tracking
         # Variable name -> type
         self.symbol_types = {}
+        # All symbols that have been assigned at least once
+        self.assigned_symbols = set()
         # Stack of scope tags
         self.scopes = []
+
         # Function name > (ret-type, (arg-types...))
         self.function_types = {}
         # Struct type name -> {field name -> (index number, type)}
         self.struct_types = {}
-        # All symbols that have been assigned at least once
-        self.assigned_symbols = set()
         # String literals
         self.string_literals = {}
 
@@ -40,7 +41,8 @@ class BrilispCodeGenerator:
         if not prog[0] == "c-lisp":
             raise CodegenError("Input not a C-Lisp program")
 
-        brilisp_funcs, brilisp_structs = [], []
+        brilisp_funcs = []
+        brilisp_structs = []
         for defn in prog[1:]:
             if defn[0] == "define":
                 brilisp_funcs.append(self.gen_function(defn))
@@ -151,25 +153,22 @@ class BrilispCodeGenerator:
 
     def gen_stmt(self, stmt):
         try:
-            if isinstance(stmt, list):
-                if not stmt:
-                    return []  #  Null statement
-                elif self.is_compound_stmt(stmt):
-                    return self.gen_compound_stmt(stmt)
-                elif self.is_ret_stmt(stmt):
-                    return self.gen_ret_stmt(stmt)
-                elif self.is_decl_stmt(stmt):
-                    return self.gen_decl_stmt(stmt)
-                elif self.is_if_stmt(stmt):
-                    return self.gen_if_stmt(stmt)
-                elif self.is_for_stmt(stmt):
-                    return self.gen_for_stmt(stmt)
-                elif self.is_while_stmt(stmt):
-                    return self.gen_while_stmt(stmt)
-                else:
-                    return self.gen_expr(stmt).instructions
+            if not stmt:
+                return []  #  Null statement
+            elif self.is_compound_stmt(stmt):
+                return self.gen_compound_stmt(stmt)
+            elif self.is_ret_stmt(stmt):
+                return self.gen_ret_stmt(stmt)
+            elif self.is_decl_stmt(stmt):
+                return self.gen_decl_stmt(stmt)
+            elif self.is_if_stmt(stmt):
+                return self.gen_if_stmt(stmt)
+            elif self.is_for_stmt(stmt):
+                return self.gen_for_stmt(stmt)
+            elif self.is_while_stmt(stmt):
+                return self.gen_while_stmt(stmt)
             else:
-                return self.gen_expr(stmt)[0]
+                return self.gen_expr(stmt).instructions
         except Exception as e:
             print(f"Error in statement: {stmt}", file=sys.stderr)
             raise e
@@ -567,6 +566,38 @@ class PtrAddExpression(Expression):
         return ExpressionResult(instrs, res_sym, ptr_type)
 
 
+class StructPtrAddExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "sptradd"
+
+    def compile(self, expr):
+        if not len(expr) == 3:
+            raise CodegenError(f"Bad sptradd expression: {expr}")
+
+        struct_ptr = super().compile(expr[1])
+        field = expr[2]
+
+        if not (
+            struct_ptr.typ[0] == "ptr" and self.ctx.is_struct_type(struct_ptr.typ[1])
+        ):
+            raise CodegenError(f"Not a struct pointer: {expr[1]}")
+
+        struct_name = struct_ptr.typ[1][1]
+        field_idx, field_type = self.ctx.struct_types[struct_name][field]
+        res_sym = random_label(CLISP_PREFIX)
+        res_type = ["ptr", field_type]
+
+        instrs = struct_ptr.instructions + [
+            [
+                "set",
+                [res_sym, res_type],
+                ["ptradd", struct_ptr.symbol, 0, field_idx],
+            ]
+        ]
+        return ExpressionResult(instrs, res_sym, res_type)
+
+
 class LoadExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
@@ -671,72 +702,6 @@ class CastExpression(Expression):
         return ExpressionResult(instrs, res_sym, res_type)
 
 
-class MemberRefExpression(Expression):
-    @classmethod
-    def is_valid_expr(cls, expr):
-        return expr[0] == "member-ref"
-
-    def compile(self, expr):
-        if not len(expr) == 3:
-            raise CodegenError(f"Bad member-ref expression: {expr}")
-
-        name, field = expr[1:]
-        scoped_name = self.ctx.scoped_lookup(name)
-        struct_type = self.ctx.symbol_types[scoped_name]
-        if not self.ctx.is_struct_type(struct_type):
-            raise CodegenError(f"Not a struct type: {struct_type}")
-        struct_ptr_sym, res_sym = [random_label(CLISP_PREFIX) for i in range(2)]
-        field_idx, field_type = self.ctx.struct_types[struct_type[1]][field]
-        return ExpressionResult(
-            [
-                [
-                    "set",
-                    [struct_ptr_sym, ["ptr", struct_type]],
-                    ["ptr-to", scoped_name],
-                ],
-                [
-                    "set",
-                    [res_sym, ["ptr", field_type]],
-                    ["ptradd", struct_ptr_sym, 0, field_idx],
-                ],
-            ],
-            res_sym,
-            ["ptr", field_type],
-        )
-
-
-class PtrMemberRefExpression(Expression):
-    @classmethod
-    def is_valid_expr(cls, expr):
-        return expr[0] == "ptr-member-ref"
-
-    def compile(self, expr):
-        if not len(expr) == 3:
-            raise CodegenError(f"Bad ptr-member-ref expression: {expr}")
-
-        name, field = expr[1], expr[2]
-        scoped_name = self.ctx.scoped_lookup(name)
-        struct_ptr_type = self.ctx.symbol_types[scoped_name]
-        if not struct_ptr_type[0] == "ptr":
-            raise CodegenError(f"Not a pointer: {name}")
-        if not self.ctx.is_struct_type(struct_ptr_type[1]):
-            raise CodegenError(f"Not a struct type: {struct_type}")
-        struct_type = struct_ptr_type[1][1]
-        field_idx, field_type = self.ctx.struct_types[struct_type][field]
-        res_sym = random_label(CLISP_PREFIX)
-        return ExpressionResult(
-            [
-                [
-                    "set",
-                    [res_sym, ["ptr", field_type]],
-                    ["ptradd", scoped_name, 0, field_idx],
-                ]
-            ],
-            res_sym,
-            ["ptr", field_type],
-        )
-
-
 class PtrToExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
@@ -753,6 +718,7 @@ class PtrToExpression(Expression):
         if pointee_sym not in self.ctx.assigned_symbols:
             # A symbol needs to be assigned before we can get a pointer to it
             instr_list.append(["set", [pointee_sym, pointee_type], ["const", None]])
+
         instr_list.append(
             ["set", [res_sym, ["ptr", pointee_type]], ["ptr-to", pointee_sym]]
         )

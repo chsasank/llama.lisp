@@ -22,14 +22,14 @@
         (declare i int)
         (declare n (ptr (struct Node)))
 
-        (set n (load (ptr-member-ref lst head)))
+        (set n (load (sptradd lst head)))
 
-        (for ((set i (load (ptr-member-ref lst len)))
+        (for ((set i (load (sptradd lst len)))
               (gt i 0)
               (set i (sub i 1)))
-            (call printf (load (ptr-member-ref n data)))
+            (call printf (load (sptradd n data)))
             (call putchar 10)
-            (set n (load (ptr-member-ref n next))))
+            (set n (load (sptradd n next))))
         (ret))
 
     (define ((list-append void) (lst (ptr (struct List))) (node (ptr (struct Node))))
@@ -37,20 +37,20 @@
         (declare last (ptr (struct Node)))
         (declare len int)
 
-        (set len (load (ptr-member-ref lst len)))
+        (set len (load (sptradd lst len)))
         (if (eq len 0)
-            ((store (ptr-member-ref lst head) node)
-             (store (ptr-member-ref lst len) (add len 1))
+            ((store (sptradd lst head) node)
+             (store (sptradd lst len) (add len 1))
              (ret)))
 
-        (set last (load (ptr-member-ref lst head)))
+        (set last (load (sptradd lst head)))
         (for ((set i 1)
               (lt i len)
               (set i (add i 1)))
-            (set last (load (ptr-member-ref last next))))
+            (set last (load (sptradd last next))))
 
-        (store (ptr-member-ref last next) node)
-        (store (ptr-member-ref lst len) (add len 1))
+        (store (sptradd last next) node)
+        (store (sptradd lst len) (add len 1))
         (ret))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
@@ -58,14 +58,14 @@
         (declare node (ptr (struct Node)))
 
         (set list (alloc (struct List) 1))
-        (store (ptr-member-ref list len) 0)
+        (store (sptradd list len) 0)
 
         (declare i int)
         (for ((set i (sub argc 1))
               (gt i 0)
               (set i (sub i 1)))
             (set node (alloc (struct Node) 1))
-            (store (ptr-member-ref node data) (load (ptradd argv i)))
+            (store (sptradd node data) (load (ptradd argv i)))
             (call list-append list node))
 
         (call list-print list)
