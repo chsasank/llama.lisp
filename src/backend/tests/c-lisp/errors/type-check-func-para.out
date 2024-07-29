@@ -1,0 +1,2 @@
+Error in statement: ['call', 'print', 'm']
+__main__.CodegenError: type mismatch, declared function parameter type is int
