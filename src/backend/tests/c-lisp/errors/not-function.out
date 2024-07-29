@@ -1,1 +1,1 @@
-CodegenError: Not a function: ['declare', 'a', 'int']
+CodegenError: Neither function nor struct definition: ['declare', 'a', 'int']
