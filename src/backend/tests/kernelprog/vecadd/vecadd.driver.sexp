@@ -10,7 +10,7 @@
     (define ((free void) (p (ptr float))))
 
     ; Wrapper around `printf` from <stdio.h>
-    ,(define_printf)
+    ,printf_signature
 
     ; Function signatures and type aliases from Numba's CUDA driver
     ,@(get_cuda_signatures)
