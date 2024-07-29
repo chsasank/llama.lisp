@@ -1,0 +1,3 @@
+Error in statement: ['call', 'print', 'm']
+__main__.CodegenError: Expected types: ['int']
+Received: ['m']

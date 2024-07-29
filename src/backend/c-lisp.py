@@ -413,19 +413,27 @@ class CallExpression(Expression):
     def compile(self, expr):
         instr_list = []
         arg_syms = []
+        result_flag=0
         name = expr[1]
         if name not in self.ctx.function_types:
             raise CodegenError(f"Call to undeclared function: {name}")
-
-        check_parm_types = self.ctx.function_types[name][1]
+        
+        expected_parm_types = self.ctx.function_types[name][1]
+        
+        if len(expected_parm_types) != len(expr[2:]):
+            result_flag=1
+  
         for check_parm_types_index, arg in enumerate(expr[2:]):
             arg = super().compile(arg)
-            if arg.typ != check_parm_types[check_parm_types_index]:
-                raise CodegenError(
-                    f"type mismatch, declared function parameter type is {check_parm_types[check_parm_types_index]}"
-                )
+            if arg.typ != expected_parm_types[check_parm_types_index]:
+                result_flag=1
             arg_syms.append(arg.symbol)
             instr_list.extend(arg.instructions)
+        
+        if result_flag==1:
+            raise CodegenError(
+                    f"Expected types: {expected_parm_types}\nReceived: {expr[2:]}"
+                )
 
         res_sym = random_label(CLISP_PREFIX)
         ret_type = self.ctx.function_types[name][0]
