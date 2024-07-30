@@ -1,0 +1,9 @@
+(c-lisp
+  (define ((main void))
+    (declare arr1 (ptr int))
+    (set arr (alloc int 5))
+    (store (ptradd arr 0) 1)
+    (store (ptradd arr 1) 2)
+    (store (ptradd arr 2) 3)
+    (declare arr2 (ptr int))
+    (set arr2 (alloc int 5))))
