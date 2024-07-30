@@ -1,7 +1,8 @@
 (c-lisp
     ,@(include
         (stdio.h stdlib.h string.h) ; Headers
-        (malloc puts strcpy)) ; Functions to include
+        (malloc puts strcpy); Functions to include
+        ()) ; Structs to include
 
     (define ((main void))
         (declare buf (ptr int8))
