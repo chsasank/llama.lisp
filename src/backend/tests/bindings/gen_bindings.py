@@ -126,7 +126,7 @@ class BindingGenerator:
         # Get struct field names from the C AST
         field_names = []
         struct_ast = self.get_decl_ast(struct_name)
-        assert struct_ast["tagused"] == "struct"
+        assert struct_ast["tagUsed"] == "struct"
         for field in struct_ast["inner"]:
             if field["kind"] == "FieldDecl":
                 field_names.append(field["name"])
