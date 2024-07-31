@@ -16,14 +16,20 @@ class BindingGenError(Exception):
     pass
 
 
+# Used as a prefix to global variables created for binding generation
+VAR_PREFIX = "_bindingGen_"
+
+
 class BindingGenerator:
-    def __init__(self, headers, functions, structs):
+    def __init__(self, headers, functions, structs, typedefs):
         # List of headers to be included
         self.headers = headers
-        # List of desired functions prototypes
+        # List of desired function prototypes
         self.functions = functions
-        # List of desired structs definitions
+        # Mapping of desired struct name -> struct definition
         self.structs = structs
+        # List of desired typedefs
+        self.typedefs = typedefs
 
         # The LLVM module containing the signatures we want
         self.llmod = None
@@ -43,6 +49,10 @@ class BindingGenerator:
             f"    {{ struct {struct} var; pin_function(&var); }}"
             for struct in self.structs
         )
+        # Typedefs
+        typedef_pins = "\n".join(
+            f"{alias} {VAR_PREFIX}{alias};" for alias in self.typedefs
+        )
 
         ## Header inclusion
         header_includes = "\n".join(f'#include "{header}"' for header in self.headers)
@@ -50,6 +60,7 @@ class BindingGenerator:
         return "\n".join(
             (
                 header_includes,
+                typedef_pins,
                 "extern void pin_function(void *);",
                 "int main () {",
                 function_pins,
@@ -92,8 +103,8 @@ class BindingGenerator:
                 return handler(typ_str)
         raise BindingGenError(f"Unknown type: {typ}")
 
-    def gen_signature(self, fn_ref):
-        """Generate the signature of fn_ref (LLVMLite ValueRef)"""
+    def gen_prototype(self, fn_ref):
+        """Generate the prototype of fn_ref (LLVMLite ValueRef)"""
         # fn_ref is a function pointer; fn_type is the function's type
         fn_type = fn_ref.type.element_type
         type_elements = [self.get_clisp_type(elem) for elem in fn_type.elements]
@@ -140,6 +151,13 @@ class BindingGenerator:
             *zip(field_names, field_types),
         ]
 
+    def gen_typedef(self, alias):
+        """Resolve the type that `alias` is typedef'ed to"""
+        alias_var = self.llmod.get_global_variable(f"{VAR_PREFIX}{alias}")
+        alias_type = self.get_clisp_type(alias_var.type.element_type)
+        add_macro(alias, alias_type)
+        # return alias_type
+
     def build(self, debug=False):
         tmpdir = tempfile.TemporaryDirectory()
         cprog = f"{tmpdir.name}/binding.c"
@@ -183,34 +201,35 @@ class BindingGenerator:
 
     def include(self, debug=False):
         """
-        Macro to include given functions from given header files
-        Example usage:
-            ; Generates declarations for `malloc` and `puts`, having included stdio.h and stdlib.h
-            ,(include (stdio.h stdlib.h) (malloc puts))
+        Implementation of `include` macro
         """
         self.build(debug)
+        # Process all structs that are depended on, not just the desired ones
+        struct_definitions = [
+            self.gen_struct(struct) for struct in self.llmod.struct_types
+        ]
+        for name in self.typedefs:
+            self.gen_typedef(name)
         return [
-            # Signatures of desired functions
+            # Prototypes of desired functions
             *(
-                self.gen_signature(self.llmod.get_function(func))
+                self.gen_prototype(self.llmod.get_function(func))
                 for func in self.functions
             ),
-            # Desired struct types
-            *(
-                self.gen_struct(self.llmod.get_struct_type(f"struct.{struct}"))
-                for struct in self.structs
-            ),
+            # Struct type definitions
+            *struct_definitions,
         ]
 
 
-def include(headers, functions, structs):
+def include(headers, functions, structs, typedefs, debug=False):
     """
-    `include` Prelisp macro
-    An argument value of `None` signifies all names; for example,
-    passing functions=None will include all available functions.
+    Macro to include `functions` and `structs` from `headers`
+    Example usage:
+        ; Generates declarations for `malloc` and `puts`, having included stdio.h and stdlib.h
+        ,(include (stdio.h stdlib.h) (malloc puts))
     """
-    binding_generator = BindingGenerator(headers, functions, structs)
-    return binding_generator.include()
+    binding_generator = BindingGenerator(headers, functions, structs, typedefs)
+    return binding_generator.include(debug)
 
 
 # Utility functions
@@ -218,9 +237,15 @@ def print_prog(prog):
     print("====", "    " + prog.replace("\n", "\n    "), "====", sep="\n")
 
 
+def add_macro(name, val):
+    globals()[name] = val
+
+
 if __name__ == "__main__":
     headers = input("Space-delimited list of headers to include: ").split()
     functions = input("Space-delimited list functions to parse: ").split()
     structs = input("Space-delimited list structs to parse: ").split()
-    binding_generator = BindingGenerator(headers, functions, structs)
-    print(binding_generator.include(debug=True))
+    typedefs = input("Space-delimited list typedefs to parse: ").split()
+    # binding_generator = BindingGenerator(headers, functions, structs, typedefs)
+    # print(binding_generator.include(debug=True))
+    print(include(headers, functions, structs, typedefs, debug=True))

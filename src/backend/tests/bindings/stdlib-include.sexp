@@ -2,7 +2,8 @@
     ,@(include
         (stdio.h stdlib.h string.h) ; Headers
         (malloc puts strcpy); Functions to include
-        ()) ; Structs to include
+        () ; Structs to include
+        ()) ; Typedefs
 
     (define ((main void))
         (declare buf (ptr int8))
