@@ -45,7 +45,7 @@ void add_dot4x4(int k, float* a, int lda, float* b, int ldb, float* c, int ldc) 
 void kernel(float* a, float* b, float* c, int m, int n, int k) {
     int lda = m;
     int ldb = n;
-    int ldc = m;
+    int ldc = k;
 
     for (int j = 0; j < n; j += 4) 
         for (int i = 0; i < m; i += 4) 
