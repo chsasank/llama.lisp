@@ -113,7 +113,9 @@ class BindingGenerator:
         for decl in self.c_ast["inner"]:
             if "name" in decl and decl["name"] == decl_name:
                 return decl
-        raise BindingGenError(f"Cannot find declaration for {decl_name} in the AST dump")
+        raise BindingGenError(
+            f"Cannot find declaration for {decl_name} in the AST dump"
+        )
 
     def gen_struct(self, struct_ref):
         """Generate a struct type corresponding to struct_ref (LLVMLite TypeRef)"""
@@ -138,19 +140,12 @@ class BindingGenerator:
             *zip(field_names, field_types),
         ]
 
-    def include(self, debug=False):
-        """
-        Macro to include given functions from given header files
-        Example usage:
-            ; Generates declarations for `malloc` and `puts`, having included stdio.h and stdlib.h
-            ,(include (stdio.h stdlib.h) (malloc puts))
-        """
-
+    def build(self, debug=False):
         tmpdir = tempfile.TemporaryDirectory()
         cprog = f"{tmpdir.name}/binding.c"
         llprog = f"{tmpdir.name}/binding.ll"
 
-        # Generate C program using desired functions
+        # Generate C program that uses desired objects
         cprog_file = open(cprog, "w")
         cprog_str = self.gen_cprog()
         if debug:
@@ -186,6 +181,14 @@ class BindingGenerator:
         # Cleanup
         tmpdir.cleanup()
 
+    def include(self, debug=False):
+        """
+        Macro to include given functions from given header files
+        Example usage:
+            ; Generates declarations for `malloc` and `puts`, having included stdio.h and stdlib.h
+            ,(include (stdio.h stdlib.h) (malloc puts))
+        """
+        self.build(debug)
         return [
             # Signatures of desired functions
             *(
@@ -201,7 +204,11 @@ class BindingGenerator:
 
 
 def include(headers, functions, structs):
-    """`include` Prelisp macro"""
+    """
+    `include` Prelisp macro
+    An argument value of `None` signifies all names; for example,
+    passing functions=None will include all available functions.
+    """
     binding_generator = BindingGenerator(headers, functions, structs)
     return binding_generator.include()
 
