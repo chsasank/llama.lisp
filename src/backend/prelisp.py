@@ -13,7 +13,7 @@ def prelisp(expr, module_name):
 
 
 def preprocess(expr, env):
-    if isinstance(expr, list):
+    if isinstance(expr, list) and len(expr) > 0:
         if expr[0] == "unquote":
             assert len(expr) == 2
             return expand_macro(expr[1], env), "append"
