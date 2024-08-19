@@ -1,5 +1,5 @@
 (c-lisp
-    (define ((print int) (n int)))
+    (declare ((print int) (n int)))
 
     (define ((main int))
         (declare i int)

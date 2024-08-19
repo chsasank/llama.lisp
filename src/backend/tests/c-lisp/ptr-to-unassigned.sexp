@@ -1,6 +1,6 @@
 (c-lisp
-    (define ((print int) (n int)))
-    (define ((fprint float) (n float)))
+    (declare ((print int) (n int)))
+    (declare ((fprint float) (n float)))
 
     (define ((iptr-set void) (p (ptr int8)))
         (store p (trunc 55 int8)))
