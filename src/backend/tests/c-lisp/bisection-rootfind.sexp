@@ -1,5 +1,5 @@
 (c-lisp
-    (define ((fprint float) (n float)))
+    (declare ((fprint float) (n float)))
 
     (define ((quad-val float) (a2 float) (a1 float) (a0 float) (x float))
         (declare val float)

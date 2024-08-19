@@ -3,8 +3,8 @@
         (i int)
         (f float))
 
-    (define ((print int) (n int)))
-    (define ((fprint float) (n float)))
+    (declare ((print int) (n int)))
+    (declare ((fprint float) (n float)))
 
     (define ((node-print void) (node (struct Node)))
         (call print (load (sptradd (ptr-to node) i)))

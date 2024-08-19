@@ -1,13 +1,13 @@
 ;; ARGS: 12345
 
 (c-lisp
-    (define ((print int) (n int)))
-    (define ((fprint float) (n float)))
-    (define ((ptr_print (ptr int)) (p (ptr int))))
+    (declare ((print int) (n int)))
+    (declare ((fprint float) (n float)))
+    (declare ((ptr_print (ptr int)) (p (ptr int))))
 
-    (define ((powf float) (x float) (y float)))
-    (define ((pow double) (x double) (y double)))
-    (define ((putchar int) (c int)))
+    (declare ((powf float) (x float) (y float)))
+    (declare ((pow double) (x double) (y double)))
+    (declare ((putchar int) (c int)))
 
     (define ((print16 void) (n int16))
         (call print (sext n int32)))

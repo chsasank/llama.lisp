@@ -4,8 +4,8 @@
         (i-data int)
         (f-data float))
 
-    (define ((print int) (n int)))
-    (define ((fprint float) (n float)))
+    (declare ((print int) (n int)))
+    (declare ((fprint float) (n float)))
 
     (define ((node-print void) (n-ptr (ptr (struct node))))
         (call fprint (load (sptradd n-ptr f-data)))

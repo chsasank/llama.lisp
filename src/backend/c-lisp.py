@@ -46,6 +46,8 @@ class BrilispCodeGenerator:
                 brilisp_funcs.append(self.gen_function(defn))
             elif defn[0] == "define-struct":
                 brilisp_structs.append(self.gen_struct(defn))
+            elif defn[0] == "declare":
+                brilisp_funcs.append(self.gen_function(defn))
             else:
                 raise CodegenError(f"Neither function nor struct definition: {defn}")
 
@@ -73,7 +75,7 @@ class BrilispCodeGenerator:
         raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
-        if not func[0] == "define":
+        if not func[0] in ["define","declare"]:
             raise CodegenError(f"Not a function: {func}")
 
         for elem in func[1]:

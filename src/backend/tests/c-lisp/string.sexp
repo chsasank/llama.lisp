@@ -1,7 +1,7 @@
 ;; ARGS: Identify_Me
 (c-lisp
-    (define ((puts int) (s (ptr int8))))
-    (define ((strcmp int) (s1 (ptr int8)) (s2 (ptr int8))))
+    (declare ((puts int) (s (ptr int8))))
+    (declare ((strcmp int) (s1 (ptr int8)) (s2 (ptr int8))))
 
     (define ((main void) (argc int) (argv (ptr (ptr int8))))
         (declare success-msg (ptr int8))
