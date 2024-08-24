@@ -22,7 +22,7 @@ VAR_PREFIX = "_bindingGen_"
 
 
 class BindingGenerator:
-    def __init__(self, headers, functions, structs, typedefs, debug=False):
+    def __init__(self, headers, functions, structs, typedefs, debug, macro_ns):
         # List of headers to be included
         self.headers = headers
         # List of desired function prototypes
@@ -39,6 +39,9 @@ class BindingGenerator:
 
         # Toggle for debug behaviour
         self.debug = debug
+
+        # Macro namespace
+        self.macro_ns = macro_ns
 
     def gen_cprog(self):
         """Generate the C program for binding generation"""
@@ -173,7 +176,7 @@ class BindingGenerator:
             )
         else:
             field_names = []
-            for field in struct_ast["inner"]:
+            for field in struct_ast.get("inner", ()):
                 if field["kind"] == "FieldDecl":
                     field_names.append(field["name"])
             assert len(field_names) == len(field_types)
@@ -213,8 +216,7 @@ class BindingGenerator:
             text=True,
         )
         if res.returncode != 0:
-            debug_print(res.stderr)
-            raise BindingGenError("Compilation to LLVM IR by clang failed")
+            raise BindingGenError(f"Compilation to LLVM IR by clang failed: {res.stderr}")
         res = subprocess.run(
             f"clang -I./ -Xclang -ast-dump=json -fsyntax-only {cprog}".split(),
             text=True,
@@ -246,7 +248,7 @@ class BindingGenerator:
             self.gen_struct(struct) for struct in self.llmod.struct_types
         ]
         for name in self.typedefs:
-            add_macro(name, self.gen_typedef(name))
+            add_macro(name, self.gen_typedef(name), self.macro_ns)
         return [
             # Prototypes of desired functions
             *(
@@ -258,15 +260,17 @@ class BindingGenerator:
         ]
 
 
-def include(headers, functions, structs, typedefs, debug=False):
+def include(headers, functions, structs, typedefs, debug=False, macro_ns=globals()):
     """
     Macro to include `functions` and `structs` from `headers`
+    `debug` enables debug output
+    `macro_ns` specifies the namespace into which macros should be added
     Example usage:
         ; Generates declarations for `malloc` and `puts`, having included stdio.h and stdlib.h
         ,(include (stdio.h stdlib.h) (malloc puts))
     """
     binding_generator = BindingGenerator(
-        headers, functions, structs, typedefs, debug=debug
+        headers, functions, structs, typedefs, debug, macro_ns
     )
     return binding_generator.include()
 
@@ -278,9 +282,9 @@ def save_prog(prog, path):
     f.close()
 
 
-def add_macro(name, val):
-    """Dynamically add a macro to this module"""
-    globals()[name] = val
+def add_macro(name, val, macro_ns):
+    """Dynamically add a macro to `macro_ns` (typically this module)"""
+    macro_ns[name] = val
 
 
 def debug_print(self, *pargs, **kargs):

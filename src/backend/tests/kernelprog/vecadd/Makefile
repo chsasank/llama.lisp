@@ -10,8 +10,8 @@ TRIPLE = target triple = \"nvptx64-nvidia-cuda\"
 	echo '!0 = !{void (float addrspace(1)*, float addrspace(1)*, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
 
 # C-Lisp driver to LLVM
-%.driver.ll: %.driver.sexp cuda_macros.py
-	guile ../../../utils/sexp-json.scm < $(word 1, $^) | python ../../../prelisp.py cuda_macros.py | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | sed -e '/^target/d' > $@
+%.driver.ll: %.driver.sexp macros.py
+	guile ../../../utils/sexp-json.scm < $(word 1, $^) | python ../../../prelisp.py macros.py | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | sed -e '/^target/d' > $@
 
 # LLVM kernel to PTX
 %.ptx: %.ll
