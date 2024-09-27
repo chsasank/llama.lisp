@@ -6,6 +6,32 @@ import argparse
 from datetime import datetime
 import subprocess
 
+"""
+Kernel Benchmarking Script
+This script benchmarks various kernels written in C and Lisp.
+It compiles them to LLVM IR, generates object files, executes the benchmarks,
+and records performance metrics. The results are visualized using matplotlib and seaborn.
+
+Requirements:
+- Python 3.x
+- pandas: For handling CSV data.
+- matplotlib: For plotting graphs.
+- seaborn: For improved plotting aesthetics.
+- Guile: For processing .sexp files.
+- Clang: For compiling C code.
+- Linux/MacOS: Designed to run in a Unix-like environment.
+
+Usage:
+To run the benchmarking script, use the command line to specify the kernel you want to benchmark
+along with any desired options:
+python benchmark.py -k <kernel_name> -m <mode> -p <print_flag>
+
+Command-Line Arguments:
+-k (string): Name of the kernel to benchmark. Default is "MMult1". Refer to kernels.txt for options.
+-m (string): Mode of execution. Default is "once".
+-p (int): Print resultant matrix flag. Default is 0.
+"""
+
 parser = argparse.ArgumentParser(
     description=" -k, type of kernel to be benchmarked. cat ./kernels.txt for more info"
 )
@@ -119,6 +145,7 @@ try:
         print(f"Reading output CSV file: {output_csv}")
         df = pd.read_csv(output_csv, names=names, header=None)
 
+        # Plotting the results
         sns.set_style("darkgrid")
         sns.lineplot(x="size", y="ref_gflops", data=df, label="Reference GFLOPS")
         sns.lineplot(x="size", y="kernel_gflops", data=df, label="Kernel GFLOPS")
@@ -136,6 +163,6 @@ try:
         os.system(f"rm {output_csv}")
 
 except KeyboardInterrupt:
-    print("\nBenchmarking interupted")
+    print("\nBenchmarking interrupted")
     os.system(f"rm {output_csv}")
     exit()
