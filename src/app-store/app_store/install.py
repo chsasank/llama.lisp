@@ -2,7 +2,7 @@ import os
 import argparse
 import glob
 import socket
-import pysondb
+import tinydb
 from parser import parse_sexp, generate_systemd, lookup_sexp
 from systemd import reload_units, status_units, start_units, stop_units, restart_units
 
@@ -15,7 +15,7 @@ definitions = {
 
 app_dir = os.path.join(os.path.expanduser("~"), ".johnny")
 os.makedirs(app_dir, exist_ok=True)
-app_db = pysondb.db.getDb(os.path.join(app_dir, "app_db.json"))
+app_db = tinydb.TinyDB(os.path.join(app_dir, "app_db.json"))
 
 systemd_dir = os.path.join(os.path.expanduser("~"), ".config/containers/systemd/")
 os.makedirs(systemd_dir, exist_ok=True)
@@ -28,16 +28,17 @@ def get_random_free_port():
 
 
 def gen_pod(app_name, ports):
-    app_data = app_db.getByQuery({"name": app_name})
+    App = tinydb.Query()
+    app_data = app_db.search(App.name==app_name)
 
     port_mapping = {str(p): str(get_random_free_port()) for p in ports}
     if app_data:
         # if app_data exists, overwrite with old ports
         old_ports = app_data[0]["ports"]
         port_mapping.update(old_ports)
-        app_db.updateByQuery({"name": app_name}, {"ports": port_mapping})
+        app_db.update({"ports": port_mapping}, App.name==app_name)
     else:
-        app_db.add({"name": app_name, "ports": port_mapping})
+        app_db.insert({"name": app_name, "ports": port_mapping})
 
     pod_service_data = [
         [
@@ -58,6 +59,7 @@ def gen_pod(app_name, ports):
 def gen_container(app_name, container):
     image = lookup_sexp(container, "image")[0]
     volumes = lookup_sexp(container, "volumes")
+    container_name = lookup_sexp(container, "name")[0]
 
     volume_mapping = {}
     app_data_dir = os.path.join(app_dir, app_name)
@@ -127,7 +129,8 @@ def uninstall(app_name):
     reload_units()
 
 def show_ports(app_name):
-    app_data = app_db.getByQuery({"name": app_name})
+    App = tinydb.Query()
+    app_data = app_db.search(App.name==app_name)
     port_mapping = app_data[0]["ports"]
     for p_container, p_host in port_mapping.items():
         print(f"==> host port 🌐 {p_host} was mapped to app port 📦 {p_container}")
