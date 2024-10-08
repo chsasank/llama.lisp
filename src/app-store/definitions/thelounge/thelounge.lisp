@@ -1,4 +1,4 @@
-(app
+(define-app
     ; name of the app is taken from file name
     (version "4.4.3")
     (ports 9000)

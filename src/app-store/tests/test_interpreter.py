@@ -52,7 +52,9 @@ def test_let():
 
 
 def test_app_definition():
-    out = config_lisp(parse_sexp("""
+    out = config_lisp(
+        parse_sexp(
+            """
     (define-app
         ; name of the app is taken from file name
         (version "1.21.4")
@@ -81,7 +83,9 @@ def test_app_definition():
                         ("POSTGRES_USER" ,db-name)
                         ("POSTGRES_PASSWORD" ,db-user)
                         ("POSTGRES_DB" ,db-password))))))    
-    """))
+    """
+        )
+    )
     containers = lookup_sexp(out, "containers")
     env_1 = lookup_sexp(containers[0], "environment")
     env_2 = lookup_sexp(containers[1], "environment")

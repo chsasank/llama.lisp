@@ -5,9 +5,7 @@ def _is_list(sexp):
     return isinstance(sexp, list)
 
 
-standard_lib = {
-    "gen-password": lambda: secrets.token_urlsafe(16)
-}
+standard_lib = {"gen-password": lambda: secrets.token_urlsafe(16)}
 
 
 def config_lisp(sexp, env=standard_lib):

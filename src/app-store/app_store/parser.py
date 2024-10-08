@@ -94,3 +94,22 @@ def generate_systemd(service_data):
         service_lines.append("")
 
     return "\n".join(service_lines)
+
+
+def parse_env_file(env_data):
+    lines = [
+        l.strip()
+        for l in env_data.splitlines()
+        if not (l.startswith("#") or l.strip() == "")
+    ]
+
+    env = {}
+    for l in lines:
+        k, v = l.split("=", maxsplit=1)
+        env[k] = v
+
+    return env
+
+
+def generate_env_file(env):
+    return "\n".join([f"{k}={v}" for k, v in env.items()]) + "\n"
