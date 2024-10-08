@@ -3,7 +3,7 @@ import argparse
 import glob
 import socket
 import pysondb
-from parser import parse_sexp, generate_systemd
+from parser import parse_sexp, generate_systemd, lookup_sexp
 from systemd import reload_units, status_units, start_units, stop_units, restart_units
 
 definitions_path = os.path.join(
@@ -19,15 +19,6 @@ app_db = pysondb.db.getDb(os.path.join(app_dir, "app_db.json"))
 
 systemd_dir = os.path.join(os.path.expanduser("~"), ".config/containers/systemd/")
 os.makedirs(systemd_dir, exist_ok=True)
-
-
-def lookup_sexp(sexp, key):
-    """Look up key value in a config list"""
-    for elem in sexp:
-        if elem[0] == key:
-            return elem[1:]
-
-    raise KeyError("Key not found")
 
 
 def get_random_free_port():

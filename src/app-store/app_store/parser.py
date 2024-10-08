@@ -4,6 +4,15 @@ import json
 import sys
 
 
+def lookup_sexp(sexp, key):
+    """Look up key value in a config list"""
+    for elem in sexp:
+        if elem[0] == key:
+            return elem[1:]
+
+    raise KeyError("Key not found")
+
+
 def parse_sexp(sexp_data):
     parser_file = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), "sexp-json.scm"
