@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 
@@ -11,8 +12,8 @@ def reload_units():
 
 def status_units(app_name):
     print(f"==> systemd status")
-    cmd = ["systemctl", "--user", "--all", "status", f"{app_name}*"]
-    subprocess.run(cmd)
+    cmd = ["systemctl", "--user", "--no-pager", "--all", "status", f"{app_name}*"]
+    subprocess.run(cmd, env=dict(os.environ, SYSTEMD_COLORS="0"))
 
 
 def start_units(app_name):

@@ -207,11 +207,42 @@ def printenv(app_name):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="JOHNAIC package manager")
+    examples_text = """
+Examples:
+---------
+
+Install an app called thelounge
+
+    johnny install thelounge
+
+Check status of the app once installed
+
+    johnny status thelounge
+
+Find open ports
+
+    johnny ports thelounge
+
+Print environment used
+
+    johnny printenv thelounge
+
+Stop the app
+
+    johnny stop thelounge
+
+Restart it
+
+    johnny restart thelounge
+
+"""
+
+
+    parser = argparse.ArgumentParser(description="JOHNAIC package manager", prog="johnny", epilog=examples_text, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument(
         "action",
         type=str,
-        help="One of install|uninstall|start|stop|restart|ports|status",
+        help="One of install|uninstall|start|stop|restart|ports|printenv|status",
     )
     parser.add_argument("app_name", type=str, help="Name of the app")
     args = parser.parse_args()
