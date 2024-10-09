@@ -113,6 +113,12 @@ def gen_container(app_name, container):
 
     additional_flags = " ".join(additional_flags)
 
+    # command
+    try:
+        command = lookup_sexp(container, "command")[0]
+    except (KeyError, IndexError):
+        command = ""
+
     container_service_data = [
         [
             "Container",
@@ -121,6 +127,7 @@ def gen_container(app_name, container):
                 ["Pod", f"{app_name}.pod"],
                 ["EnvironmentFile", env_file_name],
                 ["PodmanArgs", additional_flags],
+                ["Exec", command]
             ]
             + [
                 ["Volume", f"{host_dir}:{container_dir}"]
@@ -184,6 +191,15 @@ def show_ports(app_name):
         print(f"==> host port 🌐 {p_host} was mapped to app port 📦 {p_container}")
 
 
+def printenv(app_name):
+    app_data_dir = os.path.join(app_dir, app_name)
+    env_files = glob.glob(os.path.join(app_data_dir, "*.env"))
+    for fname in env_files:
+        print(f"# {fname}:")
+        with open(fname) as f:
+            print(f.read())
+
+
 def main():
     parser = argparse.ArgumentParser(description="JOHNAIC package manager")
     parser.add_argument(
@@ -211,6 +227,8 @@ def main():
         status_units(app_name)
     elif action == "ports":
         show_ports(app_name)
+    elif action == "printenv":
+        printenv(app_name)
     else:
         raise RuntimeError(f"Unknown action {action}")
 

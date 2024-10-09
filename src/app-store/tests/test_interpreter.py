@@ -92,6 +92,36 @@ def test_app_definition():
     assert env_2[0][1] == "gitea"
     assert env_1[-1][1] == env_2[-1][1]
 
+    out = config_lisp(
+        parse_sexp("""(define-app
+    (version "3.3.2")
+    (ports 3000)
+    (url "https://www.discourse.org/")
+    (let ((db-user "bn_discourse")
+          (db-password ,(gen-password))
+          (db-name "bitnami_discourse")
+          (redis-password ,(gen-password))
+          (discourse-image "docker.io/bitnami/discourse:3.3.2")
+          (discourse-host "www.example.com"))
+        (containers
+            (container
+                (name "sidekiq")
+                (image ,discourse-image)
+                (volumes
+                    ("sidekiq_data" "/bitnami/discourse"))
+                (command "/opt/bitnami/scripts/discourse-sidekiq/run.sh")
+                (environment
+    `               ("DISCOURSE_HOST" ,discourse-host)
+                    ("DISCOURSE_DATABASE_HOST" "localhost")
+                    ("DISCOURSE_DATABASE_PORT_NUMBER" 5432)
+                    ("DISCOURSE_DATABASE_USER" ,db-user)
+                    ("DISCOURSE_DATABASE_NAME" ,db-name)
+                    ("DISCOURSE_DATABASE_PASSWORD" ,db-password)
+                    ("DISCOURSE_REDIS_HOST" "localhost")
+                    ("DISCOURSE_REDIS_PORT_NUMBER" 6379)
+                    ("DISCOURSE_REDIS_PASSWORD" ,redis-password))))))"""))
+
+    print(out)
 
 if __name__ == "__main__":
     test_basic()
