@@ -2,7 +2,7 @@
     (version "1.116.0")
     (ports 8008)
     (url "https://github.com/open-webui/open-webui/")
-    (let ((server-name "example.com")
+    (let ((server-name ,(interactive-input "server name" "It is important to choose the name for your server before you install Synapse, because it cannot be changed later.\nThe server name determines the \"domain\" part of user-ids for users on your server: these will all be of the format @user:my.domain.name. It also determines how other matrix servers will reach yours for federation."))
           (db-password ,(gen-password)))
         (containers
             (container

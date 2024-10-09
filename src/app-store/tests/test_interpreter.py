@@ -93,7 +93,8 @@ def test_app_definition():
     assert env_1[-1][1] == env_2[-1][1]
 
     out = config_lisp(
-        parse_sexp("""(define-app
+        parse_sexp(
+            """(define-app
     (version "3.3.2")
     (ports 3000)
     (url "https://www.discourse.org/")
@@ -119,9 +120,12 @@ def test_app_definition():
                     ("DISCOURSE_DATABASE_PASSWORD" ,db-password)
                     ("DISCOURSE_REDIS_HOST" "localhost")
                     ("DISCOURSE_REDIS_PORT_NUMBER" 6379)
-                    ("DISCOURSE_REDIS_PASSWORD" ,redis-password))))))"""))
+                    ("DISCOURSE_REDIS_PASSWORD" ,redis-password))))))"""
+        )
+    )
 
     print(out)
+
 
 if __name__ == "__main__":
     test_basic()

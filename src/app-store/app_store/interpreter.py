@@ -5,7 +5,18 @@ def _is_list(sexp):
     return isinstance(sexp, list)
 
 
-standard_lib = {"gen-password": lambda: secrets.token_urlsafe(16)}
+def interactive_input(prompt, docs=""):
+    print("==> Entering interactive input")
+    print(docs)
+    inp = input(f"==> {prompt}: ").strip()
+    print(f"==> recieved {inp} for {prompt}")
+    return inp
+
+
+standard_lib = {
+    "gen-password": lambda: secrets.token_urlsafe(16),
+    "interactive-input": interactive_input,
+}
 
 
 def config_lisp(sexp, env=standard_lib):
@@ -34,3 +45,10 @@ def config_lisp(sexp, env=standard_lib):
     else:
         # atom
         return sexp
+
+
+if __name__ == "__main__":
+    import sys
+    from parser import parse_sexp
+
+    print(config_lisp(parse_sexp(open(sys.argv[-1]).read())))
