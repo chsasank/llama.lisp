@@ -4,6 +4,8 @@ import subprocess
 def reload_units():
     cmd = ["systemctl", "--user", "daemon-reload"]
     subprocess.run(cmd, check=True)
+    cmd = ["systemctl", "--user", "reset-failed"]
+    subprocess.run(cmd, check=True)
     print(f"==> systemd reloaded ✅")
 
 

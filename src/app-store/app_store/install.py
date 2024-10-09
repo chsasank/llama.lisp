@@ -119,21 +119,27 @@ def gen_container(app_name, container):
     except (KeyError, IndexError):
         command = ""
 
+    # entrypoint
+    try:
+        entrypoint = lookup_sexp(container, "entrypoint")[0]
+    except (KeyError, IndexError):
+        entrypoint = ""
+
+    container_options = [
+        ["Image", image],
+        ["Pod", f"{app_name}.pod"],
+        ["EnvironmentFile", env_file_name],
+        ["PodmanArgs", additional_flags],
+        ["Exec", command],
+    ]
+    for host_dir, container_dir in volume_mapping.items():
+        container_options.append(["Volume", f"{host_dir}:{container_dir}"])
+
+    if entrypoint:
+        container_options.append(["Entrypoint", entrypoint])
+
     container_service_data = [
-        [
-            "Container",
-            [
-                ["Image", image],
-                ["Pod", f"{app_name}.pod"],
-                ["EnvironmentFile", env_file_name],
-                ["PodmanArgs", additional_flags],
-                ["Exec", command]
-            ]
-            + [
-                ["Volume", f"{host_dir}:{container_dir}"]
-                for host_dir, container_dir in volume_mapping.items()
-            ],
-        ],
+        ["Container", container_options],
         [
             "Service",
             [["Restart", "always"]],
