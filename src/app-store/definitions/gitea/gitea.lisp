@@ -18,7 +18,7 @@
                     ("GITEA__database__USER" ,db-user)
                     ("GITEA__database__PASSWD" ,db-password)))
             (container
-                (name "db")
+                (name "postgres")
                 (image "docker.io/postgres:14")
                 (volumes
                     ("postgres-data" "/var/lib/postgresql/data"))

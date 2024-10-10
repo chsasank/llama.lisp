@@ -1,4 +1,3 @@
-import os
 import subprocess
 
 
@@ -12,8 +11,16 @@ def reload_units():
 
 def status_units(app_name):
     print(f"==> systemd status")
-    cmd = ["systemctl", "--user", "--no-pager", "--all", "status", f"{app_name}*"]
-    subprocess.run(cmd, env=dict(os.environ, SYSTEMD_COLORS="0"))
+    cmd = [
+        "systemctl",
+        "--user",
+        "--no-pager",
+        "--all",
+        "status",
+        f"{app_name}*",
+        "--lines=0",
+    ]
+    subprocess.run(cmd)
 
 
 def start_units(app_name):
@@ -32,3 +39,11 @@ def restart_units(app_name):
     cmd = ["systemctl", "--user", "--all", "restart", f"{app_name}*"]
     subprocess.run(cmd, check=True)
     print(f"==> {app_name} restarted ✅")
+
+
+def log_units(app_name):
+    try:
+        cmd = ["journalctl", "--user", "-n", "100", "-f", "-u", f"{app_name}*"]
+        subprocess.run(cmd, check=True)
+    except KeyboardInterrupt:
+        pass

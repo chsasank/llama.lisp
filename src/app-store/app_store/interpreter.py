@@ -1,4 +1,5 @@
 import secrets
+import bcrypt
 
 
 def _is_list(sexp):
@@ -13,15 +14,24 @@ def interactive_input(prompt, docs=""):
     return inp
 
 
+def hash_password(password):
+    # https://www.geeksforgeeks.org/hashing-passwords-in-python-with-bcrypt/
+    bytes = password.encode()
+    salt = bcrypt.gensalt()
+    hash = bcrypt.hashpw(bytes, salt)
+    return hash.decode()
+
+
 standard_lib = {
     "gen-password": lambda: secrets.token_urlsafe(16),
+    "hash-password": hash_password,
     "interactive-input": interactive_input,
 }
 
 
 def config_lisp(sexp, env=standard_lib):
     if _is_list(sexp):
-        if sexp[0] == "let":
+        if len(sexp) > 0 and sexp[0] == "let":
             assert len(sexp) == 3
             varialbes = sexp[1]
             body = sexp[2]
@@ -30,12 +40,12 @@ def config_lisp(sexp, env=standard_lib):
                 env[var_name] = config_lisp(var_value, env)
 
             return config_lisp(body, env)
-        elif sexp[0] == "unquote":
+        elif len(sexp) > 0 and sexp[0] == "unquote":
             quoted_sexp = sexp[1]
             if _is_list(quoted_sexp):
                 # function
                 fn_name = quoted_sexp[0]
-                args = quoted_sexp[1:]
+                args = config_lisp(quoted_sexp[1:], env)
                 return env[fn_name](*args)
             else:
                 # variable

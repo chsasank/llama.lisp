@@ -11,7 +11,14 @@ from parser import (
     parse_env_file,
     generate_env_file,
 )
-from systemd import reload_units, status_units, start_units, stop_units, restart_units
+from systemd import (
+    reload_units,
+    status_units,
+    start_units,
+    stop_units,
+    restart_units,
+    log_units,
+)
 from interpreter import config_lisp
 
 definitions_path = os.path.join(
@@ -237,8 +244,12 @@ Restart it
 
 """
 
-
-    parser = argparse.ArgumentParser(description="JOHNAIC package manager", prog="johnny", epilog=examples_text, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="JOHNAIC package manager",
+        prog="johnny",
+        epilog=examples_text,
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument(
         "action",
         type=str,
@@ -266,6 +277,8 @@ Restart it
         show_ports(app_name)
     elif action == "printenv":
         printenv(app_name)
+    elif action == "logs":
+        log_units(app_name)
     else:
         raise RuntimeError(f"Unknown action {action}")
 
