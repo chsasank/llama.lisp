@@ -8,11 +8,11 @@
             (image "docker.io/johnaic/automatic1111:1.10.0")
             (additional-flags "--device nvidia.com/gpu=all")
             (environment
-                ("venv_dir" "/apps/deps/venv"))
+                ("venv_dir" "/apps/deps/venv")
+                ("install_dir" "/apps/automatic1111"))
             (volumes
                 ("deps" "/apps/deps/")
-                ("repos" "/apps/automatic111/repositories")
-                ("models" "/apps/automatic111/models")))
+                ("data" "/apps/automatic1111/")))
         (let ((user "user")
               (password ,(gen-password))
               (hashed-password ,(hash-password ,password)))
