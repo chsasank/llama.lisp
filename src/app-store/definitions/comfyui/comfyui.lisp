@@ -1,18 +1,14 @@
 (define-app
     ; name of the app is taken from file name
-    (version "1.10.0")
-    (ports 7861)
+    (version "0.2.2")
+    (ports 8189)
     (containers
         (container
-            (name "automatic1111")
-            (image "docker.io/johnaic/automatic1111:1.10.0")
+            (name "comfyui")
+            (image "docker.io/johnaic/comfyui:0.2.2")
             (additional-flags "--device nvidia.com/gpu=all")
-            (environment
-                ("venv_dir" "/apps/deps/venv"))
             (volumes
-                ("deps" "/apps/deps/")
-                ("repos" "/apps/automatic111/repositories")
-                ("models" "/apps/automatic111/models")))
+                ("checkpoints" "/apps/comfyui/models/checkpoints")))
         (let ((user "user")
               (password ,(gen-password))
               (hashed-password ,(hash-password ,password)))
