@@ -5,7 +5,7 @@
         (containers
             (container 
                 (name "docuseal")
-                (image "docker.io/docuseal/docuseal:latest")
+                (image "docker.io/docuseal/docuseal:1.7.5")
                 (volumes 
                     ("docuseal" "/data/docuseal"))
                 (environment
