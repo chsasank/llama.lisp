@@ -23,7 +23,6 @@
                 (volumes
                     ("postgres-data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRES_USER" ,db-name)
-                    ("POSTGRES_PASSWORD" ,db-user)
-                    ("POSTGRES_DB" ,db-password))))))
-    
+                    ("POSTGRES_USER" ,db-user)
+                    ("POSTGRES_PASSWORD" ,db-password)
+                    ("POSTGRES_DB" ,db-name))))))

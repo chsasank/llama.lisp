@@ -112,7 +112,7 @@ def test_app_definition():
                     ("sidekiq_data" "/bitnami/discourse"))
                 (command "/opt/bitnami/scripts/discourse-sidekiq/run.sh")
                 (environment
-    `               ("DISCOURSE_HOST" ,discourse-host)
+                    ("DISCOURSE_HOST" ,discourse-host)
                     ("DISCOURSE_DATABASE_HOST" "localhost")
                     ("DISCOURSE_DATABASE_PORT_NUMBER" 5432)
                     ("DISCOURSE_DATABASE_USER" ,db-user)
