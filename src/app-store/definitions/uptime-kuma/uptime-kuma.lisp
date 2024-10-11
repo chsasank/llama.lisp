@@ -7,3 +7,4 @@
                 (image "docker.io/louislam/uptime-kuma:1")
                 (volumes 
                     ("data" "/app/data")))))
+
