@@ -6,6 +6,6 @@
             (name "vaultwarden") 
             (image "docker.io/vaultwarden/server:1.32.2-alpine")
             (environment 
-            ("SIGNUPS_ALLOWED" "true"))
+                ("SIGNUPS_ALLOWED" "true"))
             (volumes
                 ("vw-data" "/data")))))
