@@ -47,3 +47,15 @@ def log_units(app_name):
         subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
         pass
+
+
+def podman_pull(image_name):
+    print(f"==> pulling image {image_name}")
+    cmd = ["podman", "pull", image_name]
+    subprocess.run(cmd, check=True)
+
+
+def podman_build(image_name, definitions_dir):
+    print(f"==> building image {image_name}")
+    cmd = ["podman", "build", "-t", image_name, definitions_dir]
+    subprocess.run(cmd, check=True)
