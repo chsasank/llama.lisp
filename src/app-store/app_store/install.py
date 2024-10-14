@@ -70,7 +70,10 @@ def gen_pod(app_name, ports):
 
 def gen_container(app_name, container):
     image = lookup_sexp(container, "image")[0]
-    volumes = lookup_sexp(container, "volumes")
+    try:
+        volumes = lookup_sexp(container, "volumes")
+    except:
+        volumes = []
     container_name = lookup_sexp(container, "name")[0]
 
     # volumes

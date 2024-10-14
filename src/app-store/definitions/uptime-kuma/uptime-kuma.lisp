@@ -4,6 +4,6 @@
     (containers
         (container
             (name "uptime-kuma")
-            (image "docker.io/louislam/uptime-kuma:1")
+            (image "docker.io/louislam/uptime-kuma:1.23.15")
             (volumes
                 ("data" "/app/data")))))
