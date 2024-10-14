@@ -1,7 +1,7 @@
 (define-app
     (version "v1.117.0")
     (ports 3001)
-    (let ((db-password "postgres")
+    (let ((db-password ,(gen-password))
           (db-username "postgres")
           (db-database-name "immich"))
         (containers
@@ -43,4 +43,4 @@
                     ("POSTGRES_DB" ,db-database-name)
                     ("POSTGRES_INITDB_ARG" "--data-checksums"))
                 (command "postgres -c shared_preload_libraries=vectors.so -c 'search_path=\"$user\", public, vectors' -c logging_collector=on -c max_wal_size=2GB -c shared_buffers=512MB -c wal_compression=on")))))
-                
+
