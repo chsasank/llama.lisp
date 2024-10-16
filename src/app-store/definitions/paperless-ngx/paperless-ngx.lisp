@@ -30,3 +30,4 @@
                 ("PAPERLESS_ADMIN_PASSWORD" ,(gen-password))
                 ("PAPERLESS_REDIS" "redis://localhost:6379") 
                 ("PAPERLESS_DBHOST" "localhost")))))
+

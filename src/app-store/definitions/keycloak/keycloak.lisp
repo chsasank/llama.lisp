@@ -29,3 +29,4 @@
                     ("KC_METRICS_ENABLED" "true")
                     ("KC_HOSTNAME" "localhost" ))
                 (command "start --optimized")))))
+

@@ -9,3 +9,4 @@
                 ("SIGNUPS_ALLOWED" "true"))
             (volumes
                 ("vw-data" "/data")))))
+
