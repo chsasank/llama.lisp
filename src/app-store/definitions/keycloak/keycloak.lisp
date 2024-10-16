@@ -6,13 +6,13 @@
         (containers
             (container
                 (name "postgres")
-                (image "docker.io/library/postgres:13.7")
+                (image "docker.io/bitnami/postgresql:17")
                 (volumes
-                    ("psql_data" "/var/lib/postgresql/data"))
+                    ("psql_data" "/bitnami/postgresql"))
                 (environment
-                    ("POSTGRES_DB" "keycloak")
-                    ("POSTGRES_USER" "keycloak")
-                    ("POSTGRES_PASSWORD" ,db-password)))
+                    ("POSTGRESQL_USERNAME" "keycloak")
+                    ("POSTGRESQL_DATABASE" "keycloak")
+                    ("POSTGRESQL_PASSWORD" ,db-password)))
             (container
                 (name keyclock)
                 (build "localhost/johnaic/keycloak:21.0")

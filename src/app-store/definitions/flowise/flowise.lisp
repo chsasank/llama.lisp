@@ -3,15 +3,15 @@
     (ports 3000)
     (let ((db-password ,(gen-password)))
         (containers
-            (container 
+            (container
                 (name "db")
-                (image "docker.io/library/postgres:16")
+                (image "docker.io/bitnami/postgresql:17")
                 (volumes
-                    ("pgdata" "/var/lib/postgresql/data"))
-                (environment 
-                    ("POSTGRES_DB" "flowise")
-                    ("POSTGRES_USER" "flowise")
-                    ("POSTGRES_PASSWORD" ,db-password)))
+                    ("postgresql_data" "/bitnami/postgresql"))
+                (environment
+                    ("POSTGRESQL_USERNAME" "flowise")
+                    ("POSTGRESQL_DATABASE" "flowise")
+                    ("POSTGRESQL_PASSWORD" ,db-password)))
             (container 
                 (name "flowise")
                 (image "docker.io/flowiseai/flowise:2.1.2")

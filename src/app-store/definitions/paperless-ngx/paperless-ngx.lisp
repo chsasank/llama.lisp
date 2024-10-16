@@ -8,15 +8,15 @@
                 (image "docker.io/library/redis:7")
                 (volumes 
                     ("redisdata" "/data"))) 
-            (container 
-                (name "db")
-                (image "docker.io/library/postgres:16")
+            (container
+                (name "postgresql")
+                (image "docker.io/bitnami/postgresql:17")
                 (volumes
-                    ("pgdata" "/var/lib/postgresql/data"))
-                (environment 
-                    ("POSTGRES_DB" "paperless")
-                    ("POSTGRES_USER" "paperless")
-                    ("POSTGRES_PASSWORD" ,db-password)))
+                    ("postgresql_data" "/bitnami/postgresql"))
+                (environment
+                    ("POSTGRESQL_USERNAME" "paperless")
+                    ("POSTGRESQL_DATABASE" "paperless")
+                    ("POSTGRESQL_PASSWORD" ,db-password)))
             (container 
                 (name "webserver")
                 (image "ghcr.io/paperless-ngx/paperless-ngx:2.12.0")
@@ -31,5 +31,8 @@
                     ("PAPERLESS_ADMIN_PASSWORD" ,(gen-password))
                     ("PAPERLESS_REDIS" "redis://localhost:6379")
                     ("PAPERLESS_DBPASS" ,db-password)
+                    ("PAPERLESS_DBENGINE" "postgresql")
+                    ("PAPERLESS_DBNAME" "paperless")
+                    ("PAPERLESS_DBUSER" "paperless")
                     ("PAPERLESS_DBHOST" "localhost"))))))
 
