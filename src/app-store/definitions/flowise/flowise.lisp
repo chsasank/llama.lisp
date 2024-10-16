@@ -35,3 +35,4 @@
                     ("BLOB_STORAGE_PATH" "/root/flowise/storage")
                     ("DISABLE_FLOWISE_TELEMETRY" "true")
                     ("MODEL_LIST_CONFIG_JSON" "/root/models/models.json"))))))
+
