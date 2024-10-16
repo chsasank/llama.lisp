@@ -5,7 +5,7 @@
     (containers
         (container
             (name "comfyui")
-            (image "docker.io/johnaic/comfyui:0.2.2")
+            (build "localhost/johnaic/comfyui:0.2.2")
             (additional-flags "--device nvidia.com/gpu=all")
             (volumes
                 ("checkpoints" "/apps/comfyui/models/checkpoints")))

@@ -5,14 +5,16 @@
     (containers
         (container
             (name "automatic1111")
-            (image "docker.io/johnaic/automatic1111:1.10.0")
-            (additional-flags "--device nvidia.com/gpu=all")
+            (build "localhost/johnaic/automatic1111:1.10.0")
+            (command "bash webui.sh -f --listen --xformers")
             (environment
                 ("venv_dir" "/apps/deps/venv")
                 ("install_dir" "/apps/automatic1111"))
             (volumes
                 ("deps" "/apps/deps/")
-                ("data" "/apps/automatic1111/")))
+                ("data" "/apps/automatic1111/"))
+            (additional-flags "--device nvidia.com/gpu=all"))
+        ; TODO: ditch for default auth of sd
         (let ((user "user")
               (password ,(gen-password))
               (hashed-password ,(hash-password ,password)))
