@@ -32,4 +32,3 @@
                     ("PAPERLESS_REDIS" "redis://localhost:6379")
                     ("PAPERLESS_DBPASS" ,db-password)
                     ("PAPERLESS_DBHOST" "localhost"))))))
-
