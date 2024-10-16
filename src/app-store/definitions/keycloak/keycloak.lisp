@@ -14,7 +14,7 @@
                     ("POSTGRES_USER" "keycloak")
                     ("POSTGRES_PASSWORD" ,db-password)))
             (container
-                (name keyclock)
+                (name "keyclock")
                 (build "localhost/johnaic/keycloak:21.0")
                 (environment
                     ("KC_HOSTNAME_STRICT" "false")
