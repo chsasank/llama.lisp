@@ -10,7 +10,7 @@ def lookup_sexp(sexp, key):
         if elem[0] == key:
             return elem[1:]
 
-    raise KeyError("Key not found")
+    raise KeyError(f"Key not found: {key}")
 
 
 def parse_sexp(sexp_data):
