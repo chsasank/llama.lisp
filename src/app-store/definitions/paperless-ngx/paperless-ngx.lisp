@@ -35,4 +35,3 @@
                     ("PAPERLESS_DBNAME" "paperless")
                     ("PAPERLESS_DBUSER" "paperless")
                     ("PAPERLESS_DBHOST" "localhost"))))))
-
