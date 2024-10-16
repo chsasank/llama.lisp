@@ -19,10 +19,11 @@
                     ("POSTGRES_PASSWORD" ,db-password)))
             (container
                 (name "postgres")
-                (image "docker.io/library/postgres:12-alpine")
+                (image "docker.io/bitnami/postgresql:17")
                 (volumes
-                    ("postgres-data" "/var/lib/postgresql/data"))
+                    ("postgres-data" "/bitnami/postgresql"))
                 (environment
-                    ("POSTGRES_USER" "synapse")
-                    ("POSTGRES_PASSWORD" ,db-password)
-                    ("POSTGRES_INITDB_ARGS" "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"))))))
+                    ("POSTGRESQL_USERNAME" "synapse")
+                    ("POSTGRESQL_DATABASE" "synapse")
+                    ("POSTGRESQL_INITDB_ARGS" "--encoding=UTF-8 --lc-collate=C --lc-ctype=C")
+                    ("POSTGRESQL_PASSWORD" ,db-password))))))

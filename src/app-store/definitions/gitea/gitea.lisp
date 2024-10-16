@@ -19,10 +19,10 @@
                     ("GITEA__database__PASSWD" ,db-password)))
             (container
                 (name "postgres")
-                (image "docker.io/postgres:14")
+                (image "docker.io/bitnami/postgresql:17")
                 (volumes
-                    ("postgres-data" "/var/lib/postgresql/data"))
+                    ("postgres-data" "/bitnami/postgresql"))
                 (environment
-                    ("POSTGRES_USER" ,db-user)
-                    ("POSTGRES_PASSWORD" ,db-password)
-                    ("POSTGRES_DB" ,db-name))))))
+                    ("POSTGRESQL_USERNAME" ,db-user)
+                    ("POSTGRESQL_DATABASE" ,db-name)
+                    ("POSTGRESQL_PASSWORD" ,db-password))))))

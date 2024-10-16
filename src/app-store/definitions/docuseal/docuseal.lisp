@@ -1,7 +1,7 @@
 (define-app
     (version "1.7.5")
     (ports 3000)
-    (let ((db_password ,(gen-password)))
+    (let ((db-password ,(gen-password)))
         (containers
             (container 
                 (name "docuseal")
@@ -13,14 +13,14 @@
                     ("DATABASE_HOST" "localhost")
                     ("DATABASE_PORT" "5432")
                     ("DATABASE_USER" "postgres")
-                    ("DATABASE_PASSWORD" ,db_password)
+                    ("DATABASE_PASSWORD" ,db-password)
                     ("DATABASE_NAME" "docuseal")))
-            (container 
+            (container
                 (name "postgres")
-                (image "docker.io/postgres:15")
-                (volumes 
-                    ("pg_data" "/var/lib/postgresql/data"))
-                (environment 
-                    ("POSTGRES_USER" "postgres")
-                    ("POSTGRES_PASSWORD" ,db_password)
-                    ("POSTGRES_DB" "docuseal"))))))
+                (image "docker.io/bitnami/postgresql:17")
+                (volumes
+                    ("pg_data" "/bitnami/postgresql"))
+                (environment
+                    ("POSTGRESQL_USERNAME" "postgres")
+                    ("POSTGRESQL_DATABASE" "docuseal")
+                    ("POSTGRESQL_PASSWORD" ,db-password))))))
