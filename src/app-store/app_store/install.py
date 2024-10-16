@@ -18,6 +18,8 @@ from systemd import (
     stop_units,
     restart_units,
     log_units,
+    podman_pull,
+    podman_build,
 )
 from interpreter import config_lisp
 
@@ -69,17 +71,23 @@ def gen_pod(app_name, ports):
 
 
 def gen_container(app_name, container):
-    image = lookup_sexp(container, "image")[0]
+    definitions_dir = os.path.dirname(definitions[app_name])
+    try:
+        image = lookup_sexp(container, "image")[0]
+        podman_pull(image)
+    except KeyError:
+        image = lookup_sexp(container, "build")[0]
+        podman_build(image, definitions_dir)
+
     try:
         volumes = lookup_sexp(container, "volumes")
-    except:
+    except KeyError:
         volumes = []
     container_name = lookup_sexp(container, "name")[0]
 
     # volumes
     volume_mapping = {}
     app_data_dir = os.path.join(app_dir, app_name)
-    definitions_dir = os.path.dirname(definitions[app_name])
     for name, container_path in volumes:
         # check if name is found in definitions_path
         # if so copy it to app_data_dir
