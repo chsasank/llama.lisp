@@ -7,11 +7,15 @@
             (name "vllm")
             (build "localhost/johnaic/vllm:0.6.2")
             (environment
-                ("HF_TOKEN" ""))
+                ("HF_TOKEN" "")
+                ("MY_MODEL" "neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8")
+                ("MY_CONTEXT_SIZE" "32768")
+                ("MY_GPU_UTILIZATION" "1.0")
+                ("MY_KV_CACHE_DTYPE" "fp8"))
             (volumes
-                ("models" "/root/.cache/huggingface"))
-            (command
-                "vllm serve --max_model_len 32768 --gpu_memory_utilization 1.0 --kv_cache_dtype=fp8 --disable-log-requests neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8")
+                ("models" "/root/.cache/huggingface")
+                ("init.sh" "/root/init.sh"))
+            (command "bash /root/init.sh")
             (additional-flags "--device nvidia.com/gpu=all"))
         (container
             (name "caddy")
