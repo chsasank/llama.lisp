@@ -1,0 +1,7 @@
+:7861 {
+    basic_auth {
+		# Username "Bob", password "hiccup"
+		{$HTTP_BASIC_AUTH_USER} {$HTTP_BASIC_AUTH_PASSWORD_HASHED}
+	}
+    reverse_proxy localhost:7860
+}

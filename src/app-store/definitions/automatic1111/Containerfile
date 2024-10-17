@@ -1,0 +1,4 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y wget git python3 python3-venv libgl1 libglib2.0-0 google-perftools bc && apt-get clean all
+RUN wget -q https://raw.githubusercontent.com/AUTOMATIC1111/stable-diffusion-webui/refs/tags/v1.10.0/webui.sh -O webui.sh
