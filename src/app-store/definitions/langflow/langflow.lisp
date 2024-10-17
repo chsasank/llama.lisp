@@ -6,6 +6,7 @@
             (container
                 (name "langflow")
                 (image "docker.io/langflowai/langflow:1.0.19")
+                (command "bash /app/init.sh")
                 (environment
                     ("DO_NOT_TRACK" "true")
                     ("LANGFLOW_AUTO_LOGIN"  "False")
@@ -14,7 +15,8 @@
                     ("POSTGRESQL_PASSWORD" ,db-password))
                 (volumes
                     ("langflow-data" "/app/langflow")
-                    ("init.sh" "/app/init.sh")))
+                    ("init.sh" "/app/init.sh")
+                    ("custom_components" "/app/custom_components")))
             (container
                 (name "postgres")
                 (image "docker.io/bitnami/postgresql:17")
@@ -22,5 +24,5 @@
                     ("langflow-postgres" "/bitnami/postgresql"))
                 (environment 
                     ("POSTGRESQL_PASSWORD" ,db-password)
-                    ("POSTGRESQL_USERNAME" "langlow")
+                    ("POSTGRESQL_USERNAME" "langflow")
                     ("POSTGRESQL_DATABASE" "langflow"))))))
