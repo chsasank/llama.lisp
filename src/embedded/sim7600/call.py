@@ -1,6 +1,7 @@
 import serial
 import time
 from audio import USBAudioHandle
+from ai import speech_to_speech_stream, text_to_speech
 
 
 class ATError(Exception):
@@ -73,32 +74,39 @@ with ATHandle() as at:
         at.send(f"AT+CPCMREG=1", expected_out="OK", wait=2)
         
         log("ready")
+        # say hi
+        hi_dub = text_to_speech("Hi, how are you! Welcome to Meta Hackathon. You are speaking to an AI bot")
+        stream = audio.send(hi_dub)
+        while stream.is_active():
+            time.sleep(0.5)
+            at.assert_call_on()
+        
+        log(f"sent {len(hi_dub)/1000} audio")
 
-        for num_iter in range(10):
-            # recieve audio
-            num_sec_listen = 2
-            rec = audio.receive(num_sec_listen)
-            log(f"recieved audio with {rec.dBFS}")
-            while True:
-                at.assert_call_on()
-                rec_chunk = audio.receive(num_sec_listen)
-                log(f"recieved audio chunk again with {rec_chunk.dBFS}")
-                if audio.is_silent(rec_chunk):
-                    log("this is silent chunk") 
-                    break
-                else:
-                    rec = rec + rec_chunk
+        # recieve audio
+        num_sec_listen = 2
+        rec = audio.receive(num_sec_listen)
+        log(f"recieved audio with {rec.dBFS}")
+        while True:
+            at.assert_call_on()
+            rec_chunk = audio.receive(num_sec_listen)
+            log(f"recieved audio chunk again with {rec_chunk.dBFS}")
+            if audio.is_silent(rec_chunk):
+                log("this is silent chunk") 
+                break
+            else:
+                rec = rec + rec_chunk
 
-            rec.export(f'rec_{num_iter}.mp3', format='mp3')
-            log(f"now sending {len(rec)/1000} audio with {rec.dBFS}")
-
+        rec.export("rec_0.mp3", format="mp3")
+        log(f"recieved total {len(rec)/1000}s audio with {rec.dBFS}")
+        for to_send in speech_to_speech_stream(rec):
             # send audio
-            stream = audio.send(rec)
+            stream = audio.send(to_send)
             while stream.is_active():
                 time.sleep(0.5)
                 at.assert_call_on()
             
-            log(f"sent {len(rec)/1000} audio")
+            log(f"sent {len(to_send)/1000} audio")
 
         at.send("AT+CHUP", expected_out="OK")
         at.send(f"AT+CPCMREG=0", expected_out="OK")
