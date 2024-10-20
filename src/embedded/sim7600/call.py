@@ -1,7 +1,7 @@
 import serial
 import time
 from audio import USBAudioHandle
-from ai import speech_to_speech_stream, text_to_speech
+from ai import chat_stream, text_to_speech, speech_to_text
 
 
 class ATError(Exception):
@@ -61,7 +61,7 @@ class ATHandle():
             raise ATError("Call ended")
 
 
-phone_number = "9892727514"
+phone_number = "7019295600"
 now = time.time()
 
 def log(msg):
@@ -75,38 +75,47 @@ with ATHandle() as at:
         
         log("ready")
         # say hi
-        hi_dub = text_to_speech("Hi, how are you! Welcome to Meta Hackathon. You are speaking to an AI bot")
-        stream = audio.send(hi_dub)
-        while stream.is_active():
-            time.sleep(0.5)
-            at.assert_call_on()
-        
+        system_msg = "Hi, how are you! Welcome to Meta Hackathon. You are speaking to an AI bot. How can I help you?"
+        hi_dub = text_to_speech(system_msg)
+        stream = audio.send(hi_dub, verify_callback=at.assert_call_on)
         log(f"sent {len(hi_dub)/1000} audio")
 
-        # recieve audio
-        num_sec_listen = 2
-        rec = audio.receive(num_sec_listen)
-        log(f"recieved audio with {rec.dBFS}")
-        while True:
-            at.assert_call_on()
-            rec_chunk = audio.receive(num_sec_listen)
-            log(f"recieved audio chunk again with {rec_chunk.dBFS}")
-            if audio.is_silent(rec_chunk):
-                log("this is silent chunk") 
-                break
-            else:
-                rec = rec + rec_chunk
+        messages = [
+            {"role": "system", 
+            "content": "You are a helpful assistant speaking to a user on a phone call. Keep your response crisp and short and say 'over' after your response."},
+            {"role": "assistant", "content": system_msg}
+        ]
 
-        rec.export("rec_0.mp3", format="mp3")
-        log(f"recieved total {len(rec)/1000}s audio with {rec.dBFS}")
-        for to_send in speech_to_speech_stream(rec):
-            # send audio
-            stream = audio.send(to_send)
-            while stream.is_active():
-                time.sleep(0.5)
+        for num_iter in range(10):
+            #######
+            # recieve audio
+            num_sec_listen = 2
+            rec = audio.receive(num_sec_listen)
+            log(f"recieved audio with {rec.dBFS}")
+            while True:
                 at.assert_call_on()
-            
-            log(f"sent {len(to_send)/1000} audio")
+                rec_chunk = audio.receive(num_sec_listen)
+                log(f"recieved audio chunk again with {rec_chunk.dBFS}")
+                if audio.is_silent(rec_chunk):
+                    log("this is silent chunk") 
+                    break
+                else:
+                    rec = rec + rec_chunk
+            log(f"recieved total {len(rec)/1000}s audio with {rec.dBFS}")
+            prompt = speech_to_text(rec)
+
+            messages.append({"role": "user", "content": prompt})
+
+            #######
+            # send audio
+            txt_output = ""
+            log(f"messages: {messages}")
+            for to_send, txt_out in chat_stream(messages):
+                stream = audio.send(to_send, verify_callback=at.assert_call_on)
+                txt_output = txt_output + txt_out
+                log(f"sent {len(to_send)/1000} audio")
+
+            messages.append({"role": "assistant", "content": txt_output})
 
         at.send("AT+CHUP", expected_out="OK")
         at.send(f"AT+CPCMREG=0", expected_out="OK")

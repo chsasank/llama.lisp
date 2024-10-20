@@ -3,8 +3,6 @@ import time
 from pydub import AudioSegment
 from pydub.silence import detect_leading_silence
 import io
-import pyaudio
-import time
 
 #     audio = AudioSegment.from_file(mp3_fname, format="mp3").low_pass_filter(1000)
 #     raw_audio.export(mp3_fname, format="mp3")
@@ -32,7 +30,6 @@ def pcm2dub(pcm_data):
 class USBAudioHandle():
     def __init__(self):
         self.ser = None
-        self.pyaudio = pyaudio.PyAudio()
         self.stream_out = None
         self.stream_in = None
 
@@ -52,37 +49,39 @@ class USBAudioHandle():
         except:
             pass
 
-        self.pyaudio.terminate()
 
-    def send(self, audio):
+    def send(self, audio, verify_callback):
         self.ser.reset_input_buffer()
         self.ser.reset_output_buffer()
 
         pcm_data = dub2pcm(audio)
         pcm_data.seek(0)
 
-        # Callback function for PyAudio
-        def callback(in_data, frame_count, time_info, status):
-            chunk = pcm_data.read(frame_count * 2)  # 2 bytes per frame (16-bit)
+       # Set parameters for audio data handling
+        chunk_size = 1024  # Bytes per chunk (frames_per_buffer * sample_width)
+        sample_rate = 8000  # Sample rate in Hz (samples per second)
+        frame_duration = chunk_size / (sample_rate * 2)  # 2 bytes per sample (16-bit PCM)
+
+        # Loop through PCM data, read in chunks, and send to serial port
+        while True:
+            chunk = pcm_data.read(chunk_size)
             if not chunk:
-                return (None, pyaudio.paComplete)
+                break  # End of audio data
 
-            self.ser.write(chunk)  # Write PCM data to serial port
+            # Write PCM data to the serial port
+            start = time.time()
+            self.ser.write(chunk)
             self.ser.flush()
-            return (chunk, pyaudio.paContinue)
+            verify_callback()
+            elapsed = time.time() - start
+            remaining = frame_duration - elapsed
 
-        # Open an output stream to play the audio (through the serial interface)
-        self.stream_out = self.pyaudio.open(
-            format=pyaudio.paInt16,  # 16-bit PCM
-            channels=1,  # Mono
-            rate=8000,  # Sample rate (8000 Hz)
-            output=True,  # Output stream
-            frames_per_buffer=1024,  # Buffer size
-            stream_callback=callback)  # Use callback
+            # Sleep to synchronize the data rate (simulate real-time audio processing)
+            time.sleep(remaining)
 
-        # Start the stream
-        self.stream_out.start_stream()
-        return self.stream_out
+        print("Finished sending audio")
+
+
 
     def receive(self, num_secs):
         self.ser.reset_input_buffer()
