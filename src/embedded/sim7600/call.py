@@ -61,7 +61,7 @@ class ATHandle():
             raise ATError("Call ended")
 
 
-phone_number = "7019295600"
+phone_number = "7060060523"
 now = time.time()
 
 def log(msg):
@@ -75,14 +75,14 @@ with ATHandle() as at:
         
         log("ready")
         # say hi
-        system_msg = "Hi, how are you! Welcome to Meta Hackathon. You are speaking to an AI bot. How can I help you?"
+        system_msg = "Hi, how are you! Welcome to Aashirvaad Electronics. We sell mobile phones and laptops. You are speaking to an AI bot built on top of Meta LLama. How can I help you?"
         hi_dub = text_to_speech(system_msg)
         stream = audio.send(hi_dub, verify_callback=at.assert_call_on)
         log(f"sent {len(hi_dub)/1000} audio")
 
         messages = [
             {"role": "system", 
-            "content": "You are a helpful assistant speaking to a user on a phone call. Keep your response crisp and short and say 'over' after your response."},
+            "content": "You are a helpful assistant speaking to a user on a phone call answering electronic product queries. Keep your response crisp and short and say 'over' after your response."},
             {"role": "assistant", "content": system_msg}
         ]
 
