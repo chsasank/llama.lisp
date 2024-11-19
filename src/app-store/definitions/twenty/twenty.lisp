@@ -13,7 +13,8 @@
                 (image "twentycrm/twenty:v0.31.2")
                 (volumes
                     ("server-local-data" "/app/packages/twenty-server/.local-storage")
-                    ("docker-data" "/app/docker-data"))
+                    ("docker-data" "/app/docker-data")
+                    ("entrypoint.sh" "/app/entrypoint.sh"))
                 (environment
                     ("PORT" "3000")
                     ("PG_DATABASE_URL" "postgres://twenty:twenty@localhost:5432/default")
