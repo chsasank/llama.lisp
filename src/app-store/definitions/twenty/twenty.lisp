@@ -56,6 +56,7 @@
                 (volumes
                     ("server-local-data" "/mnt/server-local-data")
                     ("docker-data" "/mnt/docker-data")
+                    ("entrypoint.sh" "/mnt/entrypoint.sh")
                     ("init_worker.sh" "/mnt/init_worker.sh")))
             (container
                 (name "db")
