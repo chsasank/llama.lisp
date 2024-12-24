@@ -58,3 +58,16 @@ def arr_idx(arr, ld_size, i, j):
 
 def muladd(c, a, b):
     return ("store", c, ("fadd", ("load", c), ("fmul", ("load", a), ("load", b))))
+
+
+def release_info_string(version, *, compiler=None, date=None):
+    release_info = ["Llama.lisp Test Suite"]
+
+    if version is not None:
+        release_info.append(f"Version: {version[1]}")
+    if compiler is not None:
+        release_info.append(f"Compiler: {compiler[1]}")
+    if date is not None:
+        release_info.append(f"Date: {date[1]}")
+
+    return ("string", " | ".join(release_info))
