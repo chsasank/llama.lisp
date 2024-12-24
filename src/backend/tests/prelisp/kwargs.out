@@ -1,0 +1,5 @@
+(define ((main int))
+  (call printf
+        "Llama.lisp Test Suite | Version: v0.1 | Compiler: Llama.lisp/LLVM | Date: 2024/12/23")
+  (call printf
+        "Llama.lisp Test Suite | Version: v0.1 | Date: 2024/12/23"))
