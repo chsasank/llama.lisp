@@ -2,7 +2,7 @@
     (version "3.3")
     (ports 3000 3001)
     (let ((postgres_password ,(gen-password))
-           (encryption_secret "ltFmwyXgwtJL9hpkCnNFCQPJil4TEvOE"))
+          (encryption_secret "ltFmwyXgwtJL9hpkCnNFCQPJil4TEvOE"))
         (containers
             (container 
                 (name "typebot-db")
@@ -20,7 +20,7 @@
                     ("ENCRYPTION_SECRET" ,encryption_secret)
                     ("NEXTAUTH_URL" "http://localhost:3000")
                     ("NEXT_PUBLIC_VIEWER_URL" "http://localhost:3001")
-                    ("ADMIN_EMAIL" "adithya@von-neumann.ai")
+                    ("ADMIN_EMAIL" "add_your_own_email")
                     ("GITHUB_CLIENT_ID" Ov23li8KcJjvL7T6MMiO)
                     ("GITHUB_CLIENT_SECRET" 151223278974fbe515da04fbcda1f3740c28f53f)
                     ("NEXT_PUBLIC_PARTYKIT_HOST" "localhost:1999")))
@@ -38,10 +38,6 @@
                     ("NEXT_PUBLIC_VIEWER_URL" "https://localhost:3001")
                     ("GITHUB_CLIENT_ID" Ov23li8KcJjvL7T6MMiO)
                     ("GITHUB_CLIENT_SECRET" 151223278974fbe515da04fbcda1f3740c28f53f)
-                    ("ADMIN_EMAIL" "adithya@von-neumann.ai")
+                    ("ADMIN_EMAIL" "add_your_own_email")
                     ("NEXT_PUBLIC_PARTYKIT_HOST" "localhost:1999"))))))  
 
-;(volumes 
-;                    ("init.sh" "app/init.sh"))
-;                (entrypoint "/bin/bash")
-;                (command "app/init.sh")
