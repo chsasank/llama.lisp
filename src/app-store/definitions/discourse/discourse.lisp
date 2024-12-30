@@ -7,7 +7,9 @@
           (db-name "bitnami_discourse")
           (redis-password ,(gen-password))
           (discourse-image "docker.io/bitnami/discourse:3.3.2")
-          (discourse-host "www.example.com"))
+          (discourse-host ,(interactive-input "Where is this going to be deployed?" "Example: www.example.com"))
+          (discourse-user "admin")
+          (discourse-password ,(gen-password)))
         (containers
             (container
                 (name "postgresql")
@@ -31,6 +33,8 @@
                 (volumes
                     ("discourse_data" "/bitnami/discourse"))
                 (environment
+                    ("DISCOURSE_USERNAME" ,discourse-user)
+                    ("DISCOURSE_PASSWORD" ,discourse-password)
                     ("DISCOURSE_HOST" ,discourse-host)
                     ("DISCOURSE_DATABASE_HOST" "localhost")
                     ("DISCOURSE_DATABASE_PORT_NUMBER" 5432)
@@ -47,6 +51,8 @@
                     ("sidekiq_data" "/bitnami/discourse"))
                 (command "/opt/bitnami/scripts/discourse-sidekiq/run.sh")
                 (environment
+                    ("DISCOURSE_USERNAME" ,discourse-user)
+                    ("DISCOURSE_PASSWORD" ,discourse-password)
                     ("DISCOURSE_HOST" ,discourse-host)
                     ("DISCOURSE_DATABASE_HOST" "localhost")
                     ("DISCOURSE_DATABASE_PORT_NUMBER" 5432)

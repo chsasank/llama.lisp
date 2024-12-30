@@ -5,7 +5,7 @@
     (containers
         (container
             (name "ollama")
-            (image "docker.io/ollama/ollama:0.3.12")
+            (image "docker.io/ollama/ollama:0.4.1")
             (volumes
                 ("models" "/root/.ollama"))
             (additional-flags "--device nvidia.com/gpu=all"))
