@@ -25,6 +25,18 @@ def parse_sexp(sexp_data):
     return output
 
 
+def generate_sexp(sexp_list):
+    generator_file = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "json-sexp.scm"
+    )
+    cmd = ["guile", generator_file]
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, input=json.dumps(sexp_list), text=True, check=True
+    )
+    output = result.stdout
+    return output
+
+
 def parse_systemd(service_file):
     """Systemd syntax parser. Have not found any utlity to make this easy.
 
