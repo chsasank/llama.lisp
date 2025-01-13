@@ -2,7 +2,7 @@
     (version "1")
     (ports 3000)
     (let ((postgres_password ,(gen-password))
-          (server-name ,(interactive-input "enter your mattermost domain address/server address without ending it with a '/'"))) 
+          (server-name ,(interactive-input "Example: https://mattermost.von-neumann.ai" "Enter your exposed mattermost domain address"))) 
         (containers 
             (container
                 (name "outline")
@@ -10,7 +10,7 @@
                 (volumes
                     ("storage-data" "/var/lib/outline/data"))
                 (environment 
-                    ("URL" ,(interactive-input "URL of the publicly exposed outline address ")) 
+                    ("URL" ,(interactive-input  "Example: https://wiki.johnaic.com" "URL of the exposed outline address")) 
                     ("PGSSLMODE" disable)
                     ("NODE_ENV" "production")
                     ("SECRET_KEY" ,(gen-password-hex32))
@@ -29,7 +29,7 @@
                     ("RATE_LIMITER_ENABLED" true)
                     ("RATE_LIMITER_REQUESTS" 1000)
                     ("RATE_LIMITER_DURATION_WINDOW" 60)
-                    ("OIDC_CLIENT_ID" ,(interactive-input "please enter OIDC_CLIENT_ID for mattermost"))
+                    ("OIDC_CLIENT_ID" ,(interactive-input "For tutorial on how to set the OIDC client_ID using mattermost, look at this guide: https://outline.von-neumann.ai/doc/how-to-use-mattermost-as-oauth-server-xadQpMoyQZ" "please enter OIDC_CLIENT_ID"))
                     ("OIDC_CLIENT_SECRET" ,(interactive-input "please enter OIDC_CLIENT_SECRET for mattermost"))
                     ("OIDC_AUTH_URI" ,(format "{}/oauth/authorize",server-name))
                     ("OIDC_TOKEN_URI" ,(format"{}/oauth/access_token",server-name))
