@@ -23,7 +23,6 @@
                     ("KEYCLOAK_ADMIN_PASSWORD" ,keyclock-password)
                     ("KEYCLOAK_USER" "admin")
                     ("KEYCLOAK_PASSWORD" ,keyclock-password)
-                    ("KC_DB_URL" ,(format "postgresql://postgres:{}@localhost:5432/keycloak " ,db-password))
                     ("KC_DB_USERNAME" "keycloak")
                     ("KC_DB_PASSWORD" ,db-password)
                     ("KC_HEALTH_ENABLED" "true")
