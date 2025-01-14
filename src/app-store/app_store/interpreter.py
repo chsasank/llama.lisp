@@ -21,14 +21,17 @@ def hash_password(password):
     hash = bcrypt.hashpw(bytes, salt)
     return hash.decode()
 
+
 def str_format(fstring, *args):
     return fstring.format(*args)
+
 
 standard_lib = {
     "gen-password": lambda: secrets.token_urlsafe(16),
     "hash-password": hash_password,
     "interactive-input": interactive_input,
-    "format": str_format
+    "format": str_format,
+    "gen-password-hex32": lambda: secrets.token_bytes(32).hex(),
 }
 
 

@@ -14,7 +14,7 @@ with open("/data/config.yaml") as f:
 mautrix_config['homeserver']['address'] = "http://localhost:8008"
 mautrix_config['homeserver']['domain'] = "$SYNAPSE_SERVER_NAME"
 mautrix_config['database']['uri'] = "postgres://mautrix:$MAUTRIX_POSTGRES_PASSWORD@localhost:5433/mautrix?sslmode=disable"
-
+mautrix_config['appservice']['address'] = "http://localhost:29318"
 mautrix_config['bridge']['permissions'] = {
     '*': 'relay', '$SYNAPSE_SERVER_NAME': 'user', '@admin:$SYNAPSE_SERVER_NAME': 'admin'
 }
