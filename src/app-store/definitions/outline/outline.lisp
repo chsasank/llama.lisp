@@ -36,6 +36,13 @@
                     ("OIDC_TOKEN_URI" ,(format"{}/oauth/access_token" ,mattermost-server-name))
                     ("OIDC_USERINFO_URI" ,(format"{}/api/v4/users/me" ,mattermost-server-name))
                     ("OIDC_DISPLAY_NAME" Mattermost)))                 
+            (container
+                (name "init")
+                (image "docker.io/library/ubuntu:22.04")
+                (command "sh /mnt/init_worker.sh")
+                (volumes
+                    ("storage-data" "/var/lib/outline/data")
+                    ("init_worker.sh" "/mnt/init_worker.sh")))
             (container 
                 (name "redis")
                 (image "redis")
