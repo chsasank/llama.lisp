@@ -26,8 +26,12 @@ def str_format(fstring, *args):
     return fstring.format(*args)
 
 
+def gen_password(length=16):
+    return secrets.token_urlsafe(length)
+
+
 standard_lib = {
-    "gen-password": lambda: secrets.token_urlsafe(16),
+    "gen-password": gen_password,
     "hash-password": hash_password,
     "interactive-input": interactive_input,
     "format": str_format,

@@ -219,7 +219,7 @@ def printenv(app_name):
     app_data_dir = os.path.join(app_dir, app_name)
     env_files = glob.glob(os.path.join(app_data_dir, "*.env"))
     for fname in env_files:
-        print(f"==> {os.path.basename(fname)}:")
+        print(f"==> {os.path.abspath(fname)}:")
         with open(fname) as f:
             print(f.read())
 
