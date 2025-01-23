@@ -24,10 +24,11 @@
                     ("data" "/usr/src/paperless/data")
                     ("media" "/usr/src/paperless/media")
                     ("export" "/usr/src/paperless/export")
-                    ("consume" "/usr/src/paperless/consume")) 
+                    ("consume" "/usr/src/paperless/consume"))
                 (environment 
                     ("PAPERLESS_OCR_LANGUAGE" "eng")
                     ("PAPERLESS_ADMIN_USER" "admin")
+                    ("PAPERLESS_URL" ,(interactive-input "Where is this hosted" "This is the external URL. Example: https://paperless.example.com"))
                     ("PAPERLESS_ADMIN_PASSWORD" ,(gen-password))
                     ("PAPERLESS_REDIS" "redis://localhost:6379")
                     ("PAPERLESS_DBPASS" ,db-password)

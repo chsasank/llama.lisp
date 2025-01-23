@@ -2,7 +2,8 @@
     (version "1")
     (ports 3000)
     (let ((postgres_password ,(gen-password))
-          (server-name ,(interactive-input "Example: https://mattermost.von-neumann.ai" "Enter your exposed mattermost domain address"))) 
+          (outline-url ,(interactive-input "Outline URL" "Enter URL of the exposed outline address. Example: https://wiki.johnaic.com")) 
+          (mattermost-server-name ,(interactive-input "Mattermost URL" "Enter your exposed mattermost domain address. We need it for authentication. Example: https://mattermost.von-neumann.ai"))) 
         (containers 
             (container
                 (name "outline")
@@ -10,7 +11,7 @@
                 (volumes
                     ("storage-data" "/var/lib/outline/data"))
                 (environment 
-                    ("URL" ,(interactive-input  "Example: https://wiki.johnaic.com" "URL of the exposed outline address")) 
+                    ("URL" ,outline-url) 
                     ("PGSSLMODE" disable)
                     ("NODE_ENV" "production")
                     ("SECRET_KEY" ,(gen-password-hex32))
@@ -29,12 +30,19 @@
                     ("RATE_LIMITER_ENABLED" true)
                     ("RATE_LIMITER_REQUESTS" 1000)
                     ("RATE_LIMITER_DURATION_WINDOW" 60)
-                    ("OIDC_CLIENT_ID" ,(interactive-input "For tutorial on how to set the OIDC client_ID using mattermost, look at this guide: https://outline.von-neumann.ai/doc/how-to-use-mattermost-as-oauth-server-xadQpMoyQZ" "please enter OIDC_CLIENT_ID"))
-                    ("OIDC_CLIENT_SECRET" ,(interactive-input "please enter OIDC_CLIENT_SECRET for mattermost"))
-                    ("OIDC_AUTH_URI" ,(format "{}/oauth/authorize",server-name))
-                    ("OIDC_TOKEN_URI" ,(format"{}/oauth/access_token",server-name))
-                    ("OIDC_USERINFO_URI" ,(format"{}/api/v4/users/me",server-name))
+                    ("OIDC_CLIENT_ID" ,(interactive-input "OIDC Client ID" "please enter OIDC_CLIENT_ID from mattermost. For tutorial on how to set the OIDC client_ID using mattermost, look at this guide: https://outline.von-neumann.ai/s/f13351f6-801c-4401-ac1b-839e51dd4aa4"))
+                    ("OIDC_CLIENT_SECRET" ,(interactive-input "OIDC Secret"))
+                    ("OIDC_AUTH_URI" ,(format "{}/oauth/authorize" ,mattermost-server-name))
+                    ("OIDC_TOKEN_URI" ,(format"{}/oauth/access_token" ,mattermost-server-name))
+                    ("OIDC_USERINFO_URI" ,(format"{}/api/v4/users/me" ,mattermost-server-name))
                     ("OIDC_DISPLAY_NAME" Mattermost)))                 
+            (container
+                (name "init")
+                (image "docker.io/library/ubuntu:22.04")
+                (command "sh /mnt/init_worker.sh")
+                (volumes
+                    ("storage-data" "/var/lib/outline/data")
+                    ("init_worker.sh" "/mnt/init_worker.sh")))
             (container 
                 (name "redis")
                 (image "redis")
