@@ -37,9 +37,7 @@
                     ("LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE" "true")
                     ("LANGFUSE_S3_MEDIA_UPLOAD_PREFIX" "media/")
                     ("REDIS_HOST" "localhost")
-                    ("REDIS_PORT" "6379")
-
-                    ))
+                    ("REDIS_PORT" "6379")))
             (container
                 (name "web")
                 (image "docker.io/langfuse/langfuse:3.28")
@@ -70,8 +68,7 @@
                     ("LANGFUSE_S3_MEDIA_UPLOAD_PREFIX" "media/")
                     ("REDIS_HOST" "localhost")
                     ("REDIS_PORT" "6379")
-
-                    ; TODO: take input
+                    ; common as above
                     ("NEXTAUTH_URL" ,(interactive-input "Langfuse URL" "Enter the domain address where you want langfuse hosted. Example: https://langfuse.johnaic.com"))
                     ("NEXTAUTH_SECRET" ,(gen-password))))
             (container
