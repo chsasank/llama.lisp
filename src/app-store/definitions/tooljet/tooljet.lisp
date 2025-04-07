@@ -1,0 +1,60 @@
+(define-app
+    (version "3")
+    (ports 3000)
+    (let (("postgres_password" ,(gen-password))
+          ("redis_password" ,(gen-password)))
+        (containers 
+            (container 
+                (name "postgres")
+                (image "docker.io/postgres:13")
+                (volumes
+                    ("postgres" "/var/lib/postgresql/data"))
+                (environment
+                    ("POSTGRES_HOST" "localhost")
+                    ("POSTGRES_DB" "tooljet_production")
+                    ("POSTGRES_USER" "postgres")
+                    ("POSTGRES_PASSWORD" ,postgres_password)))
+            (container
+                (name "Tooljet-app")
+                (image "docker.io/tooljet/tooljet:ee-lts-latest")
+                (environment
+                    ("SERVE_CLIENT" "true")
+                    ("PORT" "3000")
+                    ("TOOLJET_HOST" "http://localhost:37719")
+                    ("LOCKBOX_MASTER_KEY" "15ee70c929e8ca8898998df844e17e474db9c70edea0c665e862ead642532930")
+                    ("SECRET_KEY_BASE" "d57ed7ff03b20c2dbf09190f07df8518c70216fa243af2713234df29e73d182e838c12cee484e2d3cb06efb8e535d5ee9dd09745e472e8670646b0544eb214e3")
+                    ("PG_HOST" "localhost")
+                    ("PG_DB" "tooljet_production")
+                    ("PG_USER" "postgres")
+                    ("PG_PASS" ,postgres_password)
+                    ("PG_PORT" 5432)
+                    ("REDIS_HOST" "localhost")
+                    ("REDIS_PORT" 6379)
+                    ("REDIS_USER" "default")
+                    ("REDIS_PASSWORD" ,redis_password)
+                    ("TOOLJET_DB" "tooljet_db")
+                    ("TOOLJET_DB_HOST" "localhost")
+                    ("TOOLJET_DB_USER" "postgres")
+                    ("TOOLJET_DB_PASS" ,postgres_password)
+                    ("TOOLJET_DB_PORT" "5432")
+                    ("PGRST_JWT_SECRET" "b53a3dc52600d97b106c7687fe9370d86b70b0110a1f7e49f9d196bfe24c3eb3")
+                    ("PGRST_HOST" "localhost")
+                    ("DEFAULT_FROM_EMAIL" "hello@tooljet.io"))
+                    (command "npm run start:prod"))
+            (container 
+                (name "postgrest")
+                (image "docker.io/postgrest/postgrest:v12.2.0")
+                (environment
+                    ("PGRST_DB_URI" ,(format "postgres://postgres:{}@localhost:5432/tooljet_db" ,postgres_password))
+                    ("PGRST_SERVER_PORT" "2000")
+                    ("PGRST_DB_PRE_CONFIG" "postgrest.pre_config")
+                    ("PGRST_JWT_SECRET" "b53a3dc52600d97b106c7687fe9370d86b70b0110a1f7e49f9d196bfe24c3eb3")
+                    ("PGRST_HOST" "localhost")))
+            (container
+                (name "redis")
+                (image "docker.io/redis:6.2")
+                (environment
+                    ("master" "localhost")
+                    ("REDIS_PORT" "6379")
+                    ("REDIS_USER" "default")
+                    ("REDIS_PASSWORD" ,redis_password))))))
