@@ -7,7 +7,7 @@
         (containers 
             (container
                 (name "outline")
-                (image "outlinewiki/outline:0.81.1")
+                (image "docker.io/outlinewiki/outline:0.81.1")
                 (volumes
                     ("storage-data" "/var/lib/outline/data"))
                 (environment 
@@ -45,7 +45,7 @@
                     ("init_worker.sh" "/mnt/init_worker.sh")))
             (container 
                 (name "redis")
-                (image "redis")
+                (image "docker.io/library/redis")
                 (volumes 
                     ("redis.conf" "/redis.conf"))
                 (environment
@@ -54,7 +54,7 @@
                 (command "/redis.conf"))
             (container 
                 (name "postgres")
-                (image "postgres")
+                (image "docker.io/library/postgres")
                 (volumes 
                     ("database-data" "/var/lib/postgresql/data"))
                 (environment 

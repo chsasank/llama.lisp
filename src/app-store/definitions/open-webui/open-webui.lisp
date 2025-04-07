@@ -1,17 +1,17 @@
 (define-app
-    (version "0.3.32")
+    (version "0.5.7")
     (ports 8081 8080)
     (url "https://github.com/open-webui/open-webui/")
     (containers
         (container
             (name "ollama")
-            (image "docker.io/ollama/ollama:0.4.1")
+            (image "docker.io/ollama/ollama:0.5.7")
             (volumes
                 ("models" "/root/.ollama"))
             (additional-flags "--device nvidia.com/gpu=all"))
         (container
             (name "open-webui")
-            (image "ghcr.io/open-webui/open-webui:0.3.32")
+            (image "ghcr.io/open-webui/open-webui:0.5.7")
             (volumes
                 ("open-webui-data" "/app/backend/data"))
             (environment
