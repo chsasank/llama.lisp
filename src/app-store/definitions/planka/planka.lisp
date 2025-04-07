@@ -18,7 +18,6 @@
                     ("DEFAULT_ADMIN_PASSWORD" ,(gen-password))
                     ("DEFAULT_ADMIN_NAME" "Admin Admin")
                     ("DEFAULT_ADMIN_USERNAME" "admin")))
-
             (container
                 (name "init")
                 (image "docker.io/library/ubuntu:22.04")
@@ -27,9 +26,7 @@
                     ("user-avatars" "/app/public/user-avatars")
                     ("project-background-images" "/app/public/project-background-images")
                     ("attachments" "/app/private/attachments")
-                    ("init_worker.sh" "/mnt/init_worker.sh")))
-                    
-
+                    ("init_worker.sh" "/mnt/init_worker.sh")))             
             (container
                 (name "postgres")
                 (image "docker.io/library/postgres:16-alpine")
