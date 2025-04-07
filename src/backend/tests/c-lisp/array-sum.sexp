@@ -1,5 +1,5 @@
 (c-lisp
-    (define ((print int) (n int)))
+    (declare ((print int) (n int)))
 
     (define ((arr_sum int) (a (ptr int)) (n int))
         (declare i int)

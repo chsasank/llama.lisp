@@ -1,5 +1,5 @@
 (c-lisp
-    (define ((print int) (n int)))
+    (declare ((print int) (n int)))
 
     (define ((swap void) (a (ptr int)) (b (ptr int)))
         (declare tmp int)

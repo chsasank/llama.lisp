@@ -1,8 +1,8 @@
 ;; ARGS: 8 23 1 56 2 -5 -2 78 3 -7 -19
 
 (c-lisp
-    (define ((print int) (n int)))
-    (define ((atoi int) (s (ptr int))))
+    (declare ((print int) (n int)))
+    (declare ((atoi int) (s (ptr int))))
 
     (define ((swap void) (a (ptr int)) (b (ptr int)))
         (declare tmp int)
