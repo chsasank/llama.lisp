@@ -88,6 +88,7 @@ def gen_container(app_name, container):
     # volumes
     volume_mapping = {}
     app_data_dir = os.path.join(app_dir, app_name)
+    os.makedirs(app_data_dir, exist_ok=True)
     for name, container_path in volumes:
         # check if name is found in definitions_path
         # if so copy it to app_data_dir
