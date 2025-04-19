@@ -23,6 +23,10 @@ tee frappe_apps.json << END
   {
     "url": "https://github.com/resilient-tech/india-compliance",
     "branch": "version-15"
+  },
+  {
+    "url": "https://github.com/frappe/print_designer",
+    "branch": "v1.5.1"
   }
 ]
 END

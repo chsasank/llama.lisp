@@ -15,5 +15,5 @@ do
     fi
 done;
 echo "sites/common_site_config.json found";
-bench new-site --mariadb-user-host-login-scope='%' --admin-password=$ADMIN_PASSWORD --db-root-username=root --db-root-password=$DB_PASSWORD --install-app erpnext --install-app payments --install-app hrms  --install-app india_compliance --install-app webshop   --set-default frontend;
+bench new-site --mariadb-user-host-login-scope='%' --admin-password=$ADMIN_PASSWORD --db-root-username=root --db-root-password=$DB_PASSWORD --install-app erpnext --install-app payments --install-app hrms --install-app print_designer  --install-app india_compliance --install-app webshop   --set-default frontend;
 tail -f /dev/null
