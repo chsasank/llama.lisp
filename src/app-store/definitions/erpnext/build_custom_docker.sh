@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+cd "$(dirname "$0")"
+
 set -e
 rm -rf build
 mkdir build
