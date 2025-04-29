@@ -10,9 +10,9 @@
         (len int)
         (head (ptr (struct Node))))
 
-    (define ((print int) (n int)))
-    (define ((putchar int) (c int)))
-    (define ((printf int) (s (ptr int))))
+    (declare ((print int) (n int)))
+    (declare ((putchar int) (c int)))
+    (declare ((printf int) (s (ptr int))))
     (define ((str-print void) (s (ptr int)))
         (call printf s)
         (call putchar 10)

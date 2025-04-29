@@ -1,6 +1,6 @@
 (c-lisp
-    (define ((print int) (n int)))
-    (define ((fprint float) (n float)))
+    (declare ((print int) (n int)))
+    (declare ((fprint float) (n float)))
 
     (define ((print-2 void) (n int))
         (call print (load (ptr-to n))))

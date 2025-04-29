@@ -1,5 +1,5 @@
 (c-lisp
-    (define ((puts int) (s (ptr int8))))
+    (declare ((puts int) (s (ptr int8))))
 
     (define ((main void))
         (declare string (ptr int8))

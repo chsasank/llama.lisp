@@ -1,7 +1,7 @@
 (c-lisp
-    (define ((malloc (ptr int)) (bytes int)))
-    (define ((free void) (arr (ptr int))))
-    (define ((print int) (n int)))
+    (declare ((malloc (ptr int)) (bytes int)))
+    (declare ((free void) (arr (ptr int))))
+    (declare ((print int) (n int)))
 
     (define ((index int) (i int) (j int) (len int))
         (ret (add (mul i len) j)))

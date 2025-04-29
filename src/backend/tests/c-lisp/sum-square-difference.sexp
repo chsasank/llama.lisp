@@ -1,5 +1,5 @@
 (c-lisp
-    (define ((print int) (n int)))
+    (declare ((print int) (n int)))
 
     (define ((sum-square-diff int) (n int))
         (declare sum-sq int)

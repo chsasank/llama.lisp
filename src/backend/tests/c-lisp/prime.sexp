@@ -1,6 +1,6 @@
 (c-lisp
-    (define ((print int) (n int)))
-    (define ((square int) (i int))
+    (declare ((print int) (n int)))
+    (declare ((square int) (i int))
         (ret (mul i i)))
 
     (define ((gcd int) (a int) (b int))

@@ -1,9 +1,9 @@
 ;; ARGS: 3 3  1 -1 1  3 -2 -9  2 3 -1
 (c-lisp
-    (define ((print int) (n int)))
-    (define ((fprint float) (n float)))
-    (define ((strtof float) (s (ptr int)) (end int)))
-    (define ((atoi int) (s (ptr int))))
+    (declare ((print int) (n int)))
+    (declare ((fprint float) (n float)))
+    (declare ((strtof float) (s (ptr int)) (end int)))
+    (declare ((atoi int) (s (ptr int))))
 
     (define ((row-op void) (mod (ptr float)) (ref (ptr float)) (len int)) ; mod -> mod - factor*ref
         (declare i int)
