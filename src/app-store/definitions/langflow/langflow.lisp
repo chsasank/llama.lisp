@@ -5,7 +5,7 @@
         (containers
             (container
                 (name "langflow")
-                (image "docker.io/langflowai/langflow:1.0.19")
+                (image "docker.io/langflowai/langflow:1.4.1")
                 (command "bash /app/init.sh")
                 (environment
                     ("DO_NOT_TRACK" "true")
