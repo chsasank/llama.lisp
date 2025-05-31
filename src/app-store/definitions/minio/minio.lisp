@@ -1,5 +1,5 @@
 (define-app
-    (version "1")
+    (version "2025-04-22T22-12-26Z")
     (ports 9000 9001)
     (let ((minio_secret_key ,(gen-password)))
         (containers
