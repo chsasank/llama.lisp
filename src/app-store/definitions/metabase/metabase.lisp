@@ -14,7 +14,7 @@
                     ("POSTGRES_DB" "metabaseappdb")))
             (container
                 (name "metabase")
-                (image "docker.io/metabase/metabase:v0.53.5.2")
+                (image "docker.io/metabase/metabase:v0.55.4.4")
                 (environment
                    ("MB_DB_TYPE" "postgres")
                    ("MB_DB_DBNAME" "metabaseappdb")

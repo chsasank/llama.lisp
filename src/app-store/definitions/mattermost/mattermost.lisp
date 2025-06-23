@@ -16,7 +16,7 @@
                     ("POSTGRES_PASSWORD" ,db-password)))
             (container
                 (name "mattermost")
-                (image "docker.io/mattermost/mattermost-team-edition:9.11.5")
+                (image "docker.io/mattermost/mattermost-team-edition:10.5.8")
                 (volumes
                     ("mattermost/config" "/mattermost/config") 
                     ("mattermost/data" "/mattermost/data")
