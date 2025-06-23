@@ -4,6 +4,8 @@ import glob
 import socket
 import tinydb
 import shutil
+import subprocess
+import datetime
 from parser import (
     parse_sexp,
     generate_systemd,
@@ -31,6 +33,7 @@ definitions = {
 }
 
 app_dir = os.path.join(os.path.expanduser("~"), ".johnny")
+backups_dir = os.path.join(os.path.expanduser("~"), ".backup_johnny")
 os.makedirs(app_dir, exist_ok=True)
 app_db = tinydb.TinyDB(os.path.join(app_dir, "app_db.json"))
 
@@ -225,6 +228,30 @@ def printenv(app_name):
             print(f.read())
 
 
+def backup(app_name):
+    if app_name == "all":
+        for app in app_db.all():
+            backup(app['name'])
+    else:
+        print(f"==> backing up {app_name}")
+        app_data_dir = os.path.join(app_dir, app_name)
+        if os.path.isdir(app_data_dir):
+            backup_data_dir = os.path.join(backups_dir, app_name)
+            os.makedirs(backup_data_dir, exist_ok=True)
+            now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+            
+            cmd = [
+                "podman", "run", "--rm", "-it",
+                "-v", f"{app_data_dir}:/data/src/",
+                "-v", f"{backup_data_dir}:/data/tgt/",
+                "-w", "/data/src/",
+                "ubuntu:24.04",
+                "tar", "-czf", f"/data/tgt/backup_{now}.tar.gz", "." 
+            ]
+            subprocess.run(cmd, check=True)
+            print(f"==> {app_name} backed up ✅")
+
+
 def main():
     examples_text = """
 Examples:
@@ -254,6 +281,15 @@ Restart it
 
     johnny restart thelounge
 
+Get logs of an app
+
+    johnny logs thelounge
+
+Backup an app
+
+    johnny backup thelounge
+
+
 """
 
     parser = argparse.ArgumentParser(
@@ -265,7 +301,7 @@ Restart it
     parser.add_argument(
         "action",
         type=str,
-        help="One of install|uninstall|start|stop|restart|ports|printenv|status",
+        help="One of install|uninstall|start|stop|restart|ports|printenv|logs|backup|status",
     )
     parser.add_argument("app_name", type=str, help="Name of the app")
     args = parser.parse_args()
@@ -291,6 +327,8 @@ Restart it
         printenv(app_name)
     elif action == "logs":
         log_units(app_name)
+    elif action == "backup":
+        backup(app_name)
     else:
         raise RuntimeError(f"Unknown action {action}")
 
