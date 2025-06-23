@@ -231,7 +231,7 @@ def printenv(app_name):
 def backup(app_name):
     if app_name == "all":
         for app in app_db.all():
-            backup(app['name'])
+            backup(app["name"])
     else:
         print(f"==> backing up {app_name}")
         app_data_dir = os.path.join(app_dir, app_name)
@@ -239,14 +239,23 @@ def backup(app_name):
             backup_data_dir = os.path.join(backups_dir, app_name)
             os.makedirs(backup_data_dir, exist_ok=True)
             now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-            
+
             cmd = [
-                "podman", "run", "--rm", "-it",
-                "-v", f"{app_data_dir}:/data/src/",
-                "-v", f"{backup_data_dir}:/data/tgt/",
-                "-w", "/data/src/",
+                "podman",
+                "run",
+                "--rm",
+                "-it",
+                "-v",
+                f"{app_data_dir}:/data/src/",
+                "-v",
+                f"{backup_data_dir}:/data/tgt/",
+                "-w",
+                "/data/src/",
                 "ubuntu:24.04",
-                "tar", "-czf", f"/data/tgt/backup_{now}.tar.gz", "." 
+                "tar",
+                "-czf",
+                f"/data/tgt/backup_{now}.tar.gz",
+                ".",
             ]
             subprocess.run(cmd, check=True)
             print(f"==> {app_name} backed up ✅")
