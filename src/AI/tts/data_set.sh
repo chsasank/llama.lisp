@@ -8,7 +8,7 @@ bzip2 -d "$filename"
 pip install html2text wikitextparser
 mkdir extracted_data
 
-#creating the below directory for voices to be stored
+creating the below directory for voices to be stored
 mkdir generated_tts
 python dewiki_functions.py
-python 
+python data_to_model.py

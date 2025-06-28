@@ -10,6 +10,7 @@ def dewiki(text):
     text = htt(text)  # remove any HTML
     text = text.replace('\\n',' ')  # replace newlines
     text = re.sub('\s+', ' ', text)  # replace excess whitespace
+    text = re.sub('=+', "=", text) ##
     return text
 
 
@@ -51,7 +52,7 @@ def process_file_text(filename, savedir):
             elif '</page>' in line:  # end of article
                 Thread(target=save_article, args=(article, savedir)).start()
             else:
-                article += line                
+                article += line
 
 if __name__ == "__main__":
 	filename = glob.glob('*.xml')
