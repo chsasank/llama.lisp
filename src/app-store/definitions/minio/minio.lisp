@@ -12,3 +12,4 @@
                     ("MINIO_ROOT_USER" "root")
                     ("MINIO_ROOT_PASSWORD" ,minio_secret_key))
                 (command "server /data --console-address ':9001'")))))
+                

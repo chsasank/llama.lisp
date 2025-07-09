@@ -1,15 +1,8 @@
-#!pip install --upgrade --quiet pip
-#pip install -U 'protobuf>=3.4.0'
-#!pip install --upgrade --quiet datasets[audio] accelerate evaluate jiwer tensorboard gradio
-#!pip install transformers==4.48.0
 
-#
 import pkg_resources
 import os
 pkg_resources.require("transformers==4.48.0")
 os.system("pip install -U 'protobuf>=3.4.0'")
-#pkg_resources.require("protobuf==3.4.0")
-#import protobuf 
 import transformers
 from huggingface_hub import notebook_login
 from datasets import load_dataset, DatasetDict
@@ -31,8 +24,7 @@ def sample(ds, percentage=1):
 
     return ds.select(range(int(percentage * len(ds))))
 
-
-os.system("huggingface-cli login --token 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")
+#os.system("huggingface-cli ....." mind that you should be logged into hugging face either through the script or 
 HF_dataset_name = "adithyal1998Bhat/stt_synthetic_kn-IN_kannada"
 common_voice = DatasetDict()
 common_voice["train"] = sample(load_dataset(HF_dataset_name, split="train"))
