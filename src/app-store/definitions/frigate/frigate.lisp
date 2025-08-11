@@ -11,6 +11,4 @@
       (volumes
         ("/etc/localtime" "/etc/localtime:ro")
         ("./config" "/config")
-        ("./storage" "/media/frigate"))
-      (environment
-        (FRIGATE_RTSP_PASSWORD "password")))))
+        ("./storage" "/media/frigate"))))))
