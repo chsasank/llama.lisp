@@ -4,7 +4,7 @@
   (containers
     (container
       (name "frigate")
-      (image "ghcr.io/blakeblackshear/frigate:stable")
+      (image "ghcr.io/blakeblackshear/frigate:0.15.2-tensorrt")
       (volumes
         ("/etc/localtime" "/etc/localtime:ro")
         ("config" "/config")
