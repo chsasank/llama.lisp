@@ -63,7 +63,7 @@ class ModelArguments:
         metadata={"help": "Generation max length."},
     )
     bandwidth: float = field(
-        default=6,
+        default=None,
         metadata={"help": "Audio encoder bandwidth."},
     )
     asr_model_name_or_path: str = field(
