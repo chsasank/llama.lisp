@@ -14,3 +14,7 @@ python clean.py /tmp/tts_data/
 
 3. Generate Google TTS
 
+```
+cd ../google_tts
+
+```
