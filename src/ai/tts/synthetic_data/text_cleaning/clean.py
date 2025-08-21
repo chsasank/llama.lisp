@@ -78,7 +78,6 @@ def cleaned_prompt_dataset(dataset):
             count = count + 1
         else:
             clean_data.append(clean_text(text))
-    print("total sentences with URL", count)
     return clean_data
 
 
