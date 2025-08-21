@@ -75,7 +75,7 @@ if __name__ == "__main__":
         data_set_list = json.load(f)
 
     # max data to generate
-    max_duration_in_seconds = 1 * 60 * 60
+    max_duration_in_seconds = 23 * 60 * 60
 
     # Enter the language . For example for kannada it is kn-IN, for Telugu it is te-IN"
     language_code = "kn-IN"
@@ -141,9 +141,5 @@ if __name__ == "__main__":
             data_dir, "hf_dataset/tts_num_numerized_{language_code}_{language_name}"
         )
     )
-    # ds.push_to_hub(
-    #     f"adithyal1998Bhat/tts_num_numerized_{language_code}_{language_name}"
-    # )
-    # HF_dataset_name = (
-    #     f"adithyal1998Bhat/tts_num_numerized_{language_code}_{language_name}"
-    # )
+    ds.push_to_hub("chsasank/tts_kn_large")
+

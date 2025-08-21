@@ -16,5 +16,5 @@ python clean.py /tmp/tts_data/
 
 ```
 cd ../google_tts
-
+python generate.py /tmp/tts_data/
 ```

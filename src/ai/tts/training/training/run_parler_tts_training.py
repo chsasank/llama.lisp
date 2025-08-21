@@ -299,6 +299,8 @@ def main():
                     raw_datasets["eval"] = (
                         raw_datasets["eval"].shuffle(seed=training_args.seed).select(range(data_args.max_eval_samples))
                     )
+            
+        print("raw datasets", raw_datasets)
 
     # 3. Next, let's load the config.
     config = ParlerTTSConfig.from_pretrained(
@@ -986,6 +988,8 @@ def main():
         return output_audios
 
     model.train()
+
+    print("vectorized datasets", vectorized_datasets)
 
     total_batched_samples = resume_step if resume_step is not None else 0
     for epoch in range(epochs_trained, num_epochs):
