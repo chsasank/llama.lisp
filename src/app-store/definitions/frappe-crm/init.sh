@@ -25,7 +25,7 @@ sleep 10
 bench new-site ${SITENAME} \
   --db-host localhost \
   --db-port 3306 \
-  --db-name frappe_crm \
+  --db-name "$DB_USER" \
   --db-root-username root \
   --db-root-password "$MYSQL_ROOT_PASSWORD" \
   --admin-password "$ADMIN_PASSWORD" \

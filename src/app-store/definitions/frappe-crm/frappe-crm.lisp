@@ -1,12 +1,12 @@
 (define-app
-    (ports 8080 3306)
+    (ports 8080)
     (let ((frappe-image-name "ghcr.io/frappe/crm:stable")
           (admin-password ,(gen-password))
           (db-password ,(gen-password))
           (sql-password ,(gen-password))
-          (db-user ("crm_user"))
+          (db-user "frappe_crm")
           (mysql-database "crm_database")
-          (sitename "testingfrappe.von-neumann.ai"))
+          (sitename ,(interactive-input "Sitename: " "Enter the sitename . Example: johnaic.com")))
         (containers
             (container
                 (name "frontend")
@@ -38,7 +38,6 @@
             (container
                 (name "mariadb")
                 (image "mariadb:10.6")
-                (ports 3306)
                 (volumes
                     ("db-data" "/var/lib/mysql"))
                 (environment
