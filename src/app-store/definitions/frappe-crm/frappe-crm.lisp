@@ -1,12 +1,12 @@
 (define-app
     (ports 8080)
-    (let ((frappe-image-name "ghcr.io/frappe/crm:stable")
+    (let ((frappe-image-name "ghcr.io/frappe/crm:v15")
           (admin-password ,(gen-password))
           (db-password ,(gen-password))
           (sql-password ,(gen-password))
           (db-user "frappe_crm")
           (mysql-database "crm_database")
-          (sitename ,(interactive-input "Sitename: " "Enter the sitename . Example: johnaic.com")))
+          (sitename ,(interactive-input "Sitename: " "Enter the sitename. Example: crm.johnaic.com")))
         (containers
             (container
                 (name "frontend")
