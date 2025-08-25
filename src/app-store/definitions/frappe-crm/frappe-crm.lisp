@@ -15,7 +15,7 @@
                     ("sites-data" "/home/frappe/frappe-bench/sites"))
                 (command "nginx-entrypoint.sh")
                 (environment
-                    ("BACKEND" "systemd-frappe-crm-backend:8000")
+                    ("BACKEND" "localhost:8000")
                     ("FRAPPE_SITE_NAME_HEADER" ,sitename)
                     ("SOCKETIO_PORT" "9000")))
             
