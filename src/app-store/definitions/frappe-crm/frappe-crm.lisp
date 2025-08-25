@@ -1,33 +1,108 @@
 (define-app
-  (version "3.7")
-  (ports 8000)
-  (let ((db-password ,(gen-password))
-          (admins-password ,(gen-password)))
-    (containers
-      (container
-        (name "mariadb")
-        (image "mariadb:10.8")
-        (command 
-            "--character-set-server=utf8mb4"
-            "--collation-server=utf8mb4_unicode_ci"
-            "--skip-character-set-client-handshake"
-            "--skip-innodb-read-only-compressed")
-        (environment
-          ("MYSQL_ROOT_PASSWORD" ,db-password))
-        (volumes
-          ("mariadb-data" "/var/lib/mysql")))
+    (ports 8080 3306)
+    (let ((frappe-image-name "ghcr.io/frappe/crm:stable")
+          (admin-password ,(gen-password))
+          (db-password ,(gen-password))
+          (sql-password ,(gen-password))
+          (db-user ("crm_user"))
+          (mysql-database "crm_database")
+          (sitename "testingfrappe.von-neumann.ai"))
+        (containers
+            (container
+                (name "frontend")
+                (image ,frappe-image-name)
+                (volumes
+                    ("sites-data" "/home/frappe/frappe-bench/sites"))
+                (command "nginx-entrypoint.sh")
+                (environment
+                    ("BACKEND" "systemd-frappe-crm-backend:8000")
+                    ("FRAPPE_SITE_NAME_HEADER" ,sitename)
+                    ("SOCKETIO_PORT" "9000")))
+            
+            (container
+                (name "backend")
+                (image ,frappe-image-name)
+                (volumes
+                    ("sites-data" "/home/frappe/frappe-bench/sites"))
+                (environment
+                    ("SITENAME" ,sitename)
+                    ("DB_HOST" "localhost")
+                    ("DB_PORT" "3306")
+                    ("DB_USER" ,db-user)
+                    ("DB_PASSWORD" ,sql-password)
+                    ("MYSQL_ROOT_PASSWORD" ,db-password)
+                    ("ADMIN_PASSWORD" ,admin-password)
+                    ("REDIS_CACHE" "redis://localhost:6379")
+                    ("REDIS_QUEUE" "redis://localhost:6380")))
+            
+            (container
+                (name "mariadb")
+                (image "mariadb:10.6")
+                (ports 3306)
+                (volumes
+                    ("db-data" "/var/lib/mysql"))
+                (environment
+                    ("MYSQL_ROOT_PASSWORD" ,db-password)
+                    ("MYSQL_DATABASE" ,mysql-database)
+                    ("MYSQL_USER" ,db-user)
+                    ("MYSQL_PASSWORD" ,sql-password)
+                    ("ADMIN_PASSWORD" ,admin-password)))
 
-      (container
-        (name "redis")
-        (image "redis:alpine"))
+            (container
+                (name "redis-cache")
+                (image "redis:6.2-alpine"))
+            
+            (container
+                (name "redis-queue")
+                (image "docker.io/redis:6.2-alpine")
+                (command "redis-server --port 6380"))
 
-      (container
-        (name "frappe")
-        (image "frappe/bench:latest")
-        (command "bash /workspace/init.sh")
-        (environment
-          ("SHELL" "/bin/bash")
-          ("MYSQL_ROOT_PASSWORD" ,db-password)
-          ("ADMIN_PASSWORD" ,admins-password))
-        (volumes
-          ("init.sh" "/workspace/init.sh"))))))
+            (container
+                (name "scheduler")
+                (image ,frappe-image-name)
+                (command "bench schedule")
+                (volumes
+                    ("sites-data" "/home/frappe/frappe-bench/sites"))
+                (environment
+                    ("SITENAME" ,sitename)
+                    ("DB_HOST" "localhost")
+                    ("DB_PORT" "3306")
+                    ("DB_USER" ,db-user)
+                    ("DB_PASSWORD" ,sql-password)
+                    ("REDIS_CACHE" "redis://localhost:6379")
+                    ("REDIS_QUEUE" "redis://localhost:6380")))
+            
+            (container
+                (name "worker")
+                (image ,frappe-image-name)
+                (command "bench worker --queue short,long,default")
+                (volumes
+                    ("sites-data" "/home/frappe/frappe-bench/sites"))
+                (environment
+                    ("SITENAME" ,sitename)
+                    ("DB_HOST" "localhost")
+                    ("DB_PORT" "3306")
+                    ("DB_USER" ,db-user)
+                    ("DB_PASSWORD" ,sql-password)
+                    ("REDIS_CACHE" "redis://localhost:6379")
+                    ("REDIS_QUEUE" "redis://localhost:6380")))
+
+            (container
+                (name "init")
+                (image ,frappe-image-name)
+                (command "bash /app/init.sh")
+                (volumes
+                    ("sites-data" "/home/frappe/frappe-bench/sites")
+                    ("init.sh" "/app/init.sh"))
+                (environment
+                    ("SITENAME" ,sitename)
+                    ("MYSQL_ROOT_PASSWORD" ,db-password)
+                    ("ADMIN_PASSWORD" ,admin-password)))
+                    
+            (container
+                (name "volume")
+                (image "docker.io/library/ubuntu:22.04")
+                (command "sh /mnt/volumes.sh")
+                (volumes
+                    ("sites-data" "/home/frappe/frappe-bench/sites")
+                    ("volumes.sh" "/mnt/volumes.sh"))))))

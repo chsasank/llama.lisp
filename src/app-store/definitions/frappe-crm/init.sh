@@ -1,41 +1,38 @@
-#!bin/bash
+#!/bin/bash
+set -e
 
-if [ -d "/home/frappe/frappe-bench/apps/frappe" ]; then
-    echo "Bench already exists, skipping init"
-    cd frappe-bench
-    bench start
-else
-    echo "Creating new bench..."
-fi
+bash <<'EOF'
+cd /home/frappe/frappe-bench/sites
 
-bench init --skip-redis-config-generation frappe-bench --version version-15
+cat > apps.txt <<EOT
+frappe
+crm
+EOT
 
-cd frappe-bench
+cat > common_site_config.json <<EOT
+{
+  "redis_cache": "redis://localhost:6379",
+  "redis_queue": "redis://localhost:6380"
+}
+EOT
 
-Use containers instead of localhost
-bench set-mariadb-host localhost
-bench set-redis-cache-host redis://localhost:6379
-bench set-redis-queue-host redis://localhost:6379
-bench set-redis-socketio-host redis://localhost:6379
+exit
+EOF
 
+echo "Waiting 10 seconds for services to initialize..."
+sleep 10 
 
+bench new-site ${SITENAME} \
+  --db-host localhost \
+  --db-port 3306 \
+  --db-name frappe_crm \
+  --db-root-username root \
+  --db-root-password "$MYSQL_ROOT_PASSWORD" \
+  --admin-password "$ADMIN_PASSWORD" \
+  --set-default
 
-# Remove redis, watch from Procfile
-sed -i '/redis/d' ./Procfile
-sed -i '/watch/d' ./Procfile
+bench --site ${SITENAME} install-app crm
 
-bench get-app crm --branch main
+bench --site ${SITENAME} enable-scheduler
 
-bench new-site crm.localhost \
-    --force \
-    --mariadb-root-password "$MYSQL_ROOT_PASSWORD" \
-    --admin-password "$ADMIN_PASSWORD" \
-    --no-mariadb-socket
-
-bench --site crm.localhost install-app crm
-bench --site crm.localhost set-config mute_emails 1
-bench --site crm.localhost set-config server_script_enabled 1
-bench --site crm.localhost clear-cache
-bench use crm.localhost
-
-bench start
+tail -f /dev/null
