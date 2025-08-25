@@ -1,4 +1,5 @@
 (define-app
+    (version "15")
     (ports 8080)
     (let ((frappe-image-name "ghcr.io/frappe/crm:v15")
           (admin-password ,(gen-password))
