@@ -33,7 +33,7 @@ def data_set_creation(sentence_list, n_samples):
     data_set_list = []
     random_idxs = random.sample(range(len(sentence_list)), n_samples)
     for sentence_indices in tqdm(
-        random_idxs, desc="creating a mix of 1,2,3 senetences "
+        random_idxs, desc="creating a mix of 1 senetences "
     ):
         sent_length = random.choice([1])
         data_set_list.append(
@@ -129,9 +129,10 @@ def dataset_creation(num_normalized_data, n_samples):
 
     random_idx = random.sample(range(len(num_normalized_data)), n_samples)
     for sentence_idx in random_idx:
+        length_of_sentence = random.choice([1])
         dataset_list.append(
             " ".join(
-                num_normalized_data[sentence_idx]
+                num_normalized_data[sentence_idx : sentence_idx + length_of_sentence],
             ).lstrip()
         )
 
