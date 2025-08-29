@@ -17,7 +17,7 @@ We downloaded the Kannada Wiktionary dump.
 -   Navigate to the dump site:https://dumps.wikimedia.org/
 -   For a list of all available dumps: https://dumps.wikimedia.org/backup-index.html
 -   For Kannada wikipedia (example date 2025-08-01): https://dumps.wikimedia.org/knwiki/20250801/
-    
+-   One of the Kannada .bx2 file is https://dumps.wikimedia.org/knwiki/20250801/knwiki-20250801-pages-articles-multistream.xml.bz2    
 -   Download the .bz2 file, extract it to get XML files containing the raw wiki content.
       
     
@@ -166,6 +166,7 @@ accelerate launch training/run_parler_tts_training.py \
     --do_eval \
     --group_by_length true | tee /tmp/tts_data/logs/exp_final_logs.txt
 ```
+NOTE: Directory /tmp/tts_data has to be created by the user. 
 
 We used Hugging Face’s datasets and transformers libraries to load the dataset and train the model.
 
@@ -185,3 +186,21 @@ We now have a fine-tuned Kannada TTS model capable of generating realistic speec
       
 
 If you want to build your own TTS model in your language, the path is open and doable
+
+
+# Execution
+## Preparing the data
+Run the data_set.sh as shown below. 
+
+```
+bash download_wiki.sh https://dumps.wikimedia.org/knwiki/20250620/knwiki-20250620-pages-articles-multistream.xml.bz2 /tmp/tts_data
+
+```
+
+Here /tmp/tts_data is the directory where the text wikipedia data is downloaded and extracted to. 
+
+Prepare the data
+
+```
+python3 /synthetic_data/text_cleaning/clean.py /tmp/tts_data/
+```
