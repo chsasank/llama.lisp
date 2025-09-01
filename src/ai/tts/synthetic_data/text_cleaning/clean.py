@@ -10,6 +10,11 @@ import soundfile as sf
 import glob, os
 from indicnlp.tokenize import sentence_tokenize
 
+def make_dirs(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+        print(path, "created")
+    
 
 def random_sentences(files_list, sample_size):
     random_files_list = random.sample(files_list, sample_size)
@@ -23,14 +28,14 @@ def random_sentences(files_list, sample_size):
             )
     return sentence_list
 
-
+#the below function data_set_creation is used to create a list of sentences from sentence_list. This is prior to cleaning of the data.
 def data_set_creation(sentence_list, n_samples):
     data_set_list = []
     random_idxs = random.sample(range(len(sentence_list)), n_samples)
     for sentence_indices in tqdm(
-        random_idxs, desc="creating a mix of 1,2,3 senetences "
+        random_idxs, desc="creating a mix of 1 senetences "
     ):
-        sent_length = random.choice([1, 2, 3])
+        sent_length = random.choice([1])
         data_set_list.append(
             " ".join(sentence_list[sentence_indices : sentence_indices + sent_length])
         )
@@ -115,7 +120,7 @@ def num_in_sentence_normalization(clean_data):
         num_normalized_data.append(sentence.lstrip())
     return num_normalized_data
 
-
+#The below function takes random.sample from num_normalized_data
 def dataset_creation(num_normalized_data, n_samples):
     dataset_list = []
     random.seed(a=1000)
@@ -124,10 +129,10 @@ def dataset_creation(num_normalized_data, n_samples):
 
     random_idx = random.sample(range(len(num_normalized_data)), n_samples)
     for sentence_idx in random_idx:
-        length_of_sentence = random.choice([1, 2, 3])
+        length_of_sentence = random.choice([1])
         dataset_list.append(
             " ".join(
-                num_normalized_data[sentence_idx : sentence_idx + length_of_sentence]
+                num_normalized_data[sentence_idx : sentence_idx + length_of_sentence],
             ).lstrip()
         )
 
@@ -145,16 +150,18 @@ if __name__ == "__main__":
     n_sample_sentences = 30000
 
     # sample the wikipedia data
-    data_set_list_json = os.path.join(
+    data_set_file = os.path.join(
         data_dir, "text_cleaning", "data_set_list_kannada_wiki.json"
     )
+
     try:
-        with open(data_set_list_json, "r") as f:
+        with open(data_set_file, "r") as f:
             data_set_list = json.load(f)
     except FileNotFoundError:
+        make_dirs(os.path.join(data_dir, "text_cleaning"))
         sentence_list = random_sentences(files_list, sample_size)
         data_set_list = data_set_creation(sentence_list, n_sample_sentences)
-        with open(data_set_list_json, "w", encoding="utf-8") as f:
+        with open(data_set_file, "w", encoding="utf-8") as f:
             json.dump(data_set_list, f, ensure_ascii=False)
 
     # clean the wikipedia text
