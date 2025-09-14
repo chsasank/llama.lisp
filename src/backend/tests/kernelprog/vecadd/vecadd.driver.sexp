@@ -12,8 +12,26 @@
     ; Wrapper around `printf` from <stdio.h>
     ,printf_signature
 
-    ; Function signatures and type aliases from Numba's CUDA driver
-    ,@(get_cuda_signatures)
+    ; Function signatures and type aliases from cuda.h
+    ,@(include
+        (/usr/local/cuda/include/cuda.h) ; Headers
+        (cuInit
+         cuDeviceGetCount
+         cuDeviceGet
+         cuCtxCreate_v2
+         cuModuleLoadDataEx
+         cuModuleGetFunction
+         cuMemAlloc_v2
+         cuMemcpyHtoD_v2
+         cuLaunchKernel
+         cuCtxSynchronize
+         cuMemcpyDtoH_v2
+         cuMemFree_v2
+         cuModuleUnload
+         cuCtxDestroy_v2) ; Functions
+        () ; Structs
+        (CUcontext CUmodule CUfunction CUstream CUdevice)) ; Typedefs
+
 
     (define ((ref_kernel void) (a (ptr float)) (b (ptr float)) (res (ptr float)) (N int))
         (declare i int)
@@ -46,26 +64,26 @@
         (declare i int)
 
         (declare devCount int)
-        (declare device ,cu_device)
-        (declare context ,cu_context)
-        (declare module ,cu_module)
-        (declare kernel_func ,cu_function)
+        (declare device ,CUdevice)
+        (declare context ,CUcontext)
+        (declare module ,CUmodule)
+        (declare kernel_func ,CUfunction)
 
         ;; CUDA initialization and context creation
         ,(error_check (call cuInit 0))
         ,(error_check (call cuDeviceGetCount (ptr-to devCount)))
         ,(error_check (call cuDeviceGet (ptr-to device) 0))
-        ,(error_check (call cuCtxCreate (ptr-to context) 0 device))
+        ,(error_check (call cuCtxCreate_v2 (ptr-to context) 0 device))
 
         ;; Load the kernel image and get a handle to the kernel function
         (declare kernel_ptx (ptr int8))
         (set kernel_ptx (alloc int8 4000))
         (call read_module kernel_ptx)
         ,(error_check (call cuModuleLoadDataEx
-            ,(void_ptr_to module) kernel_ptx
+            (ptr-to module) kernel_ptx
             ; num options, options, option values
             0 (inttoptr 0 (ptr int)) (inttoptr 0 (ptr (ptr int8)))))
-        ,(error_check (call cuModuleGetFunction ,(void_ptr_to kernel_func) module "kernel"))
+        ,(error_check (call cuModuleGetFunction (ptr-to kernel_func) module "kernel"))
 
         ;; Allocate input and result
         (declare N int) (set N 32)
@@ -94,11 +112,11 @@
         (declare dev_b int64) (set dev_b dev_a)
         (declare dev_res int64) (set dev_res dev_a)
         (declare sz_64 int64) (set sz_64 (sext sz int64))
-        ,(error_check (call cuMemAlloc (ptr-to dev_a) sz_64))
-        ,(error_check (call cuMemAlloc (ptr-to dev_b) sz_64))
-        ,(error_check (call cuMemAlloc (ptr-to dev_res) sz_64))
-        ,(error_check (call cuMemcpyHtoD dev_a (bitcast a ,voidptr) sz_64))
-        ,(error_check (call cuMemcpyHtoD dev_b (bitcast b ,voidptr) sz_64))
+        ,(error_check (call cuMemAlloc_v2 (ptr-to dev_a) sz_64))
+        ,(error_check (call cuMemAlloc_v2 (ptr-to dev_b) sz_64))
+        ,(error_check (call cuMemAlloc_v2 (ptr-to dev_res) sz_64))
+        ,(error_check (call cuMemcpyHtoD_v2 dev_a (bitcast a ,voidptr) sz_64))
+        ,(error_check (call cuMemcpyHtoD_v2 dev_b (bitcast b ,voidptr) sz_64))
 
         ;; Launch the kernel and wait
         ; Array of CUdeviceptr *
@@ -117,11 +135,11 @@
                              ; Block sizes X, Y, Z
                              BlockSize 1 1
                              ; Shared mem size, stream id, kernel params, extra options
-                             0 ,nullptr (bitcast KernelParams (ptr (ptr int8))) (bitcast ,nullptr (ptr (ptr int8)))))
+                             0 (bitcast ,nullptr ,CUstream) (bitcast KernelParams (ptr (ptr int8))) (bitcast ,nullptr (ptr (ptr int8)))))
         ,(error_check (call cuCtxSynchronize))
 
         ;; Retieve and verify results
-        ,(error_check (call cuMemcpyDtoH (bitcast res_device ,voidptr) dev_res sz_64))
+        ,(error_check (call cuMemcpyDtoH_v2 (bitcast res_device ,voidptr) dev_res sz_64))
         (declare max_err float) (set max_err 0.0)
         (for ((set i 0)
               (lt i N)
@@ -138,9 +156,9 @@
         (call free b)
         (call free res_host)
         (call free res_device)
-        ,(error_check (call cuMemFree dev_a))
-        ,(error_check (call cuMemFree dev_b))
-        ,(error_check (call cuMemFree dev_res))
+        ,(error_check (call cuMemFree_v2 dev_a))
+        ,(error_check (call cuMemFree_v2 dev_b))
+        ,(error_check (call cuMemFree_v2 dev_res))
         ,(error_check (call cuModuleUnload module))
-        ,(error_check (call cuCtxDestroy context))
+        ,(error_check (call cuCtxDestroy_v2 context))
         (ret)))
