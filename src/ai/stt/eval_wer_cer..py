@@ -12,8 +12,9 @@ from jiwer import wer, cer
 import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-sample_dataset_size = 10
+sample_dataset_size = 100
 
+#classes for different model
 
 class ASRModel:
     def __init__(self):
@@ -93,7 +94,7 @@ class SpeachesASRModel(ASRModel):
         output = resp.json()
         return output["text"]
 
-
+#classes for different Dataset 
 class ASRDataset:
     def __init__(self):
         pass
@@ -244,20 +245,45 @@ def evaluate_model(asr_model, asr_dataset):
 
 if __name__ == "__main__":
     asr_models = {
-        "finetuned_whispher": WhsiperASRModel(
-            model_path="/home/phoenix/llama/llama.lisp/src/AI/stt/trash/eval/whisper-medium-kn-10ksteps/model"
-        ),
-        "indic_conformer": IndicConformer(model_path="ai4bharat/indic-conformer-600m-multilingual"),
-        "whisper-large-v3": SpeachesASRModel(
-            base_url="http://100.64.0.7:49827",
-            model_name="Systran/faster-whisper-large-v3",
-        ),
-        "whisper-medium-vaani-kannada": WhsiperASRModel(
-            model_path="ARTPARK-IISc/whisper-medium-vaani-kannada"
-        ),
-        "whisper-small-vaani-kannada": WhsiperASRModel(
-            model_path="ARTPARK-IISc/whisper-small-vaani-kannada"
-        )
+        # "finetuned_whispher": WhsiperASRModel(
+        #     model_path="adithyal1998Bhat/whisper-kn"
+        # ),
+        # "indic_conformer": IndicConformer(model_path="ai4bharat/indic-conformer-600m-multilingual"),
+        # # "whisper-large-v3": SpeachesASRModel(
+        # #     base_url="http://100.64.0.7:49827",
+        # #     model_name="Systran/faster-whisper-large-v3",
+        # # ),
+        # "whisper-medium-vaani-kannada": WhsiperASRModel(
+        #     model_path="ARTPARK-IISc/whisper-medium-vaani-kannada"
+        # ),
+        # "whisper-small-vaani-kannada": WhsiperASRModel(
+        #     model_path="ARTPARK-IISc/whisper-small-vaani-kannada"
+        # ),
+        # "base_whisper_50_epochs": WhsiperASRModel(
+        #     model_path="/home/phoenix/tmp_whatever/stt/training/model_output_base_model"
+        # ),
+        # "base_youtube_50_epochs": WhsiperASRModel(
+        #     model_path="/home/phoenix/tmp_whatever/stt/training/model_output1"
+        # ),
+        # "base_youtube_5_epochs": WhsiperASRModel(
+        #     model_path="/home/phoenix/tmp_whatever/stt/training/base_youtube_5_epochs"
+        # ),
+        # "base_whisper_5_epochs": WhsiperASRModel(
+        #     model_path="/home/phoenix/tmp_whatever/stt/training/base_whisper_5_epochs"
+        # ),
+        # "openai/whisper-medium": WhsiperASRModel(
+        #     model_path="openai/whisper-medium"
+        # )
+        # "base_youtube_20_epochs_lr_1e_7": WhsiperASRModel(
+        #      model_path="/home/phoenix/tmp_whatever/stt/training/base_youtube_20_epochs_lr_1e_7"
+        #  ),
+        # "base_youtube_30_epochs_lr_1e_7": WhsiperASRModel(
+        #      model_path="/home/phoenix/tmp_whatever/stt/training/base_youtube_30_epochs_lr_1e_7"
+        #  ),
+        "base_whisper_50_epochs_lr_1e_7": WhsiperASRModel(
+             model_path="/home/phoenix/tmp_whatever/stt/training/base_whisper_50_epochs_lr_1e_7"
+         ),
+
     }
 
     asr_datasets = {
@@ -268,10 +294,10 @@ if __name__ == "__main__":
         "kathbath": KathbathASRDataset("ai4bharat/Kathbath"),
     }
 
-    asr_datasets['youtube_synthetic'].save_samples('recycle/youtube')
+    #asr_datasets['youtube_synthetic'].save_samples('recycle/youtube')
     for dataset_name, asr_dataset in asr_datasets.items():
         for model_name, asr_model in asr_models.items():
             print("model", model_name, "dataset", dataset_name)
             print('========\n'*3)
             error = evaluate_model(asr_model, asr_dataset)
-            print(model_name, dataset_name, error[0], error[1])
+            print(model_name, dataset_name," wer :", error[0]," cer :" ,error[1])
