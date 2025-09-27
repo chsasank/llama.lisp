@@ -13,7 +13,7 @@ def prelisp(expr, module_name):
 
 
 def preprocess(expr, env):
-    if isinstance(expr, list):
+    if isinstance(expr, list) and len(expr) > 0:
         if expr[0] == "unquote":
             assert len(expr) == 2
             return expand_macro(expr[1], env), "append"
@@ -36,13 +36,35 @@ def preprocess(expr, env):
         return expr, "append"
 
 
+def is_keyword_arg(expr):
+    if (
+        isinstance(expr, list)
+        and len(expr)
+        and isinstance(expr[0], str)
+        and expr[0].startswith("#:")
+    ):
+        assert len(expr) == 2, f"Invalid keyword argument: {expr}"
+        return True
+    else:
+        return False
+
+
 def expand_macro(expr, env):
     if isinstance(expr, list):
         fn_name, fn_args = expr[0], expr[1:]
         fn_name = fn_name.replace("-", "_")
         fn = getattr(env, fn_name)
-        fn_args = [preprocess(x, env)[0] for x in fn_args]
-        expr_out = fn(*fn_args)
+
+        fn_posargs, fn_kwargs = [], {}
+        for arg in fn_args:
+            if is_keyword_arg(arg):
+                argname = arg[0][2:]  # Strip the "#:"
+                argval = arg[1]
+                fn_kwargs[argname] = preprocess(argval, env)[0]
+            else:
+                fn_posargs.append(preprocess(arg, env)[0])
+
+        expr_out = fn(*fn_posargs, **fn_kwargs)
         return clean_python_output(expr_out)
     elif isinstance(expr, str):
         var = expr
