@@ -261,6 +261,17 @@ def backup(app_name):
             print(f"==> {app_name} backed up ✅")
 
 
+def list_apps(app_name):
+    if app_name == "installed":
+        for app in app_db.all():
+            print(app["name"])
+    elif app_name == "all":
+        for app_name in definitions:
+            print(app_name)
+    else:
+        show_ports(app_name)
+        status_units(app_name)
+
 def main():
     examples_text = """
 Examples:
@@ -298,6 +309,9 @@ Backup an app
 
     johnny backup thelounge
 
+List installed apps
+
+    johnny list all|installed|thelounge
 
 """
 
@@ -338,6 +352,8 @@ Backup an app
         log_units(app_name)
     elif action == "backup":
         backup(app_name)
+    elif action == "list":
+        list_apps(app_name)
     else:
         raise RuntimeError(f"Unknown action {action}")
 
