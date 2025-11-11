@@ -1,0 +1,16 @@
+services:
+      etcd:
+        image: quay.io/coreos/etcd:v3.4.37
+        ports:
+          - 2379:2379
+          - 2380:2380
+        volumes:
+          - ./etcd-data:/etcd-data
+        command: /usr/local/bin/etcd --data-dir=/etcd-data --name etcd-node-0 --initial-advertise-peer-urls http://192.XXX.XX.XXX:2380 --listen-peer-urls http://0.0.0.0:2380 --advertise-client-urls http://192.XXX.XX.XXX:2379 --listen-client-urls http://0.0.0.0:2379 --initial-cluster etcd-node-0=http://192.XXX.XX.XXX:2380,etcd-node-1=http://192.XXX.XX.XXX:4380,etcd-node-2=http://192.XXX.XX.XXX:6380 --initial-cluster-state new --initial-cluster-token my-etcd-token
+      haproxy:
+        image: haproxy
+        ports:
+          - 7000:7000
+          - 5000:5000
+        volumes:
+          - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
