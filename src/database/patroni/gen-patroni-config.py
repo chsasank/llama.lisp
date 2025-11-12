@@ -139,12 +139,12 @@ def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_po
       - {rest_port}:8008
     volumes:
       - ./patroni.yaml:/patroni.yaml
-      - /{postgres_dir}:/var/lib/postgresql/data
+      - ./{postgres_dir}:/var/lib/postgresql/data
 
   init:
     image: ubuntu
     volumes:
-      - /{postgres_dir}:/data/
+      - ./{postgres_dir}:/data/
     command: bash -c "chown -R 101:103 /data && chmod 700 /data && tail -f /dev/null"
 """
 
