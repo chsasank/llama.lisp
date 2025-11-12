@@ -130,7 +130,7 @@ def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_po
     volumes:
       - ./etcd-data:/etcd-data
 
-  patroni0:
+  patroni:
     image: {PATRONI_IMAGE}
     depends_on:
       - init
@@ -233,14 +233,14 @@ def generate_all():
 
     print("\nAll configuration files have been generated successfully!\n")
     print("Next Steps (Run these commands one by one):\n")
-    print("1️⃣ Build the Patroni image (only required once):")
+    print("1. Build the Patroni image (only required once):")
     print(f"   cd {BASE_DIR} && podman build -t {PATRONI_IMAGE} .\n")
-    print("2️⃣ Start the cluster containers:")
-    print(f"   cd {node0_dir} && podman-compose up -d")
-    print(f"   cd {node1_dir} && podman-compose up -d")
-    print(f"   cd {node2_dir} && podman-compose up -d\n")
-    print("3️⃣ Verify cluster status:")
-    print(f"   podman exec -it node1_patroni0_1 /patroni-venv/bin/patronictl -c /patroni.yaml list\n")
+    print("2. Transfer node dirs to node and start the cluster containers:")
+    print(f"   cd {node0_dir} && podman-compose up -d")    # Run this on the Node0 server
+    print(f"   cd {node1_dir} && podman-compose up -d")    # Run this on the Node1 server
+    print(f"   cd {node2_dir} && podman-compose up -d\n")  # Run this on the Node2 server
+    print("3. Verify cluster status from node1:")
+    print(f"   podman-compose exec -it patroni /patroni-venv/bin/patronictl -c /patroni.yaml list\n")
     print("💡 Tip: If you already built the image once, you can skip Step 1 on future runs.")
 
 
