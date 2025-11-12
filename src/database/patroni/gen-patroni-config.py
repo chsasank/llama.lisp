@@ -2,21 +2,21 @@ from pathlib import Path
 import os
 
 # ---- NODE IPs ----
-NODE0_IP = "192.168.10.178"
-NODE1_IP = "192.168.10.178"
-NODE2_IP = "192.168.10.178"
+NODE0_IP = "192.168.1.1"
+NODE1_IP = "192.168.1.2"
+NODE2_IP = "192.168.1.3"
 
 # ---- etcd ports ----
 ETCD0_CLIENT, ETCD0_PEER = 2379, 2380
-ETCD1_CLIENT, ETCD1_PEER = 4379, 4380
-ETCD2_CLIENT, ETCD2_PEER = 6379, 6380
+ETCD1_CLIENT, ETCD1_PEER = 2379, 2380
+ETCD2_CLIENT, ETCD2_PEER = 2379, 2380
 
 # ---- Patroni ports ----
-NODE1_DB_PORT = 6000
-NODE1_REST_PORT = 6001
+NODE1_DB_PORT = 5432
+NODE1_REST_PORT = 8008
 
-NODE2_DB_PORT = 6002
-NODE2_REST_PORT = 6003
+NODE2_DB_PORT = 5432
+NODE2_REST_PORT = 8008
 
 # ---- HAProxy ports ----
 HAPROXY_PORT = 5000
@@ -24,21 +24,23 @@ HAPROXY_STATS_PORT = 7000
 
 # ---- Authentication ----
 SUPERUSER = "postgres"
-SUPERPASS = "lushmonth90"
+SUPERPASS = "PleaseChangeMe_123"   # change the password
 
 REPL_USER = "replicator"
-REPL_PASS = "sillybread95"
+REPL_PASS = "PleaseChangeMe_456"   # change the password
 
 REWIND_USER = "rewind_user"
-REWIND_PASS = "itchydog77"
+REWIND_PASS = "PleaseChangeMe_789"   # change the password
 
 RESTAPI_USER = "username"
-RESTAPI_PASS = "calmrice3"
+RESTAPI_PASS = "PleaseChangeMe_111"   # change the password
+
+ETCD_PASS = "PleaseChangeMe_222"   # change the password 
 
 # ---- Images ----
 ETCD_IMAGE = "quay.io/coreos/etcd:v3.4.37"
 PATRONI_IMAGE = "johnaic/patroni:17"
-HAPROXY_IMAGE = "haproxy:latest"
+HAPROXY_IMAGE = "haproxy"
 
 # ---- Base folder ----
 BASE_DIR = Path(__file__).parent.resolve()
@@ -50,8 +52,8 @@ def compose_node0():
   etcd:
     image: {ETCD_IMAGE}
     ports:
-      - "{ETCD0_CLIENT}:2379"
-      - "{ETCD0_PEER}:2380"
+      - {ETCD0_CLIENT}:2379
+      - {ETCD0_PEER}:2380
     command: >
       /usr/local/bin/etcd
       --name etcd-node-0
@@ -70,8 +72,8 @@ def compose_node0():
   haproxy:
     image: {HAPROXY_IMAGE}
     ports:
-      - "{HAPROXY_STATS_PORT}:{HAPROXY_STATS_PORT}"
-      - "{HAPROXY_PORT}:{HAPROXY_PORT}"
+      - {HAPROXY_STATS_PORT}:{HAPROXY_STATS_PORT}
+      - {HAPROXY_PORT}:{HAPROXY_PORT}
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 """
@@ -99,19 +101,19 @@ listen johnaic
     option httpchk
     http-check expect status 200
     default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
-    server postgresql0 {NODE1_IP}:{NODE1_REST_PORT} maxconn 100 check port {NODE1_REST_PORT}
-    server postgresql1 {NODE2_IP}:{NODE2_REST_PORT} maxconn 100 check port {NODE2_REST_PORT}
+    server postgresql0 {NODE1_IP}:{NODE1_DB_PORT} maxconn 100 check port {NODE1_REST_PORT}
+    server postgresql1 {NODE2_IP}:{NODE2_DB_PORT} maxconn 100 check port {NODE2_REST_PORT}
 
 
 """
 
-def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_port):
+def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_port, postgres_dir):
     return f"""services:
   etcd:
     image: {ETCD_IMAGE}
     ports:
-      - "{etcd_client}:2379"
-      - "{etcd_peer}:2380"
+      - {etcd_client}:2379
+      - {etcd_peer}:2380
     command: >
       /usr/local/bin/etcd
       --name {etcd_name}
@@ -132,11 +134,11 @@ def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_po
     depends_on:
       - init
     ports:
-      - "{db_port}:5432"
-      - "{rest_port}:8008"
+      - {db_port}:5432
+      - {rest_port}:8008
     volumes:
       - ./patroni.yaml:/patroni.yaml:ro
-      - ./data/postgresql/data:/var/lib/postgresql/data
+      - ./{postgres_dir}:/var/lib/postgresql/data
 
   init:
     image: ubuntu
@@ -160,7 +162,7 @@ restapi:
 etcd3:
   hosts: {NODE0_IP}:{ETCD0_CLIENT},{NODE1_IP}:{ETCD1_CLIENT},{NODE2_IP}:{ETCD2_CLIENT}
   username: root
-  password: {RESTAPI_PASS}
+  password: {ETCD_PASS}
 
 bootstrap:
   dcs:
@@ -181,7 +183,7 @@ bootstrap:
 postgresql:
   listen: 0.0.0.0:5432
   connect_address: {node_ip}:{db_port}
-  data_dir: /var/lib/postgresql/data
+  data_dir: data/postgresql
   pgpass: /tmp/pgpass0
   authentication:
     replication:
@@ -209,7 +211,7 @@ def write_file(path, content):
     print(f"Created: {path}")
 
 def generate_all():
-    print(f"\nGenerating Patroni cluster configuration at: {BASE_DIR}\n")
+    print(f"\n Generating Patroni cluster configuration at: {BASE_DIR}\n")
 
     node0_dir = BASE_DIR / "node0"
     write_file(node0_dir / "compose.yml", compose_node0())
@@ -218,26 +220,26 @@ def generate_all():
     node1_dir = BASE_DIR / "node1"
     write_file(node1_dir / "compose.yml",
                compose_patroni(NODE1_IP, ETCD1_CLIENT, ETCD1_PEER, "etcd-node-1",
-                               NODE1_DB_PORT, NODE1_REST_PORT))
+                               NODE1_DB_PORT, NODE1_REST_PORT, "node1-data-dir"))
     write_file(node1_dir / "patroni.yaml",
-               patroni_yaml("postgresql0", NODE1_IP, NODE1_DB_PORT, NODE1_REST_PORT))
+               patroni_yaml("postgresql1", NODE1_IP, NODE1_DB_PORT, NODE1_REST_PORT))
 
     node2_dir = BASE_DIR / "node2"
     write_file(node2_dir / "compose.yml",
                compose_patroni(NODE2_IP, ETCD2_CLIENT, ETCD2_PEER, "etcd-node-2",
-                               NODE2_DB_PORT, NODE2_REST_PORT))
+                               NODE2_DB_PORT, NODE2_REST_PORT, "node2-data-dir"))
     write_file(node2_dir / "patroni.yaml",
-               patroni_yaml("postgresql1", NODE2_IP, NODE2_DB_PORT, NODE2_REST_PORT))
+               patroni_yaml("postgresql2", NODE2_IP, NODE2_DB_PORT, NODE2_REST_PORT))
 
     print("\nAll configuration files have been generated successfully!\n")
     print("Next Steps (Run these commands one by one):\n")
-    print("Step-1 Build the Patroni image (only required once):")
+    print("1️⃣ Build the Patroni image (only required once):")
     print(f"   cd {BASE_DIR} && podman build -t {PATRONI_IMAGE} .\n")
-    print("Step-2 Start the cluster containers:")
+    print("2️⃣ Start the cluster containers:")
     print(f"   cd {node0_dir} && podman-compose up -d")
     print(f"   cd {node1_dir} && podman-compose up -d")
     print(f"   cd {node2_dir} && podman-compose up -d\n")
-    print("Step-3 Verify cluster status:")
+    print("3️⃣ Verify cluster status:")
     print(f"   podman exec -it node1_patroni0_1 /patroni-venv/bin/patronictl -c /patroni.yaml list\n")
     print("💡 Tip: If you already built the image once, you can skip Step 1 on future runs.")
 
