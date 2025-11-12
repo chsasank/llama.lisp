@@ -209,7 +209,7 @@ def write_file(path, content):
     print(f"Created: {path}")
 
 def generate_all():
-    print(f"\n Generating Patroni cluster configuration at: {BASE_DIR}\n")
+    print(f"\nGenerating Patroni cluster configuration at: {BASE_DIR}\n")
 
     node0_dir = BASE_DIR / "node0"
     write_file(node0_dir / "compose.yml", compose_node0())
@@ -229,11 +229,18 @@ def generate_all():
     write_file(node2_dir / "patroni.yaml",
                patroni_yaml("postgresql1", NODE2_IP, NODE2_DB_PORT, NODE2_REST_PORT))
 
-    print("\n All configuration files have been generated successfully!\n")
-    print("Next Steps:")
-    print(f"  cd {node0_dir} && podman-compose up -d")
-    print(f"  cd {node1_dir} && podman-compose up -d")
-    print(f"  cd {node2_dir} && podman-compose up -d")
+    print("\nAll configuration files have been generated successfully!\n")
+    print("Next Steps (Run these commands one by one):\n")
+    print("Step-1 Build the Patroni image (only required once):")
+    print(f"   cd {BASE_DIR} && podman build -t {PATRONI_IMAGE} .\n")
+    print("Step-2 Start the cluster containers:")
+    print(f"   cd {node0_dir} && podman-compose up -d")
+    print(f"   cd {node1_dir} && podman-compose up -d")
+    print(f"   cd {node2_dir} && podman-compose up -d\n")
+    print("Step-3 Verify cluster status:")
+    print(f"   podman exec -it node1_patroni0_1 /patroni-venv/bin/patronictl -c /patroni.yaml list\n")
+    print("💡 Tip: If you already built the image once, you can skip Step 1 on future runs.")
+
 
 if __name__ == "__main__":
     generate_all()
