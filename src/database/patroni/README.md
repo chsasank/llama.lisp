@@ -3,14 +3,14 @@
 This project provides a fully automated way to generate and deploy a PostgreSQL High Availability (HA) cluster using Patroni, Etcd, and HAProxy — all managed with Podman containers. This is a 3 node configuration to do the following:
 
 1. node0: Etcd + HAProxy
-2. node1: Etcd + PostgreSQL Leader/Replicae
+2. node1: Etcd + PostgreSQL Leader/Replica
 3. node2: Etcd + PostgreSQL Leader/Replica
 
 ## Generate configuration
 
 With a single Python script, all configuration files are generated automatically for 3 nodes (node0, node1, and node2), and the cluster can be launched using simple commands. Modify the variables in the script to your requirements. 
 
-```
+```python
 # ---- Patroni ports ----
 NODE1_DB_PORT = 5432
 NODE1_REST_PORT = 8008
@@ -44,6 +44,12 @@ HAPROXY_IMAGE = "haproxy"
 
 ```
 
+Now run the generator
+
+```
+python gen_patroni_config.py
+```
+
 After running the Python generator, your directory will look like this:
 
 ```
@@ -60,6 +66,8 @@ patroni/
     ├── compose.yml
     └── patroni.yaml
 ```
+
+## Build Patroni Image
 
 Next, build the Patroni Image. Build your custom Patroni image using the included Dockerfile:
 
@@ -98,15 +106,14 @@ podman ps
 Once all containers are running, you can check Patroni’s cluster health:
 
 ```
-podman-compose exec -it patroni /patroni-venv/bin/patronictl -c /patroni.yaml list
+podman-compose exec patroni /patroni-venv/bin/patronictl -c /patroni.yaml list
 ```
 Example output:
 ```
-+ Cluster: johnaic (757149807803882346081) -----+-----------+----+-------------+-----+------------+-----+
++ Cluster: johnaic (7571813802550083606) -----+-----------+----+-------------+-----+------------+-----+
 | Member      | Host                | Role    | State     | TL | Receive LSN | Lag | Replay LSN | Lag |
 +-------------+---------------------+---------+-----------+----+-------------+-----+------------+-----+
-| postgresql0 | 192.168.1.2:6000 | Replica | streaming |  1 |   0/304JP48 |   0 |  0/304JP48 |   0 |
-| postgresql1 | 192.168.1.3:6002 | Leader  | running   |  1 |             |     |            |     |
+| postgresql1 | 192.168.10.131:6432 | Leader  | running   |  1 |             |     |            |     |
+| postgresql2 | 192.168.10.131:7432 | Replica | streaming |  1 |   0/3000060 |   0 |  0/3000060 |   0 |
 +-------------+---------------------+---------+-----------+----+-------------+-----+------------+-----+
-
 ```

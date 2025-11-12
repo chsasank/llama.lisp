@@ -2,21 +2,26 @@ from pathlib import Path
 import os
 
 # ---- NODE IPs ----
-NODE0_IP = "192.168.1.1"
-NODE1_IP = "192.168.1.2"
-NODE2_IP = "192.168.1.3"
+NODE0_IP = "192.168.10.131"
+NODE1_IP = "192.168.10.131"
+NODE2_IP = "192.168.10.131"
 
 # ---- etcd ports ----
-ETCD0_CLIENT, ETCD0_PEER = 2379, 2380
-ETCD1_CLIENT, ETCD1_PEER = 2379, 2380
-ETCD2_CLIENT, ETCD2_PEER = 2379, 2380
+ETCD0_CLIENT, ETCD0_PEER = 3379, 3380
+ETCD1_CLIENT, ETCD1_PEER = 4379, 4380
+ETCD2_CLIENT, ETCD2_PEER = 5379, 5380
 
 # ---- Patroni ports ----
-NODE1_DB_PORT = 5432
-NODE1_REST_PORT = 8008
+NODE1_DB_PORT = 6432
+NODE1_REST_PORT = 6008
 
-NODE2_DB_PORT = 5432
-NODE2_REST_PORT = 8008
+NODE2_DB_PORT = 7432
+NODE2_REST_PORT = 7008
+
+# ---- PSQL Data Dir --- 
+
+NODE0_DB_DATA_DIR = './psql-datadir'
+NODE1_DB_DATA_DIR = './psql-datadir'
 
 # ---- HAProxy ports ----
 HAPROXY_PORT = 5000
@@ -139,12 +144,12 @@ def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_po
       - {rest_port}:8008
     volumes:
       - ./patroni.yaml:/patroni.yaml
-      - ./{postgres_dir}:/var/lib/postgresql/data
+      - {postgres_dir}:/var/lib/postgresql/data
 
   init:
     image: ubuntu
     volumes:
-      - ./{postgres_dir}:/data/
+      - {postgres_dir}:/data/
     command: bash -c "chown -R 101:103 /data && chmod 700 /data && tail -f /dev/null"
 """
 
@@ -220,14 +225,14 @@ def generate_all():
     node1_dir = BASE_DIR / "node1"
     write_file(node1_dir / "compose.yml",
                compose_patroni(NODE1_IP, ETCD1_CLIENT, ETCD1_PEER, "etcd-node-1",
-                               NODE1_DB_PORT, NODE1_REST_PORT, "node1-data-dir"))
+                               NODE1_DB_PORT, NODE1_REST_PORT, NODE1_DB_DATA_DIR))
     write_file(node1_dir / "patroni.yaml",
                patroni_yaml("postgresql1", NODE1_IP, NODE1_DB_PORT, NODE1_REST_PORT))
 
     node2_dir = BASE_DIR / "node2"
     write_file(node2_dir / "compose.yml",
                compose_patroni(NODE2_IP, ETCD2_CLIENT, ETCD2_PEER, "etcd-node-2",
-                               NODE2_DB_PORT, NODE2_REST_PORT, "node2-data-dir"))
+                               NODE2_DB_PORT, NODE2_REST_PORT, NODE2_DB_DATA_DIR))
     write_file(node2_dir / "patroni.yaml",
                patroni_yaml("postgresql2", NODE2_IP, NODE2_DB_PORT, NODE2_REST_PORT))
 
@@ -235,13 +240,10 @@ def generate_all():
     print("Next Steps (Run these commands one by one):\n")
     print("1. Build the Patroni image (only required once):")
     print(f"   cd {BASE_DIR} && podman build -t {PATRONI_IMAGE} .\n")
-    print("2. Transfer node dirs to node and start the cluster containers:")
-    print(f"   cd {node0_dir} && podman-compose up -d")    # Run this on the Node0 server
-    print(f"   cd {node1_dir} && podman-compose up -d")    # Run this on the Node1 server
-    print(f"   cd {node2_dir} && podman-compose up -d\n")  # Run this on the Node2 server
+    print("2. Transfer node dirs to node and start the cluster containers on each of the nodes:")
+    print(f"   podman-compose up -d")
     print("3. Verify cluster status from node1:")
-    print(f"   podman-compose exec -it patroni /patroni-venv/bin/patronictl -c /patroni.yaml list\n")
-    print("💡 Tip: If you already built the image once, you can skip Step 1 on future runs.")
+    print(f"   podman-compose exec patroni /patroni-venv/bin/patronictl -c /patroni.yaml list\n")
 
 
 if __name__ == "__main__":
