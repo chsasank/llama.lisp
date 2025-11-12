@@ -75,7 +75,8 @@ def compose_node0():
       - {HAPROXY_STATS_PORT}:{HAPROXY_STATS_PORT}
       - {HAPROXY_PORT}:{HAPROXY_PORT}
     volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+
 """
 
 def haproxy_cfg():
@@ -96,7 +97,7 @@ listen stats
     stats enable
     stats uri /
 
-listen johnaic
+listen postgres
     bind *:{HAPROXY_PORT}
     option httpchk
     http-check expect status 200
@@ -127,7 +128,7 @@ def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_po
       --initial-cluster-state new
       --initial-cluster-token my-etcd-token
     volumes:
-      - ./etcd-data:/etcd-data:Z
+      - ./etcd-data:/etcd-data
 
   patroni0:
     image: {PATRONI_IMAGE}
@@ -137,14 +138,13 @@ def compose_patroni(node_ip, etcd_client, etcd_peer, etcd_name, db_port, rest_po
       - {db_port}:5432
       - {rest_port}:8008
     volumes:
-      - ./patroni.yaml:/patroni.yaml:ro
-      - ./{postgres_dir}:/var/lib/postgresql/data
+      - ./patroni.yaml:/patroni.yaml
+      - /{postgres_dir}:/var/lib/postgresql/data
 
   init:
     image: ubuntu
-    user: root
     volumes:
-      - ./data/postgresql/data:/data/
+      - /{postgres_dir}:/data/
     command: bash -c "chown -R 101:103 /data && chmod 700 /data && tail -f /dev/null"
 """
 
