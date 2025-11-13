@@ -20,8 +20,8 @@ NODE2_REST_PORT = 7008
 
 # ---- PSQL Data Dir --- 
 
-NODE0_DB_DATA_DIR = './psql-datadir'
 NODE1_DB_DATA_DIR = './psql-datadir'
+NODE2_DB_DATA_DIR = './psql-datadir'
 
 # ---- HAProxy ports ----
 HAPROXY_PORT = 5000
