@@ -1,156 +1,343 @@
+import json
 import psycopg2
 import os
+import time
+import io
+import sys
+from psycopg2 import sql
+from datetime import datetime
 from psycopg2.extras import RealDictCursor
 from tinydb import TinyDB, Query
+from decimal import Decimal
 
-# Please update User,Password, Host, Port and Database according to your source and target databases.
+# CONFIGURATION : Please chnage the configuration as per you database.
 # Here i have selected PostgreSQL as my source and target databases.
 SOURCE_DB = "postgres://user:password@host:port/database"      
-TARGET_DB = "postgres://user:password@host:port/database"      
-
-progress_path = os.path.join(os.path.expanduser("~"), ".etl_progress")
-os.makedirs(progress_path, exist_ok=True)
-
-PROGRESS_DB = TinyDB(os.path.join(progress_path, "state.json"))
-ProgressTable = Query()
+TARGET_DB = "postgres://user:password@host:port/database" 
 
 SOURCE_TABLE_NAME = "tap_mssql__mdm.t_blp_tp"
 TARGET_TABLE_NAME = "t_blp_tp"
 REPLICATION_KEY_COLUMN = "ts"
-BATCH_SIZE = 10000
+BATCH_SIZE = 100000
+DATE_START = "2025-01-01"
+DATE_END   = "2025-01-11"
 
-def read_last_checkpoint():
-    result = PROGRESS_DB.get(ProgressTable.table_name == SOURCE_TABLE_NAME)
-    return result
+progress_path = os.path.join(os.path.expanduser("~"), ".etl_progress")
+os.makedirs(progress_path, exist_ok=True)
+PROGRESS_DB = TinyDB(os.path.join(progress_path, "state.json"))
+ProgressTable = Query()
 
-def update_last_checkpoint(new_value, total_rows):
-    existing = PROGRESS_DB.get(ProgressTable.table_name == SOURCE_TABLE_NAME)
 
-    if existing is None:
-        PROGRESS_DB.insert({
-            "table_name": SOURCE_TABLE_NAME,
-            "last_value": str(new_value),
-            "total_rows_copied": total_rows
-        })
-    else:
-        PROGRESS_DB.update(
-            {
-                "last_value": str(new_value),
-                "total_rows_copied": total_rows
-            },
-            ProgressTable.table_name == SOURCE_TABLE_NAME
-        )
+# SINGER HELPERS (NO RECORD OUTPUT)
+def emit(msg):
+    sys.stdout.write(json.dumps(msg) + "\n")
+    sys.stdout.flush()
 
-def stream_source_rows(last_processed_value):
-    source_connection = psycopg2.connect(SOURCE_DB)
-    source_connection.autocommit = False
+def emit_schema(stream_name, schema_dict, key_properties):
+    emit({
+        "type": "SCHEMA",
+        "stream": stream_name,
+        "schema": schema_dict,
+        "key_properties": key_properties
+    })
 
-    source_cursor = source_connection.cursor(
-        name="streaming_cursor",
-        cursor_factory=RealDictCursor
+def emit_state(state_dict):
+    emit({"type": "STATE", "value": state_dict})
+
+
+
+# Converting datatime to JSON
+def to_json_safe(v):
+    if isinstance(v, datetime):
+        return v.isoformat()
+    if isinstance(v, Decimal):
+        return float(v)
+    return v
+
+# FETCH SOURCE TABLE SCHEMA → SINGER SCHEMA
+def get_singer_schema():
+    src_schema, src_table = SOURCE_TABLE_NAME.split(".")
+
+    conn = psycopg2.connect(SOURCE_DB)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT column_name, data_type
+        FROM information_schema.columns
+        WHERE table_schema=%s AND table_name=%s
+        ORDER BY ordinal_position
+    """, (src_schema, src_table))
+
+    cols = cur.fetchall()
+    conn.close()
+
+    props = {}
+    for name, dtype in cols:
+
+        if dtype in ("integer", "bigint", "smallint"):
+            props[name] = {"type": ["null", "integer"]}
+
+        elif dtype in ("numeric", "double precision", "real"):
+            props[name] = {"type": ["null", "number"]}
+
+        elif "timestamp" in dtype:
+            props[name] = {"type": ["null", "string"], "format": "date-time"}
+
+        else:
+            props[name] = {"type": ["null", "string"]}
+
+    return {"type": "object", "properties": props}
+
+
+# CREATE TARGET TABLE AUTOMATICALLY FROM SINGER SCHEMA
+def ensure_target_table_exists():
+    print("\n[Schema Init] Creating target table from Singer schema...")
+
+    schema = get_singer_schema()["properties"]
+    src_schema, _ = SOURCE_TABLE_NAME.split(".")
+
+    tgt_conn = psycopg2.connect(TARGET_DB)
+    cur = tgt_conn.cursor()
+
+    # Create schema
+    cur.execute(
+        sql.SQL("CREATE SCHEMA IF NOT EXISTS {}")
+        .format(sql.Identifier(src_schema))
     )
 
-    if last_processed_value is not None:
-        select_query = f"""
-            SELECT * FROM {SOURCE_TABLE_NAME}
-            WHERE {REPLICATION_KEY_COLUMN} IS NOT NULL
-              AND {REPLICATION_KEY_COLUMN} > %s
-            ORDER BY {REPLICATION_KEY_COLUMN}
-        """
-        source_cursor.execute(select_query, (last_processed_value,))
-    else:
-        select_query = f"""
-            SELECT * FROM {SOURCE_TABLE_NAME}
-            WHERE {REPLICATION_KEY_COLUMN} IS NOT NULL
-            ORDER BY {REPLICATION_KEY_COLUMN}
-        """
-        source_cursor.execute(select_query)
+    # Build CREATE TABLE DDL
+    col_defs = []
+    for col, spec in schema.items():
 
-    while True:
-        row_batch = source_cursor.fetchmany(BATCH_SIZE)
-        
-        if len(row_batch) == 0:
-            break
+        if "integer" in spec["type"]:
+            coltype = "BIGINT"
 
-        yield row_batch
+        elif "number" in spec["type"]:
+            coltype = "DOUBLE PRECISION"
 
-    source_cursor.close()
-    source_connection.close()
+        elif spec.get("format") == "date-time":
+            coltype = "TIMESTAMP WITHOUT TIME ZONE"
 
-def load_batch_into_target(row_batch):
-    target_connection = psycopg2.connect(TARGET_DB)
-    target_cursor = target_connection.cursor()
+        else:
+            coltype = "TEXT"
 
-    first_row = row_batch[0]
-    column_names = list(first_row.keys())
+        col_defs.append(f"{col} {coltype}")
 
-    formatted_column_names = ",".join(f'"{column}"' for column in column_names)
-    placeholders = ",".join(["%s"] * len(column_names))
-
-    update_parts = []
-    for column in column_names:
-        if column not in ("msn_id", "ts"):
-            update_parts.append(f'"{column}" = EXCLUDED."{column}"')
-
-    if len(update_parts) > 0:
-        update_clause = ", ".join(update_parts)
-    else:
-        update_clause = ""
-
-    insert_sql = f"""
-        INSERT INTO {TARGET_TABLE_NAME} ({formatted_column_names})
-        VALUES ({placeholders})
+    ddl = f"""
+        CREATE TABLE IF NOT EXISTS {src_schema}.{TARGET_TABLE_NAME} 
+        ({', '.join(col_defs)});
     """
 
-    if update_clause != "":
-        insert_sql = insert_sql + f" ON CONFLICT (msn_id, ts) DO UPDATE SET {update_clause}"
+    cur.execute(ddl)
 
-    batch_data = []
-    for row in row_batch:
-        row_tuple = tuple(row[column] for column in column_names)
-        batch_data.append(row_tuple)
+    # Add UPSERT KEY
+    try:
+        cur.execute(
+            f"""
+            ALTER TABLE {src_schema}.{TARGET_TABLE_NAME}
+            ADD CONSTRAINT {TARGET_TABLE_NAME}_pkey
+            UNIQUE (msn_id, ts);
+            """
+        )
+    except psycopg2.Error:
+        tgt_conn.rollback()
 
-    target_cursor.executemany(insert_sql, batch_data)
-    target_connection.commit()
+    tgt_conn.commit()
+    cur.close()
+    tgt_conn.close()
 
-    target_cursor.close()
-    target_connection.close()
+    print("[Schema Init] Done.")
+
+
+# SINGER SCHEMA EMISSION (LIGHTWEIGHT)
+def emit_stream_schema():
+    schema = get_singer_schema()
+    emit_schema(TARGET_TABLE_NAME, schema, ["msn_id", "ts"])
+
+
+# CHECKPOINT STATE
+def read_last_checkpoint():
+    return PROGRESS_DB.get(ProgressTable.table_name == SOURCE_TABLE_NAME)
+
+def update_last_checkpoint(ts_value, msn_id, total_rows):
+    PROGRESS_DB.upsert(
+        {
+            "table_name": SOURCE_TABLE_NAME,
+            "last_ts": ts_value.isoformat() if isinstance(ts_value, datetime) else ts_value,
+            "last_msn_id": msn_id,
+            "total_rows_copied": total_rows
+        },
+        ProgressTable.table_name == SOURCE_TABLE_NAME
+    )
+
+
+# STREAM SOURCE → RESPECT CHECKPOINT
+def stream_source_rows(last_ts, last_msn):
+
+    conn = psycopg2.connect(SOURCE_DB)
+    cur = conn.cursor(name="stream", cursor_factory=RealDictCursor)
+
+    # Base SQL
+    sql_query = """
+        SELECT *
+        FROM {} 
+        WHERE ts >= %s AND ts < %s
+    """.format(SOURCE_TABLE_NAME.replace(".", "."))
+
+    params = [DATE_START, DATE_END]
+
+    # Apply checkpoint correctly
+    if last_ts:
+        sql_query += " AND (ts > %s OR (ts = %s AND msn_id > %s))"
+        params.extend([last_ts, last_ts, last_msn])
+
+
+
+    # Always ordered
+    sql_query += " ORDER BY ts, msn_id"
+
+    cur.execute(sql_query, params)
+
+    while True:
+        batch = cur.fetchmany(BATCH_SIZE)
+        if not batch:
+            break
+        yield batch
+
+    cur.close()
+    conn.close()
+
+
+# LOAD BATCH INTO TARGET (FIXED FOR MISSING COLUMNS)
+def load_batch_into_target(rows):
+
+    src_schema, _ = SOURCE_TABLE_NAME.split(".")
+
+    tgt_conn = psycopg2.connect(TARGET_DB)
+    meta_cur = tgt_conn.cursor()
+
+    # Fetch target columns
+    meta_cur.execute("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema=%s AND table_name=%s
+        ORDER BY ordinal_position
+    """, (src_schema, TARGET_TABLE_NAME))
+
+    target_columns = [r[0] for r in meta_cur.fetchall()]
+    meta_cur.close()
+
+    # Fill missing data from Singer schema
+    for row in rows:
+        for col in target_columns:
+            if col not in row:
+                row[col] = None
+
+    colnames = target_columns
+    temp_tbl = f"temp_{TARGET_TABLE_NAME}_{os.getpid()}"
+
+    cur = tgt_conn.cursor()
+
+    # Temp table
+    cur.execute(
+        sql.SQL("CREATE TEMP TABLE {t} (LIKE {schema}.{table} INCLUDING ALL)")
+        .format(
+            t=sql.Identifier(temp_tbl),
+            schema=sql.Identifier(src_schema),
+            table=sql.Identifier(TARGET_TABLE_NAME)
+        )
+    )
+
+    # COPY FROM buffer
+    buf = io.StringIO()
+    for r in rows:
+        vals = [(str(r[c]) if r[c] is not None else "\\N") for c in colnames]
+        buf.write("\t".join(vals) + "\n")
+
+    buf.seek(0)
+    cur.copy_from(buf, temp_tbl, sep="\t", columns=colnames)
+
+    # UPSERT
+    update_parts = [
+        sql.SQL("{c}=excluded.{c}").format(c=sql.Identifier(c))
+        for c in colnames if c not in ("msn_id", "ts")
+    ]
+
+    merge = sql.SQL("""
+        INSERT INTO {schema}.{table} ({cols})
+        SELECT {cols} FROM {tmp}
+        ON CONFLICT (msn_id, ts)
+        DO UPDATE SET {updates}
+    """).format(
+        schema=sql.Identifier(src_schema),
+        table=sql.Identifier(TARGET_TABLE_NAME),
+        tmp=sql.Identifier(temp_tbl),
+        cols=sql.SQL(", ").join(sql.Identifier(c) for c in colnames),
+        updates=sql.SQL(", ").join(update_parts)
+    )
+
+    cur.execute(merge)
+    tgt_conn.commit()
+    cur.close()
+    tgt_conn.close()
+
 
 def run_simple_etl():
-    print("\n---> ETL Process Started <---")
 
-    checkpoint_record = read_last_checkpoint()
-    if checkpoint_record is None:
-        last_checkpoint_value = None
-        total_rows_copied = 0
-    else:
-        last_checkpoint_value = checkpoint_record["last_value"]
-        total_rows_copied = checkpoint_record.get("total_rows_copied", 0)
+    print("\n---> ETL Started <---\n")
 
-    print("Starting from checkpoint:", last_checkpoint_value)
-    print("Total rows previously copied:", total_rows_copied)
+    ensure_target_table_exists()
 
-    for row_batch in stream_source_rows(last_checkpoint_value):
-        batch_size = len(row_batch)
-        total_rows_copied += batch_size
+    checkpoint = read_last_checkpoint()
+    last_ts = checkpoint["last_ts"] if checkpoint else None
+    last_msn = checkpoint["last_msn_id"] if checkpoint else None
 
-        highest_value_in_batch = None
-        for row in row_batch:
-            current_value = row[REPLICATION_KEY_COLUMN]
-            if highest_value_in_batch is None or current_value > highest_value_in_batch:
-                highest_value_in_batch = current_value
+    total_previously = checkpoint["total_rows_copied"] if checkpoint else 0
 
-        load_batch_into_target(row_batch)
-        update_last_checkpoint(highest_value_in_batch, total_rows_copied)
+    print("Starting from checkpoint:", (last_ts, last_msn))
+    print("Rows previously copied :", total_previously, "\n")
 
+    total_session_rows = 0
+    total_write_time = 0.0
+    full_start = time.time()
+
+    for batch in stream_source_rows(last_ts, last_msn):
+
+        # Write to target and measure write time
+        write_start = time.time()
+        load_batch_into_target(batch)
+        total_write_time += (time.time() - write_start)
+
+        # Row & checkpoint update
+        batch_size = len(batch)
+        total_session_rows += batch_size
+
+        # Absolute total rows (previous + this run)
+        new_total = total_previously + total_session_rows
+
+        # Saving the checkpoint
+        latest_row = max(batch, key=lambda r: (r["ts"], r["msn_id"]))
+        highest_ts = latest_row["ts"]
+        highest_msn = latest_row["msn_id"]
+
+        update_last_checkpoint(highest_ts, highest_msn, new_total)
+
+
+        # Progress print
         print(
-            f"\rLoaded {total_rows_copied} rows. "
-            f"Checkpoint: {highest_value_in_batch}",
-            end="",
-            flush=True
+            f"\rProgress: {new_total:,} rows | Last TS: {highest_ts} | MSN: {highest_msn}",
+            end="", flush=True
         )
 
-    print("---> ETL Process Completed <---\n")
+    total_exec_time = time.time() - full_start
+    overall_total = total_previously + total_session_rows
+
+    print("\n\n-------- ETL SUMMARY --------")
+    print(f"Rows Loaded This Run : {total_session_rows:,}")
+    print(f"Total Rows Overall   : {overall_total:,}")
+    print(f"Total Write Time     : {total_write_time:.2f}s")
+    print(f"Total Execution      : {total_exec_time:.2f}s")
+    print("-----------------------------\n")
+
 
 if __name__ == "__main__":
     run_simple_etl()
