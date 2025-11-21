@@ -27,25 +27,6 @@ os.makedirs(progress_path, exist_ok=True)
 PROGRESS_DB = TinyDB(os.path.join(progress_path, "state.json"))
 ProgressTable = Query()
 
-
-# SINGER HELPERS (NO RECORD OUTPUT)
-def emit(msg):
-    sys.stdout.write(json.dumps(msg) + "\n")
-    sys.stdout.flush()
-
-def emit_schema(stream_name, schema_dict, key_properties):
-    emit({
-        "type": "SCHEMA",
-        "stream": stream_name,
-        "schema": schema_dict,
-        "key_properties": key_properties
-    })
-
-def emit_state(state_dict):
-    emit({"type": "STATE", "value": state_dict})
-
-
-
 # Converting datatime to JSON
 def to_json_safe(v):
     if isinstance(v, datetime):
