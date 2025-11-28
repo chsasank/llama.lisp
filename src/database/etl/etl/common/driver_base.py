@@ -2,7 +2,7 @@ class SourceDriver:
     def __init__(self, config):
         self.config = config
 
-    def get_columns(self):
+    def get_schema(self):
         raise NotImplementedError
 
     def stream_rows(self, last_ts, last_msn, batch_size):

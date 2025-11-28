@@ -34,7 +34,7 @@ def run():
     source = SourceClass(source_config)
     target = TargetClass(target_config)
 
-    columns = source.get_columns()
+    columns = source.get_schema()
     target.ensure_schema(columns)
 
     last_ts = state.get("last_ts")
