@@ -1,0 +1,11 @@
+{
+  "connection": {
+    "host": "100.64.0.200",
+    "port": 5503,
+    "user": "custom_etl",
+    "password": "intelarc",
+    "database": "postgres"
+  },
+  "schema": "tap_mssql__mdm",
+  "table": "t_blp_tp"
+}
