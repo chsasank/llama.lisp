@@ -104,17 +104,22 @@ def test_psql_schema():
                 ("_sdc_table_version", ETLDataTypes.INTEGER),
                 ("_sdc_sync_started_at", ETLDataTypes.INTEGER),
             ],
-            "primary_keys": ["repo_id", "package_name", "package_manager", "requirements"],
-        }
+            "primary_keys": [
+                "repo_id",
+                "package_name",
+                "package_manager",
+                "requirements",
+            ],
+        },
     }
 
     for table_name, expected_schema in expected_schemas.items():
         src = PostgresSource(
             {"connection": test_psql_config["connection"], "table": table_name}
         )
-        assert src.get_etl_schema() == expected_schema, (
-            f"{table_name} schema didn't match"
-        )
+        assert (
+            src.get_etl_schema() == expected_schema
+        ), f"{table_name} schema didn't match"
         print(f"schema matched for {table_name}")
 
 
@@ -129,7 +134,24 @@ def test_psql_stream_batches():
     assert len(row) == len(src.get_etl_schema()["columns"])
 
 
+def test_psql_stream_batches_replication():
+    src = PostgresSource(
+        {**test_psql_config, "replication_key": "commit_timestamp"},
+        state_id="test_run_psql_source",
+        batch_size=100,
+    )
+    for batch in src.stream_batches():
+        assert len(batch) <= 100
+        row = batch[0]
+        assert row[0] == "meltano"
+        assert row[1] == "meltano"
+        assert len(row) == len(src.get_etl_schema()["columns"])
+
+    assert src.state_manager.get_state() is not None
+
+
 if __name__ == "__main__":
     test_psql_init()
     test_psql_schema()
     test_psql_stream_batches()
+    test_psql_stream_batches_replication()

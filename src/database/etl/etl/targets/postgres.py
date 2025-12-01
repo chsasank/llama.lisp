@@ -121,19 +121,25 @@ class PostgresTarget(TargetDriver):
             f"CREATE TEMP TABLE {temp_table_name} (LIKE {schema}.{table} INCLUDING ALL)"
         )
 
-        column_names = ', '.join([x[0] for x in etl_schema['columns']])
+        column_names = ", ".join([x[0] for x in etl_schema["columns"]])
         with cur.copy(f"COPY {temp_table_name} ({column_names}) FROM STDIN") as copy:
             rows = [list(x) for x in rows]
             for row in rows:
                 # Wrap json column
                 for idx in range(len(row)):
-                    if etl_schema['columns'][idx][1] == ETLDataTypes.JSON:
+                    if etl_schema["columns"][idx][1] == ETLDataTypes.JSON:
                         row[idx] = psycopg.types.json.Jsonb(row[idx])
                 copy.write_row(row)
 
-        primary_keys = ', '.join(etl_schema['primary_keys'])
-        conflict_cols = ', '.join([f"{c[0]}=EXCLUDED.{c[0]}" for c in etl_schema['columns'] if c not in etl_schema['primary_keys']])
-        
+        primary_keys = ", ".join(etl_schema["primary_keys"])
+        conflict_cols = ", ".join(
+            [
+                f"{c[0]}=EXCLUDED.{c[0]}"
+                for c in etl_schema["columns"]
+                if c not in etl_schema["primary_keys"]
+            ]
+        )
+
         merge = f"""
             INSERT INTO {schema}.{table} ({column_names})
             SELECT {column_names} FROM {temp_table_name}

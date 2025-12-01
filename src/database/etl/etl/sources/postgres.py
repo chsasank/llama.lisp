@@ -1,17 +1,23 @@
 import logging
 
 import psycopg
-from etl.common import ETLDataTypes, SourceDriver
+from etl.common import ETLDataTypes, SourceDriver, StateManager
 
 logger = logging.getLogger(__name__)
 
 
 class PostgresSource(SourceDriver):
-    def __init__(self, config, batch_size=10000):
+    def __init__(self, config, state_id=None, batch_size=10000):
         self.config = config
         self.conn = self._connect()  # ONE connection for entire ETL
         self.cur = None  # streaming cursor reused
         self.batch_size = batch_size
+
+        if "replication_key" in self.config:
+            assert state_id is not None
+            self.state_manager = StateManager(state_id, self.config["replication_key"])
+        else:
+            self.state_manager = None
 
     def _connect(self):
         cfg = self.config["connection"]
@@ -82,6 +88,17 @@ class PostgresSource(SourceDriver):
         primary_cols = [r[0] for r in cur.fetchall()]
         return {"columns": cols, "primary_keys": primary_cols}
 
+    def _save_state(self, batch, etl_schema):
+        # store state
+        if self.state_manager:
+            col_names = [x[0] for x in etl_schema["columns"]]
+            rep_key_idx = col_names.index(self.state_manager.replication_key)
+            last_row_state = batch[-1][rep_key_idx]
+            self.state_manager.set_state(last_row_state)
+            logger.info(
+                f"Replication key {self.state_manager.replication_key} updated with {last_row_state}"
+            )
+
     def stream_batches(self):
         if not self.cur:
             self.cur = self.conn.cursor(name="stream")
@@ -90,12 +107,30 @@ class PostgresSource(SourceDriver):
         cur.itersize = self.batch_size
 
         table = self.config["table"]
-        cols = self.get_etl_schema()["columns"]
+        etl_schema = self.get_etl_schema()
+        col_names = [x[0] for x in etl_schema["columns"]]
+        format_cols = ", ".join(col_names)
 
-        sql = "SELECT {} FROM {}".format(", ".join([x[0] for x in cols]), table)
+        if self.state_manager:
+            assert (
+                self.state_manager.replication_key in col_names
+            ), f"{self.state_manager.replication_key} is not in cols {col_names}"
+            replication_key = self.state_manager.replication_key
+            current_state = self.state_manager.get_state()
+            logger.info(f"Replication key found: {replication_key}")
+            if current_state:
+                sql = f"SELECT {format_cols} FROM {table} where {replication_key} >= %s ORDER BY {replication_key}"
+                params = (current_state,)
+            else:
+                sql = f"SELECT {format_cols} FROM {table} ORDER BY {replication_key}"
+                params = None
+        else:
+            # do full replication if there is no state
+            sql = f"SELECT {format_cols} FROM {table}"
+            params = None
 
-        logger.info(f"SQL = {sql}")
-        cur.execute(sql)
+        logger.info(f"Fetching rows with SQL={sql}, params={params}")
+        cur.execute(sql, params)
 
         while True:
             batch = cur.fetchmany(self.batch_size)
@@ -103,5 +138,8 @@ class PostgresSource(SourceDriver):
                 break
 
             logger.info(f"Extracted {len(batch)} rows")
+
             yield batch
+            self._save_state(batch, etl_schema)
+
         self.cur = None
