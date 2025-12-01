@@ -85,6 +85,27 @@ def test_psql_schema():
             ],
             "primary_keys": ["payment_date", "payment_id"],
         },
+        "tap_github.dependencies": {
+            "columns": [
+                ("repo", ETLDataTypes.STRING),
+                ("org", ETLDataTypes.STRING),
+                ("repo_id", ETLDataTypes.INTEGER),
+                ("dependency_repo_id", ETLDataTypes.INTEGER),
+                ("package_name", ETLDataTypes.STRING),
+                ("package_manager", ETLDataTypes.STRING),
+                ("requirements", ETLDataTypes.STRING),
+                ("has_dependencies", ETLDataTypes.BOOLEAN),
+                ("dependency", ETLDataTypes.JSON),
+                ("_sdc_extracted_at", ETLDataTypes.DATE_TIME),
+                ("_sdc_received_at", ETLDataTypes.DATE_TIME),
+                ("_sdc_batched_at", ETLDataTypes.DATE_TIME),
+                ("_sdc_deleted_at", ETLDataTypes.DATE_TIME),
+                ("_sdc_sequence", ETLDataTypes.INTEGER),
+                ("_sdc_table_version", ETLDataTypes.INTEGER),
+                ("_sdc_sync_started_at", ETLDataTypes.INTEGER),
+            ],
+            "primary_keys": ["repo_id", "package_name", "package_manager", "requirements"],
+        }
     }
 
     for table_name, expected_schema in expected_schemas.items():

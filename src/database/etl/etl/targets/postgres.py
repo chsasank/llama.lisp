@@ -44,8 +44,10 @@ class PostgresTarget(TargetDriver):
             return "jsonb"
         elif etl_dtype == ETLDataTypes.STRING:
             return "text"
+        elif etl_dtype == ETLDataTypes.BYTES:
+            return "bytea"
         else:
-            raise ValueError(f"Unknown data type: {etl_type}")
+            raise ValueError(f"Unknown data type: {etl_dtype}")
 
     def ensure_schema(self, etl_schema):
         schema, table = self.config["table"].split(".")

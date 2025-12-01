@@ -1,9 +1,11 @@
-set -e
+#!/usr/bin/env bash
+cd "$(dirname "$0")"
 
 # create testing container
-podman kill etl-test-db && podman rm etl-test-db || true
+TEST_SOURCE_DB=etl-test-source-db
+podman kill $TEST_SOURCE_DB && podman rm $TEST_SOURCE_DB || true
 podman run -d --replace \
-    --name etl-test-db \
+    --name $TEST_SOURCE_DB \
     -e POSTGRES_USER=testing \
     -e POSTGRES_PASSWORD=intelarc \
     -e POSTGRES_DB=github \
@@ -21,3 +23,15 @@ podman run --rm \
     --entrypoint=pg_restore \
     alpine/psql \
     --no-owner --no-privileges  -C -h host.containers.internal -U testing -p 5511 -d github -Fc /data/test_pg.sql
+
+
+# Creating target database 
+TEST_TARGET_DB=etl-test-target-db
+podman kill $TEST_TARGET_DB && podman rm $TEST_TARGET_DB || true
+podman run -d --replace \
+    --name $TEST_TARGET_DB \
+    -e POSTGRES_USER=testing \
+    -e POSTGRES_PASSWORD=intelarc \
+    -e POSTGRES_DB=github \
+    -p 5512:5432 \
+    postgres

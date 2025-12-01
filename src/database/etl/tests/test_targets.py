@@ -4,16 +4,19 @@ import pickle
 import psycopg
 import logging
 import sys
+import os
+
+here = os.path.dirname(os.path.realpath(__file__))
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 test_psql_config = {
     "connection": {
-        "host": "100.64.0.200",
-        "port": 5503,
-        "user": "custom_etl",
+        "host": "localhost",
+        "port": 5512,
+        "user": "testing",
         "password": "intelarc",
-        "database": "postgres",
+        "database": "github",
     },
     "table": "tap_github.commits",
 }
@@ -77,7 +80,7 @@ def test_load_batch():
         "primary_keys": ["node_id"],
     }
 
-    rows = pickle.load(open('testing_batch.pkl', 'rb'))
+    rows = pickle.load(open(os.path.join(here, 'data/testing_batch.pkl'), 'rb'))
     tgt.load_batch(rows, etl_schema)
 
 if __name__ == "__main__":
