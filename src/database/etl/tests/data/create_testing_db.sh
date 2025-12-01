@@ -15,4 +15,9 @@ sleep 5
 # put in testing data
 
 # dump created using: pg_dump --no-owner -x -h 100.64.0.200 -p 5511 -U github -f ./test_pg.sql -Fc
-PGPASSWORD="intelarc" pg_restore --no-owner --no-privileges  -C -h localhost -U testing -p 5511 -d github -Fc test_pg.sql
+podman run --rm \
+    -v ./test_pg.sql:/data/test_pg.sql \
+    -e PGPASSWORD=intelarc \
+    --entrypoint=pg_restore \
+    alpine/psql \
+    --no-owner --no-privileges  -C -h host.containers.internal -U testing -p 5511 -d github -Fc /data/test_pg.sql
