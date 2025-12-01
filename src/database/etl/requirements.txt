@@ -1,1 +1,2 @@
 psycopg[binary]
+clickhouse-connect
