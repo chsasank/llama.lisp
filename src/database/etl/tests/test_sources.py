@@ -1,12 +1,13 @@
 import logging
 import sys
-
+import pyodbc
 import psycopg
 from etl.common import ETLDataTypes
-from etl.sources import PostgresSource
+from etl.sources import PostgresSource, MssqlSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
+# psql source configuration
 test_psql_config = {
     "connection": {
         "host": "localhost",
@@ -18,6 +19,19 @@ test_psql_config = {
     "table": "tap_github.commits",
 }
 
+# mssql source configuration
+test_mssql_config = {
+    "connection": {
+        "host": "localhost",
+        "port": 1433,
+        "user": "SA",
+        "password": "Intelarc@123",
+        "database": "WideWorldImporters",
+    },
+    "table": "Sales.Customers",
+}
+
+# Testing psql source funcctions
 
 def test_psql_init():
     src = PostgresSource(test_psql_config)
@@ -150,8 +164,129 @@ def test_psql_stream_batches_replication():
     assert src.state_manager.get_state() is not None
 
 
+# Testing mssql source functions
+
+def test_mssql_init():
+    src = MssqlSource(test_mssql_config)
+    assert isinstance(src.conn, pyodbc.Connection)
+
+def test_mssql_schema():
+    expected_schemas = {
+        "Sales.Customers": {
+            "columns": [
+                ("CustomerID", ETLDataTypes.INTEGER),
+                ("CustomerName", ETLDataTypes.STRING),
+                ("BillToCustomerID", ETLDataTypes.INTEGER),
+                ("CustomerCategoryID", ETLDataTypes.INTEGER),
+                ("BuyingGroupID", ETLDataTypes.INTEGER),
+                ("PrimaryContactPersonID", ETLDataTypes.INTEGER),
+                ("AlternateContactPersonID", ETLDataTypes.INTEGER),
+                ("DeliveryMethodID", ETLDataTypes.INTEGER),
+                ("DeliveryCityID", ETLDataTypes.INTEGER),
+                ("PostalCityID", ETLDataTypes.INTEGER),
+                ("CreditLimit", ETLDataTypes.FLOAT),
+                ("AccountOpenedDate", ETLDataTypes.DATE_TIME),
+                ("StandardDiscountPercentage", ETLDataTypes.FLOAT),
+                ("IsStatementSent", ETLDataTypes.BOOLEAN),
+                ("IsOnCreditHold", ETLDataTypes.BOOLEAN),
+                ("PaymentDays", ETLDataTypes.INTEGER),
+                ("PhoneNumber", ETLDataTypes.STRING),
+                ("FaxNumber", ETLDataTypes.STRING),
+                ("DeliveryRun", ETLDataTypes.STRING),
+                ("RunPosition", ETLDataTypes.STRING),
+                ("WebsiteURL", ETLDataTypes.STRING),
+                ("DeliveryAddressLine1", ETLDataTypes.STRING),
+                ("DeliveryAddressLine2", ETLDataTypes.STRING),
+                ("DeliveryPostalCode", ETLDataTypes.STRING),
+                ("DeliveryLocation", ETLDataTypes.STRING),
+                ("PostalAddressLine1", ETLDataTypes.STRING),
+                ("PostalAddressLine2", ETLDataTypes.STRING),
+                ("PostalPostalCode", ETLDataTypes.STRING),
+                ("LastEditedBy", ETLDataTypes.INTEGER),
+                ("ValidFrom", ETLDataTypes.DATE_TIME),
+                ("ValidTo", ETLDataTypes.DATE_TIME),
+            ],
+            "primary_keys": ["CustomerID"],
+        },
+        "Purchasing.Suppliers": {
+            "columns": [
+                ("SupplierID", ETLDataTypes.INTEGER),
+                ("SupplierName", ETLDataTypes.STRING),
+                ("SupplierCategoryID", ETLDataTypes.INTEGER),
+                ("PrimaryContactPersonID", ETLDataTypes.INTEGER),
+                ("AlternateContactPersonID", ETLDataTypes.INTEGER),
+                ("DeliveryMethodID", ETLDataTypes.INTEGER),
+                ("DeliveryCityID", ETLDataTypes.INTEGER),
+                ("PostalCityID", ETLDataTypes.INTEGER),
+                ("SupplierReference", ETLDataTypes.STRING),
+                ("BankAccountName", ETLDataTypes.STRING),
+                ("BankAccountBranch", ETLDataTypes.STRING),
+                ("BankAccountCode", ETLDataTypes.STRING),
+                ("BankAccountNumber", ETLDataTypes.STRING),
+                ("BankInternationalCode", ETLDataTypes.STRING),
+                ("PaymentDays", ETLDataTypes.INTEGER),
+                ("InternalComments", ETLDataTypes.STRING),
+                ("PhoneNumber", ETLDataTypes.STRING),
+                ("FaxNumber", ETLDataTypes.STRING),
+                ("WebsiteURL", ETLDataTypes.STRING),
+                ("DeliveryAddressLine1", ETLDataTypes.STRING),
+                ("DeliveryAddressLine2", ETLDataTypes.STRING),
+                ("DeliveryPostalCode", ETLDataTypes.STRING),
+                ("DeliveryLocation", ETLDataTypes.STRING),  # geography → STRING
+                ("PostalAddressLine1", ETLDataTypes.STRING),
+                ("PostalAddressLine2", ETLDataTypes.STRING),
+                ("PostalPostalCode", ETLDataTypes.STRING),
+                ("LastEditedBy", ETLDataTypes.INTEGER),
+                ("ValidFrom", ETLDataTypes.DATE_TIME),
+                ("ValidTo", ETLDataTypes.DATE_TIME),
+            ],
+            "primary_keys": ["SupplierID"],
+        },
+    }
+
+    for table_name, expected_schema in expected_schemas.items():
+        src = MssqlSource(
+            {"connection": test_mssql_config["connection"], "table": table_name}
+        )
+        assert (
+            src.get_etl_schema() == expected_schema
+        ), f"{table_name} schema didn't match"
+        print(f"schema matched for {table_name}")
+
+def test_mssql_stream_batches():
+    src = MssqlSource(test_mssql_config, batch_size=100)
+    schema = src.get_etl_schema()
+    batches = src.stream_batches()
+    first_batch = next(batches)
+    assert len(first_batch) == 100
+    row = first_batch[0]
+    assert row[0] == 1 
+    assert row[1] == "Tailspin Toys (Head Office)"
+    assert len(row) == len(schema["columns"])
+
+def test_mssql_stream_batches_replication():
+    src = MssqlSource(
+        {**test_mssql_config, "replication_key": "CustomerID"},
+        state_id="test_run_mssql_source",
+        batch_size=100,
+    )
+
+    schema = src.get_etl_schema()
+    col_count = len(schema["columns"])
+
+    for batch in src.stream_batches():
+        assert len(batch) <= 100
+        row = batch[0]
+        assert len(row) == col_count
+
+    assert src.state_manager.get_state() is not None
+
 if __name__ == "__main__":
     test_psql_init()
     test_psql_schema()
     test_psql_stream_batches()
     test_psql_stream_batches_replication()
+    test_mssql_init()
+    test_mssql_schema()
+    test_mssql_stream_batches()
+    test_mssql_stream_batches_replication()

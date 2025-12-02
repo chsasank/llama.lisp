@@ -70,7 +70,7 @@ podman run -d --replace \
     mcr.microsoft.com/mssql/server:2025-latest
 
 # After the Database got create use below command for login to database
-# podman exec -it etl-test-target-mssql-db /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "Intelarc@123"
+# podman exec -it etl-test-source-mssql-db /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "Intelarc@123"
 
 # Creating directory inside the container
 podman exec -it $TEST_SOURCE_DB mkdir /var/opt/mssql/backup

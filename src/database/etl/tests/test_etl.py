@@ -1,5 +1,5 @@
 from etl.targets import PostgresTarget, ClickhouseTarget
-from etl.sources import PostgresSource
+from etl.sources import PostgresSource, MssqlSource
 import logging
 import sys
 
@@ -84,6 +84,56 @@ def test_ch_etl():
             tgt.load_batch(batch, etl_schema)
 
 
+def test_mssql_etl():
+    source_conn = {
+        "host": "localhost",
+        "port": 1433,
+        "user": "SA",
+        "password": "Intelarc@123",
+        "database": "WideWorldImporters",
+    }
+
+    target_conn = {
+        "host": "localhost",
+        "port": 5512,
+        "user": "testing",
+        "password": "intelarc",
+        "database": "github",
+    }
+
+    tables_to_copy = [
+        "Sales.Customers",
+        "Purchasing.Suppliers"
+    ]
+
+    for table_name in tables_to_copy:
+        print(f"Copying {table_name}")
+
+        src = MssqlSource({"connection": source_conn, "table": table_name})
+
+        # converting schema.table to safe table for PostgreSQL
+        pg_table = table_name.replace(".", "_").lower()
+
+        tgt = PostgresTarget({"connection": target_conn, "table": f"public.{pg_table}"})
+
+        etl_schema = src.get_etl_schema()
+
+        # lowercase columns so Postgres drift checking doesn’t break
+        etl_schema["columns"] = [
+            (col.lower(), dtype)
+            for col, dtype in etl_schema["columns"]
+        ]
+        etl_schema["primary_keys"] = [
+            pk.lower()
+            for pk in etl_schema["primary_keys"]
+        ]
+
+        tgt.ensure_schema(etl_schema)
+
+        for batch in src.stream_batches():
+            tgt.load_batch(batch, etl_schema)
+
 if __name__ == "__main__":
     test_psql_etl()
     test_ch_etl()
+    test_mssql_etl()
