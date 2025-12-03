@@ -1,0 +1,21 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv curl gnupg
+RUN python3 -m venv /venv
+ENV PATH=/venv/bin:$PATH
+
+WORKDIR /app/etl
+
+
+# install mssql odbc driver
+RUN curl -sSL -O https://packages.microsoft.com/config/ubuntu/$(grep VERSION_ID /etc/os-release | cut -d '"' -f 2)/packages-microsoft-prod.deb && \
+    dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb && \
+    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql18 && ACCEPT_EULA=Y apt-get install -y mssql-tools18
+ENV PATH="/opt/mssql-tools18/bin:$PATH"
+RUN apt-get install -y unixodbc-dev
+
+
+ADD requirements.txt .
+RUN /venv/bin/pip install -r requirements.txt
+
+CMD ["bash"]

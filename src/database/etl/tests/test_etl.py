@@ -1,27 +1,28 @@
-from etl.targets import PostgresTarget, ClickhouseTarget
-from etl.sources import PostgresSource, MssqlSource
 import logging
 import sys
+
+from common import testing_database_host
+from etl.sources import MssqlSource, PostgresSource
+from etl.targets import ClickhouseTarget, PostgresTarget
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
 def test_psql_etl():
     source_conn = {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 5511,
         "user": "testing",
         "password": "intelarc",
         "database": "github",
     }
     target_conn = {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 5512,
         "user": "testing",
         "password": "intelarc",
         "database": "github",
     }
-
 
     tables_to_copy = [
         "tap_github.commits",
@@ -29,7 +30,7 @@ def test_psql_etl():
         "public.staff",
         "public.payment_p2022_07",
         "tap_github.dependencies",
-        "public.rental"
+        "public.rental",
     ]
     for table_name in tables_to_copy:
         print(f"Copying {table_name}")
@@ -44,23 +45,22 @@ def test_psql_etl():
         for batch in batches:
             tgt.load_batch(batch, etl_schema)
 
-    
+
 def test_ch_etl():
     source_conn = {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 5511,
         "user": "testing",
         "password": "intelarc",
         "database": "github",
     }
     target_conn = {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 8123,
         "user": "testing",
         "password": "intelarc",
         "database": "github",
     }
-
 
     tables_to_copy = [
         "tap_github.commits",
@@ -68,7 +68,7 @@ def test_ch_etl():
         "public.staff",
         "public.payment_p2022_07",
         "tap_github.dependencies",
-        "public.rental"
+        "public.rental",
     ]
     for table_name in tables_to_copy:
         print(f"Copying {table_name}")
@@ -86,7 +86,7 @@ def test_ch_etl():
 
 def test_mssql_etl():
     source_conn = {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 1433,
         "user": "SA",
         "password": "Intelarc@123",
@@ -94,17 +94,14 @@ def test_mssql_etl():
     }
 
     target_conn = {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 5512,
         "user": "testing",
         "password": "intelarc",
         "database": "github",
     }
 
-    tables_to_copy = [
-        "Sales.Customers",
-        "Purchasing.Suppliers"
-    ]
+    tables_to_copy = ["Sales.Customers", "Purchasing.Suppliers"]
 
     for table_name in tables_to_copy:
         print(f"Copying {table_name}")
@@ -120,18 +117,15 @@ def test_mssql_etl():
 
         # lowercase columns so Postgres drift checking doesn’t break
         etl_schema["columns"] = [
-            (col.lower(), dtype)
-            for col, dtype in etl_schema["columns"]
+            (col.lower(), dtype) for col, dtype in etl_schema["columns"]
         ]
-        etl_schema["primary_keys"] = [
-            pk.lower()
-            for pk in etl_schema["primary_keys"]
-        ]
+        etl_schema["primary_keys"] = [pk.lower() for pk in etl_schema["primary_keys"]]
 
         tgt.ensure_schema(etl_schema)
 
         for batch in src.stream_batches():
             tgt.load_batch(batch, etl_schema)
+
 
 if __name__ == "__main__":
     test_psql_etl()

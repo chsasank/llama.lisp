@@ -25,7 +25,7 @@ podman run --rm \
 echo "==> populated $TEST_SOURCE_DB with test data"
 
 
-# Creating target database 
+# Creating target database
 TEST_TARGET_DB=etl-test-target-psql-db
 podman kill $TEST_TARGET_DB && podman rm $TEST_TARGET_DB || true
 podman run -d --replace \
@@ -110,7 +110,7 @@ podman run -d --replace \
     -p 1521:1521 -p 5500:5500 \
     container-registry.oracle.com/database/free:latest
 
-echo "Waiting for Oracle to become healthy..."
+echo "==> Waiting for Oracle to become healthy..."
 
 # readiness wait loop
 while [ "$(podman inspect -f '{{.State.Health.Status}}' $TEST_SOURCE_DB)" != "healthy" ]; do
@@ -118,7 +118,7 @@ while [ "$(podman inspect -f '{{.State.Health.Status}}' $TEST_SOURCE_DB)" != "he
     sleep 10
 done
 
-echo "Oracle is healthy!"
+echo "==> Oracle is healthy!"
 
 # After the Database got create use below command for login to database
 # podman exec -it etl-test-source-oracle-db sqlplus system/Intelarc123@//localhost:1521/freepdb1
@@ -127,9 +127,9 @@ echo "Oracle is healthy!"
 SCRIPT_DIR="$(pwd)"
 
 if [ -d "$SCRIPT_DIR/db-sample-schemas" ]; then
-    echo "db-sample-schemas already exists → skipping download."
+    echo "==> db-sample-schemas already exists → skipping download."
 else
-    echo "Downloading Oracle sample schemas into $SCRIPT_DIR/db-sample-schemas..."
+    echo "==> Downloading Oracle sample schemas into $SCRIPT_DIR/db-sample-schemas..."
     git clone https://github.com/oracle/db-sample-schemas.git "$SCRIPT_DIR/db-sample-schemas"
 fi
 
@@ -140,7 +140,6 @@ sleep 5
 
 # Installing HR schema (Human Resources)
 echo "Installing HR schema..."
-
 podman exec -i $TEST_SOURCE_DB bash <<EOF
 expect <<EOD
 spawn sqlplus system/$ORACLE_PASSWORD@//localhost:1521/freepdb1 "@/opt/oracle/db-sample-schemas/human_resources/hr_install.sql"
@@ -154,11 +153,10 @@ expect eof
 EOD
 EOF
 
-echo "✓ HR schema installed"
+echo "HR schema installed"
 
 # Installing CO schema (Customer Orders)
 echo "Installing CO schema..."
-
 podman exec -i $TEST_SOURCE_DB bash <<EOF
 expect <<EOD
 spawn sqlplus system/$ORACLE_PASSWORD@//localhost:1521/freepdb1 "@/opt/oracle/db-sample-schemas/customer_orders/co_install.sql"
@@ -171,10 +169,8 @@ send "YES\r"
 expect eof
 EOD
 EOF
-
 echo "CO schema installed"
 
-
-echo "HR and CO Oracle sample schemas installed successfully!"
+echo "==> HR and CO Oracle sample schemas installed successfully!"
 
 echo "==> created $TEST_SOURCE_DB"

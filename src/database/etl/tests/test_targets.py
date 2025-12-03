@@ -1,13 +1,13 @@
-from etl.targets import PostgresTarget
-from etl.targets import ClickhouseTarget
-import clickhouse_connect
-from etl.common import ETLDataTypes
-import pickle
-import psycopg
 import logging
-import sys
 import os
+import pickle
+import sys
+
 import clickhouse_connect
+import psycopg
+from common import testing_database_host
+from etl.common import ETLDataTypes
+from etl.targets import ClickhouseTarget, PostgresTarget
 
 here = os.path.dirname(os.path.realpath(__file__))
 
@@ -15,7 +15,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 test_psql_config = {
     "connection": {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 5512,
         "user": "testing",
         "password": "intelarc",
@@ -26,7 +26,7 @@ test_psql_config = {
 
 test_ch_config = {
     "connection": {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 8123,
         "user": "testing",
         "password": "intelarc",

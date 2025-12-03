@@ -1,3 +1,5 @@
 psycopg[binary]
 clickhouse-connect
 pyodbc
+tinydb
+pytest

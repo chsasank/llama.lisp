@@ -1,16 +1,19 @@
 import logging
 import sys
-import pyodbc
+
 import psycopg
+import pyodbc
+from common import testing_database_host
 from etl.common import ETLDataTypes
-from etl.sources import PostgresSource, MssqlSource
+from etl.sources import MssqlSource, PostgresSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # psql source configuration
 test_psql_config = {
     "connection": {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 5511,
         "user": "testing",
         "password": "intelarc",
@@ -22,7 +25,7 @@ test_psql_config = {
 # mssql source configuration
 test_mssql_config = {
     "connection": {
-        "host": "localhost",
+        "host": testing_database_host,
         "port": 1433,
         "user": "SA",
         "password": "Intelarc@123",
@@ -32,6 +35,7 @@ test_mssql_config = {
 }
 
 # Testing psql source funcctions
+
 
 def test_psql_init():
     src = PostgresSource(test_psql_config)
@@ -131,10 +135,10 @@ def test_psql_schema():
         src = PostgresSource(
             {"connection": test_psql_config["connection"], "table": table_name}
         )
-        assert (
-            src.get_etl_schema() == expected_schema
-        ), f"{table_name} schema didn't match"
-        print(f"schema matched for {table_name}")
+        assert src.get_etl_schema() == expected_schema, (
+            f"{table_name} schema didn't match"
+        )
+        logger.info(f"schema matched for {table_name}")
 
 
 def test_psql_stream_batches():
@@ -166,9 +170,11 @@ def test_psql_stream_batches_replication():
 
 # Testing mssql source functions
 
+
 def test_mssql_init():
     src = MssqlSource(test_mssql_config)
     assert isinstance(src.conn, pyodbc.Connection)
+
 
 def test_mssql_schema():
     expected_schemas = {
@@ -248,10 +254,11 @@ def test_mssql_schema():
         src = MssqlSource(
             {"connection": test_mssql_config["connection"], "table": table_name}
         )
-        assert (
-            src.get_etl_schema() == expected_schema
-        ), f"{table_name} schema didn't match"
-        print(f"schema matched for {table_name}")
+        assert src.get_etl_schema() == expected_schema, (
+            f"{table_name} schema didn't match"
+        )
+        logger.info(f"schema matched for {table_name}")
+
 
 def test_mssql_stream_batches():
     src = MssqlSource(test_mssql_config, batch_size=100)
@@ -260,9 +267,10 @@ def test_mssql_stream_batches():
     first_batch = next(batches)
     assert len(first_batch) == 100
     row = first_batch[0]
-    assert row[0] == 1 
+    assert row[0] == 1
     assert row[1] == "Tailspin Toys (Head Office)"
     assert len(row) == len(schema["columns"])
+
 
 def test_mssql_stream_batches_replication():
     src = MssqlSource(
@@ -280,6 +288,7 @@ def test_mssql_stream_batches_replication():
         assert len(row) == col_count
 
     assert src.state_manager.get_state() is not None
+
 
 if __name__ == "__main__":
     test_psql_init()
