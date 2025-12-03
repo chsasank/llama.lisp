@@ -97,7 +97,7 @@ podman exec -it $TEST_SOURCE_DB /opt/mssql-tools18/bin/sqlcmd -No \
 sleep 5
 echo "==> created $TEST_SOURCE_DB"
 
-# Create Oracle Free container
+# Create Oracle Free database
 TEST_SOURCE_DB=etl-test-source-oracle-db
 ORACLE_PASSWORD="Intelarc123"
 
