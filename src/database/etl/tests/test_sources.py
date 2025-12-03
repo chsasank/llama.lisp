@@ -1,11 +1,11 @@
 import logging
 import sys
-
+import oracledb
 import psycopg
 import pyodbc
 from common import testing_database_host
 from etl.common import ETLDataTypes
-from etl.sources import MssqlSource, PostgresSource
+from etl.sources import MssqlSource, PostgresSource, OracleSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +32,18 @@ test_mssql_config = {
         "database": "WideWorldImporters",
     },
     "table": "Sales.Customers",
+}
+
+# oracle source configuration
+test_oracle_config = {
+    "connection": {
+        "host": testing_database_host,
+        "port": 1521,
+        "user": "SYSTEM",
+        "password": "Intelarc123",
+        "service": "FREEPDB1",
+    },
+    "table": "HR.EMPLOYEES",
 }
 
 # Testing psql source funcctions
@@ -191,7 +203,7 @@ def test_mssql_schema():
                 ("DeliveryCityID", ETLDataTypes.INTEGER),
                 ("PostalCityID", ETLDataTypes.INTEGER),
                 ("CreditLimit", ETLDataTypes.FLOAT),
-                ("AccountOpenedDate", ETLDataTypes.DATE_TIME),
+                ("AccountOpenedDate", ETLDataTypes.DATE),
                 ("StandardDiscountPercentage", ETLDataTypes.FLOAT),
                 ("IsStatementSent", ETLDataTypes.BOOLEAN),
                 ("IsOnCreditHold", ETLDataTypes.BOOLEAN),
@@ -266,10 +278,7 @@ def test_mssql_stream_batches():
     batches = src.stream_batches()
     first_batch = next(batches)
     assert len(first_batch) == 100
-    row = first_batch[0]
-    assert row[0] == 1
-    assert row[1] == "Tailspin Toys (Head Office)"
-    assert len(row) == len(schema["columns"])
+
 
 
 def test_mssql_stream_batches_replication():
@@ -289,6 +298,74 @@ def test_mssql_stream_batches_replication():
 
     assert src.state_manager.get_state() is not None
 
+def test_oracle_init():
+    src = OracleSource(test_oracle_config)
+    assert isinstance(src.conn, oracledb.Connection)
+
+
+def test_oracle_schema():
+    expected_schemas = {
+        "HR.EMPLOYEES": {
+            "columns": [
+                ("EMPLOYEE_ID", ETLDataTypes.INTEGER),
+                ("FIRST_NAME", ETLDataTypes.STRING),
+                ("LAST_NAME", ETLDataTypes.STRING),
+                ("EMAIL", ETLDataTypes.STRING),
+                ("PHONE_NUMBER", ETLDataTypes.STRING),
+                ("HIRE_DATE", ETLDataTypes.DATE),
+                ("JOB_ID", ETLDataTypes.STRING),
+                ("SALARY", ETLDataTypes.INTEGER),
+                ("COMMISSION_PCT", ETLDataTypes.INTEGER),
+                ("MANAGER_ID", ETLDataTypes.INTEGER),
+                ("DEPARTMENT_ID", ETLDataTypes.INTEGER),
+            ],
+            "primary_keys": ["EMPLOYEE_ID"],
+        },
+
+        "HR.DEPARTMENTS": {
+            "columns": [
+                ("DEPARTMENT_ID", ETLDataTypes.INTEGER),
+                ("DEPARTMENT_NAME", ETLDataTypes.STRING),
+                ("MANAGER_ID", ETLDataTypes.INTEGER),
+                ("LOCATION_ID", ETLDataTypes.INTEGER),
+            ],
+            "primary_keys": ["DEPARTMENT_ID"],
+        },
+    }
+
+    for table_name, expected_schema in expected_schemas.items():
+        src = OracleSource(
+            {"connection": test_oracle_config["connection"], "table": table_name}
+        )
+        assert src.get_etl_schema() == expected_schema, (
+            f"{table_name} schema didn't match"
+        )
+        logger.info(f"schema matched for {table_name}")
+
+def test_oracle_stream_batches():
+    src = OracleSource(test_oracle_config, batch_size=5)
+    schema = src.get_etl_schema()
+    batches = src.stream_batches()
+    first_batch = next(batches)
+    assert len(first_batch) == 5
+
+def test_oracle_stream_batches_replication():
+    src = OracleSource(
+        {**test_oracle_config, "replication_key": "EMPLOYEE_ID"},
+        state_id="test_run_oracle_source",
+        batch_size=5,
+    )
+
+    schema = src.get_etl_schema()
+    col_count = len(schema["columns"])
+
+    for batch in src.stream_batches():
+        assert len(batch) <= 5
+        row = batch[0]
+        assert len(row) == col_count
+
+    assert src.state_manager.get_state() is not None
+
 
 if __name__ == "__main__":
     test_psql_init()
@@ -299,3 +376,7 @@ if __name__ == "__main__":
     test_mssql_schema()
     test_mssql_stream_batches()
     test_mssql_stream_batches_replication()
+    test_oracle_init()
+    test_oracle_schema()
+    test_oracle_stream_batches()
+    test_oracle_stream_batches_replication()

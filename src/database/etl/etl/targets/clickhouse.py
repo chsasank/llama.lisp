@@ -33,6 +33,10 @@ class ClickhouseTarget(TargetDriver):
             return "DateTime64(3)"
         elif etl_dtype == ETLDataTypes.DATE:
             return "Date"
+        elif etl_dtype == ETLDataTypes.TIME:
+            return "String"
+        elif etl_dtype == ETLDataTypes.TIME_INTERVAL:
+            return "String"
         elif etl_dtype == ETLDataTypes.JSON:
             return "Json"
         elif etl_dtype == ETLDataTypes.STRING:

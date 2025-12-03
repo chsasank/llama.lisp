@@ -3,3 +3,4 @@ clickhouse-connect
 pyodbc
 tinydb
 pytest
+oracledb

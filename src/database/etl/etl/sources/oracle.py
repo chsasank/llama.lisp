@@ -1,10 +1,10 @@
 import logging
-import pyodbc
+import oracledb
 from etl.common import ETLDataTypes, SourceDriver, StateManager
 
 logger = logging.getLogger(__name__)
 
-class MssqlSource(SourceDriver):
+class OracleSource(SourceDriver):
     def __init__(self, config, state_id=None, batch_size=10000):
         self.config = config
         self.conn = self._connect()
@@ -19,76 +19,82 @@ class MssqlSource(SourceDriver):
 
     def _connect(self):
         cfg = self.config["connection"]
-        conn = pyodbc.connect(
-            "Driver={ODBC Driver 18 for SQL Server};"
-            f"Server={cfg['host']},{cfg.get('port', 1433)};"
-            f"Database={cfg['database']};"
-            f"UID={cfg['user']};"
-            f"PWD={cfg['password']};"
-            "Encrypt=no;"
-            "TrustServerCertificate=yes;"
+        conn = oracledb.connect(
+            user=cfg["user"],
+            password=cfg["password"],
+            host=cfg["host"],
+            port=cfg.get("port", 1521),
+            service_name=cfg["service"],
         )
-
-        # Auto-convert unsupported SQL Server types (like geography, geometry)
-        # -151 = SQL_SS_UDT (User-defined types including geography, geometry)
-        conn.add_output_converter(-151, lambda v: v.hex() if v else None)
-
         return conn
 
-
     def normalize_data_type(self, dtype):
-        if dtype in ("int", "smallint", "bigint", "tinyint"):
+        # https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Data-Types.html
+        if dtype in ("NUMBER", "INTEGER", "INT", "SMALLINT"):
             return ETLDataTypes.INTEGER
-        elif dtype in ("float", "real", "decimal", "numeric", "money", "smallmoney"):
+        elif dtype in ("FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE"):
             return ETLDataTypes.FLOAT
-        elif dtype == "bit":
+        elif dtype in ("BOOLEAN",):
             return ETLDataTypes.BOOLEAN
-        elif dtype in ("datetime", "datetime2", "smalldatetime", "datetimeoffset"):
+        elif dtype in ("TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE"):
             return ETLDataTypes.DATE_TIME
-        elif dtype == "date":
+        elif dtype in ("DATE",):
             return ETLDataTypes.DATE
-        elif dtype == "time":
-            return ETLDataTypes.TIME
-        elif dtype in ("binary", "varbinary", "image"):
+        elif dtype.startswith("INTERVAL"):
+            return ETLDataTypes.TIME_INTERVAL
+        elif dtype in ("RAW", "BLOB", "BFILE"):
             return ETLDataTypes.BYTES
-        elif dtype in ("nvarchar", "varchar", "nchar", "char", "text", "ntext"):
+        elif dtype in ("CHAR", "NCHAR", "VARCHAR2", "NVARCHAR2", "CLOB", "NCLOB"):
             return ETLDataTypes.STRING
-        elif dtype in ("xml", "json"):
+        elif dtype == "JSON":
             return ETLDataTypes.JSON
-        elif dtype in ("geography", "geometry"):
+        elif dtype == "XMLTYPE":
+            return ETLDataTypes.STRING
+        elif dtype in ("LONG", "LONG RAW"):
+            return ETLDataTypes.STRING
+        elif dtype in ("ROWID", "UROWID"):
             return ETLDataTypes.STRING
         else:
             raise ValueError(f"Unknown data type: {dtype}")
 
     def get_etl_schema(self):
         schema, table = self.config["table"].split(".")
-        
-        # Column names and datatypes
+        schema = schema.upper()
+        table = table.upper()
+
         cur = self.conn.cursor()
+        # https://docs.oracle.com/en/database/oracle/oracle-database/26/refrn/ALL_TAB_COLUMNS.html
+        # about ALL_TAB_COLUMNS
+
+        # https://python-oracledb.readthedocs.io/en/latest/user_guide/bind.html
+        # bind variables are denoted with a colon and a name such as :owner and :tname
         cur.execute(
             """
             SELECT COLUMN_NAME, DATA_TYPE
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-            ORDER BY ORDINAL_POSITION;
+            FROM ALL_TAB_COLUMNS
+            WHERE OWNER = :owner
+            AND TABLE_NAME = :tname
+            ORDER BY COLUMN_ID
             """,
-            (schema, table),
+            {"owner": schema, "tname": table},
         )
         cols = [(r[0], self.normalize_data_type(r[1])) for r in cur.fetchall()]
 
-        # Primary key detection
+        # https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/ALL_CONSTRAINTS.html
+        # about ALL_CONSTRAINTS
         cur.execute(
             """
-            SELECT k.COLUMN_NAME
-            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t
-            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-                ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME
-            WHERE t.TABLE_SCHEMA = ?
-              AND t.TABLE_NAME = ?
-              AND t.CONSTRAINT_TYPE = 'PRIMARY KEY'
-            ORDER BY k.ORDINAL_POSITION;
+            SELECT cols.COLUMN_NAME
+            FROM ALL_CONSTRAINTS cons
+            JOIN ALL_CONS_COLUMNS cols
+            ON cons.CONSTRAINT_NAME = cols.CONSTRAINT_NAME
+            AND cons.OWNER = cols.OWNER
+            WHERE cons.CONSTRAINT_TYPE = 'P'
+            AND cons.OWNER = :owner
+            AND cons.TABLE_NAME = :tname
+            ORDER BY cols.POSITION
             """,
-            (schema, table),
+            {"owner": schema, "tname": table},
         )
         primary_cols = [r[0] for r in cur.fetchall()]
         return {"columns": cols, "primary_keys": primary_cols}
@@ -103,20 +109,25 @@ class MssqlSource(SourceDriver):
                 f"Replication key {self.state_manager.replication_key} updated with {last_row_state}"
             )
 
+
     def stream_batches(self):
-        # pyodbc does NOT support server-side named cursors → use normal cursor
         if not self.cur:
             self.cur = self.conn.cursor()
         cur = self.cur
 
-        # same meaning as psql itersize
         cur.arraysize = self.batch_size
 
         table = self.config["table"]
+        schema, table_name = table.split(".")
+        schema = schema.upper()
+        table_name = table_name.upper()
+
         etl_schema = self.get_etl_schema()
         col_names = [x[0] for x in etl_schema["columns"]]
-        # mssql server needs bracket quoting
-        format_cols = ", ".join(f"[{c}]" for c in col_names)
+
+        # Oracle requires quoting using double-quotes for identifiers
+        format_cols = ", ".join(f'"{c}"' for c in col_names)
+        full_table = f'{schema}."{table_name}"'
 
         if self.state_manager:
             assert (
@@ -128,21 +139,20 @@ class MssqlSource(SourceDriver):
 
             if current_state:
                 sql = (
-                    f"SELECT {format_cols} FROM {table} "
-                    f"WHERE [{replication_key}] >= ? "
-                    f"ORDER BY [{replication_key}]"
+                    f"SELECT {format_cols} FROM {full_table} "
+                    f"WHERE \"{replication_key}\" >= :state "
+                    f"ORDER BY \"{replication_key}\""
                 )
-                params = (current_state,)
+                params = {"state": current_state}
             else:
                 sql = (
-                    f"SELECT {format_cols} FROM {table} "
-                    f"ORDER BY [{replication_key}]"
+                    f"SELECT {format_cols} FROM {full_table} "
+                    f"ORDER BY \"{replication_key}\""
                 )
-                params = ()
+                params = {}
         else:
-            # full extraction
-            sql = f"SELECT {format_cols} FROM {table}"
-            params = ()
+            sql = f"SELECT {format_cols} FROM {full_table}"
+            params = {}
 
         logger.info(f"Fetching rows with SQL={sql}, params={params}")
         cur.execute(sql, params)

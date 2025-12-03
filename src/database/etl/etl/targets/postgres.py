@@ -27,7 +27,7 @@ class PostgresTarget(TargetDriver):
 
     def pg_data_types(self, etl_dtype):
         if etl_dtype == ETLDataTypes.INTEGER:
-            return "bigint"
+            return "numeric"
         elif etl_dtype == ETLDataTypes.FLOAT:
             return "real"
         elif etl_dtype == ETLDataTypes.BOOLEAN:
