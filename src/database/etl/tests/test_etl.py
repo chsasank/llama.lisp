@@ -8,7 +8,7 @@ from etl.targets import ClickhouseTarget, PostgresTarget
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
-def test_psql_etl():
+def test_psql_psql_etl():
     source_conn = {
         "host": testing_database_host,
         "port": 5511,
@@ -46,7 +46,7 @@ def test_psql_etl():
             tgt.load_batch(batch, etl_schema)
 
 
-def test_ch_etl():
+def test_psql_ch_etl():
     source_conn = {
         "host": testing_database_host,
         "port": 5511,
@@ -84,7 +84,7 @@ def test_ch_etl():
             tgt.load_batch(batch, etl_schema)
 
 
-def test_mssql_etl():
+def test_mssql_psql_etl():
     source_conn = {
         "host": testing_database_host,
         "port": 1433,
@@ -127,7 +127,40 @@ def test_mssql_etl():
             tgt.load_batch(batch, etl_schema)
 
 
-def test_oracle_etl():
+def test_mssql_ch_etl():
+    source_conn = {
+        "host": testing_database_host,
+        "port": 1433,
+        "user": "SA",
+        "password": "Intelarc@123",
+        "database": "WideWorldImporters",
+    }
+
+    target_conn = {
+        "host": testing_database_host,
+        "port": 8123,
+        "user": "testing",
+        "password": "intelarc",
+        "database": "github",
+    }
+
+    tables_to_copy = ["Sales.Customers", "Purchasing.Suppliers"]
+
+    for table_name in tables_to_copy:
+        print(f"Copying {table_name}")
+
+        src = MssqlSource({"connection": source_conn, "table": table_name})
+        tgt = ClickhouseTarget({"connection": target_conn, "table": table_name})
+
+        etl_schema = src.get_etl_schema()
+        tgt.ensure_schema(etl_schema)
+
+        batches = src.stream_batches()
+        for batch in batches:
+            tgt.load_batch(batch, etl_schema)
+
+
+def test_oracle_psql_etl():
     source_conn = {
         "host": testing_database_host,
         "port": 1521,
@@ -170,8 +203,43 @@ def test_oracle_etl():
             tgt.load_batch(batch, etl_schema)
 
 
+def test_oracle_ch_etl():
+    source_conn = {
+        "host": testing_database_host,
+        "port": 1521,
+        "user": "SYSTEM",
+        "password": "Intelarc123",
+        "service": "FREEPDB1",
+    }
+
+    target_conn = {
+        "host": testing_database_host,
+        "port": 8123,
+        "user": "testing",
+        "password": "intelarc",
+        "database": "github",
+    }
+
+    tables_to_copy = ["HR.EMPLOYEES", "HR.DEPARTMENTS"]
+
+    for table_name in tables_to_copy:
+        print(f"Copying {table_name}")
+
+        src = OracleSource({"connection": source_conn, "table": table_name})
+        tgt = ClickhouseTarget({"connection": target_conn, "table": table_name})
+
+        etl_schema = src.get_etl_schema()
+        tgt.ensure_schema(etl_schema)
+
+        batches = src.stream_batches()
+        for batch in batches:
+            tgt.load_batch(batch, etl_schema)
+
+
 if __name__ == "__main__":
-    test_psql_etl()
-    test_ch_etl()
-    test_mssql_etl()
-    test_oracle_etl()
+    test_psql_psql_etl()
+    test_psql_ch_etl()
+    test_mssql_psql_etl()
+    test_oracle_psql_etl()
+    test_mssql_ch_etl()
+    test_oracle_ch_etl()

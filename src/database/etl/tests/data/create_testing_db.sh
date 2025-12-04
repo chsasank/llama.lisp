@@ -52,6 +52,9 @@ podman run -d --replace \
     -p 9000:9000 \
     clickhouse/clickhouse-server
 
+# after the database git created use below command for login to database
+# podman exec -it etl-test-target-ch-db clickhouse-client 
+
 sleep 5
 echo "==> created $TEST_TARGET_DB"
 
