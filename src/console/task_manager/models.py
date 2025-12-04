@@ -46,8 +46,8 @@ class Task(models.Model):
             self.ret_val = fn(**self.args)
             self.state = self.TaskState.SUCCESS
             self.save()
+            return self.ret_val
         except:
             self.state = self.TaskState.FAILED
             self.save()
-
-        return self.ret_val
+            return

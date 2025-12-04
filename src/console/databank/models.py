@@ -30,6 +30,3 @@ class ETLConfiguration(models.Model):
     target_table = models.CharField()
     replication_key = models.CharField(null=True)
     replication_state = models.JSONField(null=True)
-
-    def run_etl(self):
-        pass
