@@ -1,16 +1,16 @@
 import logging
 
-import psycopg
+import pyodbc
 from etl.common import ETLDataTypes, SourceDriver, StateManager
 
 logger = logging.getLogger(__name__)
 
 
-class PostgresSource(SourceDriver):
+class MssqlSource(SourceDriver):
     def __init__(self, config, state_id=None, batch_size=10000):
         self.config = config
-        self.conn = self._connect()  # ONE connection for entire ETL
-        self.cur = None  # streaming cursor reused
+        self.conn = self._connect()
+        self.cur = None
         self.batch_size = batch_size
 
         if "replication_key" in self.config:
@@ -21,75 +21,81 @@ class PostgresSource(SourceDriver):
 
     def _connect(self):
         cfg = self.config["connection"]
-        return psycopg.connect(
-            host=cfg["host"],
-            port=cfg["port"],
-            user=cfg["user"],
-            password=cfg["password"],
-            dbname=cfg["database"],
+        conn = pyodbc.connect(
+            "Driver={ODBC Driver 18 for SQL Server};"
+            f"Server={cfg['host']},{cfg.get('port', 1433)};"
+            f"Database={cfg['database']};"
+            f"UID={cfg['user']};"
+            f"PWD={cfg['password']};"
+            "Encrypt=no;"
+            "TrustServerCertificate=yes;"
         )
 
+        # Auto-convert unsupported SQL Server types (like geography, geometry)
+        # -151 = SQL_SS_UDT (User-defined types including geography, geometry)
+        conn.add_output_converter(-151, lambda v: v.hex() if v else None)
+
+        return conn
+
     def normalize_data_type(self, dtype):
-        if dtype in ("integer", "bigint", "smallint"):
+        if dtype in ("int", "smallint", "bigint", "tinyint"):
             return ETLDataTypes.INTEGER
-        elif dtype in ("real", "double", "numeric"):
+        elif dtype in ("float", "real", "decimal", "numeric", "money", "smallmoney"):
             return ETLDataTypes.FLOAT
-        elif dtype in ("boolean"):
+        elif dtype == "bit":
             return ETLDataTypes.BOOLEAN
-        elif "timestamp " in dtype:
+        elif dtype in ("datetime", "datetime2", "smalldatetime", "datetimeoffset"):
             return ETLDataTypes.DATE_TIME
-        elif dtype in ("date"):
+        elif dtype == "date":
             return ETLDataTypes.DATE
-        elif "time " in dtype:
+        elif dtype == "time":
             return ETLDataTypes.TIME
-        elif "interval" in dtype:
-            return ETLDataTypes.TIME_INTERVAL
-        elif "json" in dtype:
-            return ETLDataTypes.JSON
-        elif dtype in ("varchar", "text"):
-            return ETLDataTypes.STRING
-        elif dtype in ("bytea"):
+        elif dtype in ("binary", "varbinary", "image"):
             return ETLDataTypes.BYTES
+        elif dtype in ("nvarchar", "varchar", "nchar", "char", "text", "ntext"):
+            return ETLDataTypes.STRING
+        elif dtype in ("json"):
+            return ETLDataTypes.JSON
+        elif dtype in ("xml", "geography", "geometry"):
+            # cast these unsupported types to string
+            return ETLDataTypes.STRING
         else:
             raise ValueError(f"Unknown data type: {dtype}")
 
     def get_etl_schema(self):
         schema, table = self.config["table"].split(".")
 
-        # find column names
+        # Column names and datatypes
         cur = self.conn.cursor()
         cur.execute(
             """
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_schema=%s AND table_name=%s
-            ORDER BY ordinal_position
-        """,
+            SELECT COLUMN_NAME, DATA_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+            ORDER BY ORDINAL_POSITION;
+            """,
             (schema, table),
         )
-
         cols = [(r[0], self.normalize_data_type(r[1])) for r in cur.fetchall()]
 
-        # find primary key: https://stackoverflow.com/a/19570298
-        cur = self.conn.cursor()
+        # Primary key detection
         cur.execute(
             """
-            SELECT column_name
-            FROM information_schema.table_constraints
-                JOIN information_schema.key_column_usage
-                    USING (constraint_catalog, constraint_schema, constraint_name,
-                            table_catalog, table_schema, table_name)
-            WHERE constraint_type = 'PRIMARY KEY'
-            AND (table_schema, table_name) = (%s, %s)
-            ORDER BY ordinal_position;
-        """,
+            SELECT k.COLUMN_NAME
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t
+            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+                ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME
+            WHERE t.TABLE_SCHEMA = ?
+              AND t.TABLE_NAME = ?
+              AND t.CONSTRAINT_TYPE = 'PRIMARY KEY'
+            ORDER BY k.ORDINAL_POSITION;
+            """,
             (schema, table),
         )
         primary_cols = [r[0] for r in cur.fetchall()]
         return {"columns": cols, "primary_keys": primary_cols}
 
     def _save_state(self, batch, etl_schema):
-        # store state
         if self.state_manager:
             col_names = [x[0] for x in etl_schema["columns"]]
             rep_key_idx = col_names.index(self.state_manager.replication_key)
@@ -100,16 +106,19 @@ class PostgresSource(SourceDriver):
             )
 
     def stream_batches(self):
+        # pyodbc does NOT support server-side named cursors → use normal cursor
         if not self.cur:
-            self.cur = self.conn.cursor(name="stream")
+            self.cur = self.conn.cursor()
         cur = self.cur
 
-        cur.itersize = self.batch_size
+        # same meaning as psql itersize
+        cur.arraysize = self.batch_size
 
         table = self.config["table"]
         etl_schema = self.get_etl_schema()
         col_names = [x[0] for x in etl_schema["columns"]]
-        format_cols = ", ".join(col_names)
+        # mssql server needs bracket quoting
+        format_cols = ", ".join(f"[{c}]" for c in col_names)
 
         if self.state_manager:
             assert (
@@ -118,16 +127,21 @@ class PostgresSource(SourceDriver):
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")
+
             if current_state:
-                sql = f"SELECT {format_cols} FROM {table} where {replication_key} >= %s ORDER BY {replication_key}"
+                sql = (
+                    f"SELECT {format_cols} FROM {table} "
+                    f"WHERE [{replication_key}] >= ? "
+                    f"ORDER BY [{replication_key}]"
+                )
                 params = (current_state,)
             else:
-                sql = f"SELECT {format_cols} FROM {table} ORDER BY {replication_key}"
-                params = None
+                sql = f"SELECT {format_cols} FROM {table} ORDER BY [{replication_key}]"
+                params = ()
         else:
-            # do full replication if there is no state
+            # full extraction
             sql = f"SELECT {format_cols} FROM {table}"
-            params = None
+            params = ()
 
         logger.info(f"Fetching rows with SQL={sql}, params={params}")
         cur.execute(sql, params)

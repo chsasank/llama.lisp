@@ -6,7 +6,7 @@ class ETLDataTypes(Enum):
     FLOAT = 2
     BOOLEAN = 3
 
-    STRING = 4   
+    STRING = 4
     BYTES = 5
     JSON = 6
 
