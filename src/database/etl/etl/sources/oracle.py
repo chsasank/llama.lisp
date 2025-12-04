@@ -1,8 +1,11 @@
 import logging
+from errno import ETIME
+
 import oracledb
 from etl.common import ETLDataTypes, SourceDriver, StateManager
 
 logger = logging.getLogger(__name__)
+
 
 class OracleSource(SourceDriver):
     def __init__(self, config, state_id=None, batch_size=10000):
@@ -28,34 +31,58 @@ class OracleSource(SourceDriver):
         )
         return conn
 
-    def normalize_data_type(self, dtype):
+    def normalize_data_type(self, dtype, data_scale):
         # https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Data-Types.html
-        if dtype in ("NUMBER", "INTEGER", "INT", "SMALLINT"):
+        if dtype in ("NUMBER"):
+            if data_scale == 0:
+                return ETLDataTypes.INTEGER
+            else:
+                return ETLDataTypes.FLOAT
+        elif dtype in ("INTEGER", "INT", "SMALLINT"):
             return ETLDataTypes.INTEGER
         elif dtype in ("FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE"):
             return ETLDataTypes.FLOAT
         elif dtype in ("BOOLEAN",):
             return ETLDataTypes.BOOLEAN
-        elif dtype in ("TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE"):
+        elif dtype in (
+            "TIMESTAMP",
+            "TIMESTAMP WITH TIME ZONE",
+            "TIMESTAMP WITH LOCAL TIME ZONE",
+        ):
             return ETLDataTypes.DATE_TIME
         elif dtype in ("DATE",):
             return ETLDataTypes.DATE
         elif dtype.startswith("INTERVAL"):
             return ETLDataTypes.TIME_INTERVAL
-        elif dtype in ("RAW", "BLOB", "BFILE"):
+        elif dtype in ("RAW", "BLOB", "BFILE", "LONG RAW"):
             return ETLDataTypes.BYTES
-        elif dtype in ("CHAR", "NCHAR", "VARCHAR2", "NVARCHAR2", "CLOB", "NCLOB"):
+        elif dtype in (
+            "CHAR",
+            "NCHAR",
+            "VARCHAR2",
+            "NVARCHAR2",
+            "CLOB",
+            "NCLOB",
+            "LONG",
+        ):
             return ETLDataTypes.STRING
         elif dtype == "JSON":
             return ETLDataTypes.JSON
         elif dtype == "XMLTYPE":
             return ETLDataTypes.STRING
-        elif dtype in ("LONG", "LONG RAW"):
-            return ETLDataTypes.STRING
         elif dtype in ("ROWID", "UROWID"):
             return ETLDataTypes.STRING
         else:
             raise ValueError(f"Unknown data type: {dtype}")
+
+    def normalize_row(self, row, etl_schema):
+        row = list(row)
+        for idx in range(len(row)):
+            if etl_schema["columns"][idx][1] == ETLDataTypes.INTEGER:
+                if row[idx] is not None:
+                    row[idx] = int(row[idx])
+
+        return row
 
     def get_etl_schema(self):
         schema, table = self.config["table"].split(".")
@@ -70,7 +97,7 @@ class OracleSource(SourceDriver):
         # bind variables are denoted with a colon and a name such as :owner and :tname
         cur.execute(
             """
-            SELECT COLUMN_NAME, DATA_TYPE
+            SELECT COLUMN_NAME, DATA_TYPE, DATA_SCALE
             FROM ALL_TAB_COLUMNS
             WHERE OWNER = :owner
             AND TABLE_NAME = :tname
@@ -78,7 +105,8 @@ class OracleSource(SourceDriver):
             """,
             {"owner": schema, "tname": table},
         )
-        cols = [(r[0], self.normalize_data_type(r[1])) for r in cur.fetchall()]
+        cols_raw = cur.fetchall()
+        cols = [(r[0], self.normalize_data_type(r[1], r[2])) for r in cols_raw]
 
         # https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/ALL_CONSTRAINTS.html
         # about ALL_CONSTRAINTS
@@ -109,7 +137,6 @@ class OracleSource(SourceDriver):
                 f"Replication key {self.state_manager.replication_key} updated with {last_row_state}"
             )
 
-
     def stream_batches(self):
         if not self.cur:
             self.cur = self.conn.cursor()
@@ -130,9 +157,9 @@ class OracleSource(SourceDriver):
         full_table = f'{schema}."{table_name}"'
 
         if self.state_manager:
-            assert (
-                self.state_manager.replication_key in col_names
-            ), f"{self.state_manager.replication_key} is not in cols {col_names}"
+            assert self.state_manager.replication_key in col_names, (
+                f"{self.state_manager.replication_key} is not in cols {col_names}"
+            )
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")
@@ -140,14 +167,14 @@ class OracleSource(SourceDriver):
             if current_state:
                 sql = (
                     f"SELECT {format_cols} FROM {full_table} "
-                    f"WHERE \"{replication_key}\" >= :state "
-                    f"ORDER BY \"{replication_key}\""
+                    f'WHERE "{replication_key}" >= :state '
+                    f'ORDER BY "{replication_key}"'
                 )
                 params = {"state": current_state}
             else:
                 sql = (
                     f"SELECT {format_cols} FROM {full_table} "
-                    f"ORDER BY \"{replication_key}\""
+                    f'ORDER BY "{replication_key}"'
                 )
                 params = {}
         else:
@@ -162,6 +189,7 @@ class OracleSource(SourceDriver):
             if not batch:
                 break
 
+            batch = [self.normalize_row(row, etl_schema) for row in batch]
             logger.info(f"Extracted {len(batch)} rows")
 
             yield batch

@@ -170,7 +170,6 @@ def test_oracle_etl():
             tgt.load_batch(batch, etl_schema)
 
 
-
 if __name__ == "__main__":
     test_psql_etl()
     test_ch_etl()

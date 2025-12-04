@@ -1,10 +1,8 @@
-import psycopg
-import random
-from psycopg import types
-import io
-import os
 import logging
-from etl.common import TargetDriver, ETLDataTypes
+import random
+
+import psycopg
+from etl.common import ETLDataTypes, TargetDriver
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +25,7 @@ class PostgresTarget(TargetDriver):
 
     def pg_data_types(self, etl_dtype):
         if etl_dtype == ETLDataTypes.INTEGER:
-            return "numeric"
+            return "bigint"
         elif etl_dtype == ETLDataTypes.FLOAT:
             return "real"
         elif etl_dtype == ETLDataTypes.BOOLEAN:
@@ -48,6 +46,15 @@ class PostgresTarget(TargetDriver):
             return "bytea"
         else:
             raise ValueError(f"Unknown data type: {etl_dtype}")
+
+    def normalize_row(self, row, etl_schema):
+        row = list(row)
+        # Wrap json column
+        for idx in range(len(row)):
+            if etl_schema["columns"][idx][1] == ETLDataTypes.JSON:
+                row[idx] = psycopg.types.json.Jsonb(row[idx])
+
+        return row
 
     def ensure_schema(self, etl_schema):
         schema, table = self.config["table"].split(".")
@@ -123,12 +130,8 @@ class PostgresTarget(TargetDriver):
 
         column_names = ", ".join([x[0] for x in etl_schema["columns"]])
         with cur.copy(f"COPY {temp_table_name} ({column_names}) FROM STDIN") as copy:
-            rows = [list(x) for x in rows]
             for row in rows:
-                # Wrap json column
-                for idx in range(len(row)):
-                    if etl_schema["columns"][idx][1] == ETLDataTypes.JSON:
-                        row[idx] = psycopg.types.json.Jsonb(row[idx])
+                row = self.normalize_row(row, etl_schema)
                 copy.write_row(row)
 
         primary_keys = ", ".join(etl_schema["primary_keys"])

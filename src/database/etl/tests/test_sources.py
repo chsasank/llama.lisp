@@ -1,11 +1,12 @@
 import logging
 import sys
+
 import oracledb
 import psycopg
 import pyodbc
 from common import testing_database_host
 from etl.common import ETLDataTypes
-from etl.sources import MssqlSource, PostgresSource, OracleSource
+from etl.sources import MssqlSource, OracleSource, PostgresSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -280,7 +281,6 @@ def test_mssql_stream_batches():
     assert len(first_batch) == 100
 
 
-
 def test_mssql_stream_batches_replication():
     src = MssqlSource(
         {**test_mssql_config, "replication_key": "CustomerID"},
@@ -298,6 +298,7 @@ def test_mssql_stream_batches_replication():
 
     assert src.state_manager.get_state() is not None
 
+
 def test_oracle_init():
     src = OracleSource(test_oracle_config)
     assert isinstance(src.conn, oracledb.Connection)
@@ -314,14 +315,13 @@ def test_oracle_schema():
                 ("PHONE_NUMBER", ETLDataTypes.STRING),
                 ("HIRE_DATE", ETLDataTypes.DATE),
                 ("JOB_ID", ETLDataTypes.STRING),
-                ("SALARY", ETLDataTypes.INTEGER),
-                ("COMMISSION_PCT", ETLDataTypes.INTEGER),
+                ("SALARY", ETLDataTypes.FLOAT),
+                ("COMMISSION_PCT", ETLDataTypes.FLOAT),
                 ("MANAGER_ID", ETLDataTypes.INTEGER),
                 ("DEPARTMENT_ID", ETLDataTypes.INTEGER),
             ],
             "primary_keys": ["EMPLOYEE_ID"],
         },
-
         "HR.DEPARTMENTS": {
             "columns": [
                 ("DEPARTMENT_ID", ETLDataTypes.INTEGER),
@@ -342,12 +342,14 @@ def test_oracle_schema():
         )
         logger.info(f"schema matched for {table_name}")
 
+
 def test_oracle_stream_batches():
     src = OracleSource(test_oracle_config, batch_size=5)
     schema = src.get_etl_schema()
     batches = src.stream_batches()
     first_batch = next(batches)
     assert len(first_batch) == 5
+
 
 def test_oracle_stream_batches_replication():
     src = OracleSource(

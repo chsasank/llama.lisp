@@ -1,8 +1,10 @@
 import logging
+
 import pyodbc
 from etl.common import ETLDataTypes, SourceDriver, StateManager
 
 logger = logging.getLogger(__name__)
+
 
 class MssqlSource(SourceDriver):
     def __init__(self, config, state_id=None, batch_size=10000):
@@ -35,7 +37,6 @@ class MssqlSource(SourceDriver):
 
         return conn
 
-
     def normalize_data_type(self, dtype):
         if dtype in ("int", "smallint", "bigint", "tinyint"):
             return ETLDataTypes.INTEGER
@@ -53,16 +54,17 @@ class MssqlSource(SourceDriver):
             return ETLDataTypes.BYTES
         elif dtype in ("nvarchar", "varchar", "nchar", "char", "text", "ntext"):
             return ETLDataTypes.STRING
-        elif dtype in ("xml", "json"):
+        elif dtype in ("json"):
             return ETLDataTypes.JSON
-        elif dtype in ("geography", "geometry"):
+        elif dtype in ("xml", "geography", "geometry"):
+            # cast these unsupported types to string
             return ETLDataTypes.STRING
         else:
             raise ValueError(f"Unknown data type: {dtype}")
 
     def get_etl_schema(self):
         schema, table = self.config["table"].split(".")
-        
+
         # Column names and datatypes
         cur = self.conn.cursor()
         cur.execute(
@@ -134,10 +136,7 @@ class MssqlSource(SourceDriver):
                 )
                 params = (current_state,)
             else:
-                sql = (
-                    f"SELECT {format_cols} FROM {table} "
-                    f"ORDER BY [{replication_key}]"
-                )
+                sql = f"SELECT {format_cols} FROM {table} ORDER BY [{replication_key}]"
                 params = ()
         else:
             # full extraction
