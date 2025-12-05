@@ -1,0 +1,53 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<h2>ETL Configurations</h2>
+
+<a href="{% url 'etl_create' %}">Add ETL Configuration</a>
+&nbsp; | &nbsp;
+<a href="{% url 'run_all_etls' %}">Run ALL ETLs</a>
+
+<hr>
+
+<ul>
+    {% for e in etls %}
+        <li style="margin-bottom: 18px;">
+
+            <strong style="font-size: 1.1em;">
+                {{ e.source_table }} → {{ e.target_table }}
+            </strong>
+
+            <br><br>
+
+            <small>
+                <strong>Source DB:</strong>
+                {{ e.source_database.etl_type|upper }} |
+                {{ e.source_database.database_type }} |
+                {{ e.source_database.connection_config.host }}:
+                {{ e.source_database.connection_config.port }}
+                <br>
+
+                <strong>Target DB:</strong>
+                {{ e.target_database.etl_type|upper }} |
+                {{ e.target_database.database_type }} |
+                {{ e.target_database.connection_config.host }}:
+                {{ e.target_database.connection_config.port }}
+                <br>
+
+                <strong>Replication Key:</strong> {{ e.replication_key }}
+            </small>
+
+            <br><br>
+
+            <a href="{% url 'etl_edit' e.id %}">Edit</a>
+            &nbsp;|&nbsp;
+
+            <a href="{% url 'run_single_etl' e.id %}">
+                Run this ETL
+            </a>
+
+        </li>
+    {% endfor %}
+</ul>
+
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<h2>List of Databases</h2>
+
+<a href="{% url 'database_create' %}">Add Database</a>
+
+
+<!-- SOURCE DATABASES SECTION -->
+<h3>Source Databases</h3>
+<ul>
+    {% for db in databases %}
+        {% if db.etl_type == "source" %}
+            <li style="margin: 8px 0;">
+                {{ db.etl_type|upper }} |
+                {{ db.database_type }} |
+                {{ db.connection_config.host }}:{{ db.connection_config.port }}
+                &nbsp;
+                <a href="{% url 'database_edit' db.id %}">Edit</a>
+            </li>
+        {% endif %}
+    {% empty %}
+        <li>No source databases configured yet.</li>
+    {% endfor %}
+</ul>
+
+
+<!-- TARGET DATABASES SECTION -->
+<h3>Target Databases</h3>
+<ul>
+    {% for db in databases %}
+        {% if db.etl_type == "target" %}
+            <li style="margin: 8px 0;">
+                {{ db.etl_type|upper }} |
+                {{ db.database_type }} |
+                {{ db.connection_config.host }}:{{ db.connection_config.port }}
+                &nbsp;
+                <a href="{% url 'database_edit' db.id %}">Edit</a>
+            </li>
+        {% endif %}
+    {% empty %}
+        <li>No target databases configured yet.</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}

@@ -17,6 +17,11 @@ class DatabaseConfiguration(models.Model):
     database_type = models.CharField(choices=DBTypes.choices)
     connection_config = models.JSONField()
 
+    def __str__(self):
+        host = self.connection_config.get("host")
+        port = self.connection_config.get("port")
+        return f"{self.etl_type.upper()} | {self.database_type} | {host}:{port}"
+
 
 class ETLConfiguration(models.Model):
     source_database = models.ForeignKey(
@@ -28,5 +33,5 @@ class ETLConfiguration(models.Model):
 
     source_table = models.CharField()
     target_table = models.CharField()
-    replication_key = models.CharField(null=True)
-    replication_state = models.JSONField(null=True)
+    replication_key = models.CharField(null=True, blank=True)
+    replication_state = models.JSONField(null=True, blank=True)

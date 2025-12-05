@@ -1,0 +1,12 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<!-- <h2>ETL Result</h2> -->
+
+{% if status == "success" %}
+    <p style="color: green; font-weight: bold;">{{ message }}</p>
+{% else %}
+    <p style="color: red; font-weight: bold;">{{ message }}</p>
+{% endif %}
+
+{% endblock %}
