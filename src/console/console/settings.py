@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "databank",
     "task_manager",
+    "multix"
 ]
 
 MIDDLEWARE = [
