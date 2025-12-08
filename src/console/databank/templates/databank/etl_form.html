@@ -1,11 +1,41 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<h2>Add / Edit ETL Configuration</h2>
+<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
 
-<form method="POST">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-</form>
+    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
+        $ {% if form.instance.pk %}Edit ETL-config{% else %}Add ETL-config{% endif %}
+    </h2>
+
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-wide text-slate-400">
+                {{ field.label }}
+            </label>
+
+            {{ field }}
+
+            {% if field.errors %}
+            <p class="text-xs text-red-400">{{ field.errors }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex justify-between pt-6">
+            <a href="{% url 'etl_list' %}"
+               class="px-4 py-2 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent transition">
+               ← Back
+            </a>
+
+            <button type="submit"
+                class="px-6 py-2 border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
+                Save
+            </button>
+        </div>
+
+    </form>
+</div>
 {% endblock %}

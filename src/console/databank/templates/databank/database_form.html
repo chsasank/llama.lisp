@@ -1,11 +1,128 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<h2>Add / Edit Database Configuration</h2>
+<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+    
+    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
+        $ {% if form.instance.pk %}edit database{% else %}Add Database{% endif %}
+    </h2>
 
-<form method="POST">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-</form>
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="space-y-1">
+
+            <!-- label -->
+            <label class="block text-xs uppercase tracking-wide text-slate-400">
+                {{ field.label }}
+            </label>
+
+            <!-- fields already styled by forms.py -->
+            {{ field }}
+
+            <!-- errors -->
+            {% if field.errors %}
+                <p class="text-xs text-red-400">{{ field.errors }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex justify-between pt-6">
+            <a href="{% url 'database_list' %}"
+               class="px-4 py-2 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent transition">
+                ← Back
+            </a>
+
+            <button type="submit"
+                class="px-6 py-2 border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
+                Save
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+const defaultConfigs = {
+    "source": {
+        "postgres": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`,
+        "mssql": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`,
+        "oracle": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "service": "SERVICE NAME"
+}`
+    },
+
+    "target": {
+        "postgres": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`,
+        "clickhouse": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`
+    }
+};
+
+const etlType = document.getElementById("id_etl_type");
+const dbType = document.getElementById("id_database_type");
+const configTextarea = document.getElementById("id_connection_config");
+
+// store last injected template
+let lastAutoFilled = "";
+
+function applyDefaultConfig(force = false) {
+    const etl = etlType.value?.toLowerCase();
+    const db = dbType.value?.toLowerCase();
+
+    let newTemplate = null;
+
+    // check if default exists
+    if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
+        newTemplate = defaultConfigs[etl][db];
+    } else {
+        newTemplate = "Null";   // fallback for unknown combinations
+    }
+
+    // Update textarea only if first load, user has not modified content, and forced update on page load
+    if (
+        force ||
+        configTextarea.value.trim() === "" ||
+        configTextarea.value.trim() === "null" ||
+        configTextarea.value.trim() === lastAutoFilled.trim()
+    ) {
+        configTextarea.value = newTemplate;
+        lastAutoFilled = newTemplate;
+    }
+}
+
+etlType.addEventListener("change", () => applyDefaultConfig());
+dbType.addEventListener("change", () => applyDefaultConfig());
+
+document.addEventListener("DOMContentLoaded", () => applyDefaultConfig(true));
+</script>
+
 {% endblock %}

@@ -1,19 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="utf-8" />
     <title>ETL Console</title>
-</head>
-<body>
-    <h1>ETL Management Console</h1>
 
-    <nav>
-        <a href="/databases/">Databases</a> |
-        <a href="/etls/">ETL Configurations</a>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              mono: ['ui-monospace','SFMono-Regular','Menlo','Monaco','Consolas','Liberation Mono','Courier New','monospace'],
+            },
+            colors: {
+              consoleBg: '#020617',
+              consolePanel: '#020617',
+              consoleBorder: '#1f2937',
+              consoleAccent: '#22c55e',
+            },
+          },
+        },
+      }
+    </script>
+</head>
+
+<body class="min-h-screen flex flex-col bg-consoleBg text-slate-100 font-mono">
+
+    <!-- Header section -->
+    <header class="border-b border-consoleBorder bg-consolePanel/80 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                <h1 class="text-lg md:text-xl font-semibold tracking-tight">
+                    ETL Management Console
+                </h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation bar -->
+    <nav class="border-b border-consoleBorder bg-black/40">
+        <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-2 justify-center text-sm">
+            <a href="{% url 'home' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
+                $ Home
+            </a>
+            <a href="{% url 'database_list' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
+                $ Databases
+            </a>
+            <a href="{% url 'etl_list' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
+                $ ETL-configs
+            </a>
+        </div>
     </nav>
 
-    <hr>
+    <!-- Main content -->
+    <main class="w-full flex-1 max-w-6xl mx-auto px-4 py-6">
+        {% block content %}
+        {% endblock %}
+    </main>
 
-    {% block content %}
-    {% endblock %}
+    <!-- Footer section -->
+    <footer class="border-t border-consoleBorder bg-black/40 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 py-2 text-xs text-slate-500 flex justify-between">
+            <span>ETL-console</span>
+            <span>Press <span class="text-consoleAccent">F5</span> to refresh</span>
+        </div>
+    </footer>
+
 </body>
 </html>

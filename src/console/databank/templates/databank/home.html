@@ -1,0 +1,23 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+
+    <h2 class="text-consoleAccent text-xl font-semibold mb-4">
+        $ Welcome
+    </h2>
+
+    <p class="text-slate-300 text-sm leading-relaxed">
+        This is the ETL Management Console.  
+        Use the navigation above to manage:
+    </p>
+
+    <ul class="mt-4 space-y-2 text-sm text-slate-200">
+        <li>→ <a href="{% url 'database_list' %}" class="text-consoleAccent hover:underline">Database configurations</a></li>
+        <li>→ <a href="{% url 'etl_list' %}" class="text-consoleAccent hover:underline">ETL configurations</a></li>
+        <li>→ Create ETL pipelines, manage databases, and trigger syncs.</li>
+    </ul>
+
+
+</div>
+{% endblock %}
