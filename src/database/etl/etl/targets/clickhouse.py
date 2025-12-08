@@ -1,6 +1,6 @@
 import clickhouse_connect
 import random
-from etl.common import TargetDriver, ETLDataTypes
+from databank.etl.common import TargetDriver, ETLDataTypes
 import logging
 import json
 

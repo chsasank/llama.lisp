@@ -2,7 +2,7 @@ import logging
 from errno import ETIME
 
 import oracledb
-from etl.common import ETLDataTypes, SourceDriver, StateManager
+from databank.etl.common import ETLDataTypes, SourceDriver, StateManager
 
 logger = logging.getLogger(__name__)
 

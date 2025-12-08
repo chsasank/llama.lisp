@@ -2,7 +2,7 @@ import logging
 import random
 
 import psycopg
-from etl.common import ETLDataTypes, TargetDriver
+from databank.etl.common import ETLDataTypes, TargetDriver
 
 logger = logging.getLogger(__name__)
 

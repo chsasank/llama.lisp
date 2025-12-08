@@ -4,7 +4,7 @@
 <div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
     
     <h2 class="text-consoleAccent text-xl font-semibold mb-6">
-        $ {% if form.instance.pk %}edit database{% else %}Add Database{% endif %}
+        $ {% if form.instance.pk %}Edit Database{% else %}Add Database{% endif %}
     </h2>
 
     <form method="POST" class="space-y-6">
@@ -95,19 +95,23 @@ const configTextarea = document.getElementById("id_connection_config");
 let lastAutoFilled = "";
 
 function applyDefaultConfig(force = false) {
+
+    // prevent overwriting saved config when editing
+    if (isEdit && !force) return;
+
     const etl = etlType.value?.toLowerCase();
     const db = dbType.value?.toLowerCase();
 
     let newTemplate = null;
 
-    // check if default exists
+
     if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
         newTemplate = defaultConfigs[etl][db];
     } else {
-        newTemplate = "Null";   // fallback for unknown combinations
+        newTemplate = "Null";
     }
 
-    // Update textarea only if first load, user has not modified content, and forced update on page load
+
     if (
         force ||
         configTextarea.value.trim() === "" ||
@@ -118,6 +122,7 @@ function applyDefaultConfig(force = false) {
         lastAutoFilled = newTemplate;
     }
 }
+
 
 etlType.addEventListener("change", () => applyDefaultConfig());
 dbType.addEventListener("change", () => applyDefaultConfig());
