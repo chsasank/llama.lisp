@@ -1,7 +1,13 @@
+from etl.common.state_manager import StateManagerDriver
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
 
 from .models import ETLConfiguration
+
+
+class DBStateManager(StateManagerDriver):
+    def __init__(self, state_id, replication_key):
+        pass`
 
 
 def _get_etl_src(etl_config):
@@ -61,6 +67,8 @@ def run_etl(etl_config_id):
 
     etl_schema = src.get_etl_schema()
     tgt.ensure_schema(etl_schema)
+
+    state_manager = DBStateManager(etl_config)
 
     batches = src.stream_batches()
     for batch in batches:
