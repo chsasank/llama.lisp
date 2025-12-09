@@ -25,6 +25,7 @@ class ETLConfigurationForm(forms.ModelForm):
             "target_database",
             "source_table",
             "target_table",
+            "run_interval",
             "replication_key",
             "replication_state",
         ]
@@ -38,10 +39,6 @@ class ETLConfigurationForm(forms.ModelForm):
                 "class": "w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm "
                          "text-slate-100 focus:outline-none focus:border-consoleAccent"
             })
-
-        # If replication_key is empty in DB, show "Null" in the form
-        if self.instance and (self.instance.replication_key in [None, ""]):
-            self.fields["replication_key"].initial = "Null"
 
         if "replication_state" in self.fields:
             # If the field is empty, show empty JSON {} by default

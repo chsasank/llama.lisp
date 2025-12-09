@@ -15,8 +15,4 @@ urlpatterns = [
     path("etls/add/", views.etl_create, name="etl_create"),
     path("etls/<int:pk>/edit/", views.etl_edit, name="etl_edit"),
     path("etls/<int:pk>/delete/", views.etl_delete, name="etl_delete"),
-
-    # Run ETL (single + all)
-    path("run-etl/<int:etl_id>/", views.run_single_etl, name="run_single_etl"),
-    path("run-all-etls/", views.run_all_etls, name="run_all_etls"),
 ]

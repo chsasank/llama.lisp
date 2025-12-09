@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>ETL Console</title>
+    <title>Database Console</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -33,7 +33,7 @@
             <div class="flex items-center gap-2">
                 <span class="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
                 <h1 class="text-lg md:text-xl font-semibold tracking-tight">
-                    ETL Management Console
+                    DATABASE CONSOLE
                 </h1>
             </div>
         </div>
@@ -49,7 +49,7 @@
                 $ Databases
             </a>
             <a href="{% url 'etl_list' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                $ ETL-configs
+                $ ETLs
             </a>
         </div>
     </nav>
@@ -63,7 +63,7 @@
     <!-- Footer section -->
     <footer class="border-t border-consoleBorder bg-black/40 mt-auto">
         <div class="max-w-6xl mx-auto px-4 py-2 text-xs text-slate-500 flex justify-between">
-            <span>ETL-console</span>
+            <span>Database-console</span>
             <span>Press <span class="text-consoleAccent">F5</span> to refresh</span>
         </div>
     </footer>

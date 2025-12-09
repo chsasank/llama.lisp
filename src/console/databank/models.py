@@ -42,4 +42,4 @@ class ETLConfiguration(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # run_interval = models.DurationField(null=True)
+    run_interval = models.FloatField(null=True)

@@ -1,11 +1,12 @@
 import json
 import logging
 
-from etl.common.state_manager import StateManagerDriver
-from etl.sources import MssqlSource, OracleSource, PostgresSource
-from etl.targets import ClickhouseTarget, PostgresTarget
+from databank.etl.common.state_manager import StateManagerDriver
+from databank.etl.sources import MssqlSource, OracleSource, PostgresSource
+from databank.etl.targets import ClickhouseTarget, PostgresTarget
 
 from .models import DatabaseConfiguration, ETLConfiguration
+from task_manager.models import Graph, Task
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class DBStateManager(StateManagerDriver):
     def get_state(self):
         try:
             return self.etl_config.replication_state["replication_value"]
-        except TypeError:
+        except (TypeError, KeyError):
             return None
 
 
@@ -98,3 +99,31 @@ def run_etl(etl_config_id):
 
     logger.info("=== END ETL ===")
     logger.info(f"Total batches: {batch_count}")
+
+
+
+def recreate_etl_task(etl_id):
+    graph_name = f"etl_{etl_id}"
+
+    # it will create a new graph
+    graph, _ = Graph.objects.get_or_create(name=graph_name)
+
+    # it will delete all old tasks
+    for t in graph.tasks.all():
+        t.delete()
+
+    etl_config = ETLConfiguration.objects.get(id=etl_id)
+    # again it will create a new task
+    Task.create_task(fn=run_etl, args={"etl_config_id": etl_id}, graph=graph, periodic_interval=etl_config.run_interval)
+
+    logger.info(f"[ETL] Task graph recreated for ETL {etl_id}")
+
+
+def delete_etl_graph(etl_id):
+    graph_name = f"etl_{etl_id}"
+    try:
+        graph = Graph.objects.get(name=graph_name)
+        graph.delete()
+        logger.info(f"[ETL] Deleted task graph for ETL {etl_id}")
+    except Graph.DoesNotExist:
+        pass
