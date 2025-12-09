@@ -44,6 +44,10 @@
 </div>
 
 <script>
+    const isEdit = "{{ form.instance.pk|yesno:'true,false' }}" === "true";
+</script>
+
+<script>
 const defaultConfigs = {
     "source": {
         "postgres": `{
@@ -91,43 +95,49 @@ const etlType = document.getElementById("id_etl_type");
 const dbType = document.getElementById("id_database_type");
 const configTextarea = document.getElementById("id_connection_config");
 
-// store last injected template
-let lastAutoFilled = "";
+// ADD DATABASE
+function handleAddMode() {
 
-function applyDefaultConfig(force = false) {
+    function applyTemplate() {
+        const etl = etlType.value.toLowerCase();
+        const db = dbType.value.toLowerCase();
 
-    // prevent overwriting saved config when editing
-    if (isEdit && !force) return;
-
-    const etl = etlType.value?.toLowerCase();
-    const db = dbType.value?.toLowerCase();
-
-    let newTemplate = null;
-
-
-    if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
-        newTemplate = defaultConfigs[etl][db];
-    } else {
-        newTemplate = "Null";
+        if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
+            configTextarea.value = defaultConfigs[etl][db];
+        } else {
+            configTextarea.value = "Null";
+        }
     }
 
+    // Always apply default on load
+    document.addEventListener("DOMContentLoaded", applyTemplate);
 
-    if (
-        force ||
-        configTextarea.value.trim() === "" ||
-        configTextarea.value.trim() === "null" ||
-        configTextarea.value.trim() === lastAutoFilled.trim()
-    ) {
-        configTextarea.value = newTemplate;
-        lastAutoFilled = newTemplate;
+    // Update template when dropdowns change
+    etlType.addEventListener("change", applyTemplate);
+    dbType.addEventListener("change", applyTemplate);
+}
+
+// EDIT DATABASE
+function handleEditMode() {
+    // ONLY CASE: If field is empty (rare), insert template.
+    if (configTextarea.value.trim() === "") {
+        const etl = etlType.value.toLowerCase();
+        const db = dbType.value.toLowerCase();
+
+        if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
+            configTextarea.value = defaultConfigs[etl][db];
+        } else {
+            configTextarea.value = "Null";
+        }
     }
 }
 
-
-etlType.addEventListener("change", () => applyDefaultConfig());
-dbType.addEventListener("change", () => applyDefaultConfig());
-
-document.addEventListener("DOMContentLoaded", () => applyDefaultConfig(true));
+// APPLY MODE
+if (isEdit) {
+    handleEditMode();
+} else {
+    handleAddMode();
+}
 </script>
 
 {% endblock %}

@@ -36,7 +36,7 @@
                         {% if db.etl_type == "source" %}
                             <tr class="hover:bg-white/5">
                                 <td class="py-2 pr-4 align-middle text-slate-300">#{{ db.id }}</td>
-                                <td class="py-2 pr-4 align-middle">
+                                <td class="w-60 py-2 pr-4 align-middle">
                                     <span class="px-2 py-0.5 rounded border border-consoleBorder text-xs">
                                         {{ db.database_type }}
                                     </span>
@@ -96,7 +96,7 @@
                         {% if db.etl_type == "target" %}
                             <tr class="hover:bg-white/5">
                                 <td class="py-2 pr-4 align-middle text-slate-300">#{{ db.id }}</td>
-                                <td class="py-2 pr-4 align-middle">
+                                <td class="w-60 py-2 pr-4 align-middle">
                                     <span class="px-2 py-0.5 rounded border border-consoleBorder text-xs">
                                         {{ db.database_type }}
                                     </span>
