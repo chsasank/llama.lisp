@@ -16,3 +16,10 @@ podman run -it -v `pwd`:/app/etl/ etl python tests/test_sources.py
 # run all tests
 podman run -it -v `pwd`:/app/etl/ etl pytest
 ```
+
+
+## Install Python Package
+
+```
+pip install -e .
+```

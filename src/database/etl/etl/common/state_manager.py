@@ -4,8 +4,8 @@ from tinydb import Query, TinyDB
 
 
 class StateManagerDriver:
-    def __init__(self, state_id, replication_key):
-        raise NotImplementedError
+    def __init__(self):
+        assert self.replication_key is not None
 
     def set_state(self, replication_value):
         raise NotImplementedError
@@ -20,6 +20,7 @@ class JSONStateManager(StateManagerDriver):
         self.replication_key = replication_key
         self.json_path = json_path
         self.db = TinyDB(self.json_path)
+        super().__init__()
 
     def set_state(self, replication_value):
         State = Query()
