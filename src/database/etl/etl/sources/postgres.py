@@ -103,10 +103,12 @@ class PostgresSource(SourceDriver):
 
         cur.itersize = self.batch_size
 
-        table = self.config["table"]
+        schema, table = self.config["table"].split(".")
         etl_schema = self.get_etl_schema()
         col_names = [x[0] for x in etl_schema["columns"]]
-        format_cols = ", ".join(col_names)
+        format_cols = psycopg.sql.SQL(", ").join(
+            [psycopg.sql.Identifier(x) for x in col_names]
+        )
 
         if self.state_manager:
             assert self.state_manager.replication_key in col_names, (
@@ -116,17 +118,31 @@ class PostgresSource(SourceDriver):
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")
             if current_state:
-                sql = f"SELECT {format_cols} FROM {table} where {replication_key} >= %s ORDER BY {replication_key}"
+                sql = psycopg.sql.SQL(
+                    "SELECT {format_cols} FROM {table} where {replication_key} >= %s ORDER BY {replication_key}"
+                ).format(
+                    format_cols=format_cols,
+                    table=psycopg.sql.Identifier(schema, table),
+                    replication_key=psycopg.sql.Identifier(replication_key),
+                )
                 params = (current_state,)
             else:
-                sql = f"SELECT {format_cols} FROM {table} ORDER BY {replication_key}"
+                sql = psycopg.sql.SQL(
+                    "SELECT {format_cols} FROM {table} ORDER BY {replication_key}"
+                ).format(
+                    format_cols=format_cols,
+                    table=psycopg.sql.Identifier(schema, table),
+                    replication_key=psycopg.sql.Identifier(replication_key),
+                )
                 params = None
         else:
             # do full replication if there is no state
-            sql = f"SELECT {format_cols} FROM {table}"
+            sql = psycopg.sql.SQL("SELECT {format_cols} FROM {table}").format(
+                format_cols=format_cols, table=psycopg.sql.Identifier(schema, table)
+            )
             params = None
 
-        logger.info(f"Fetching rows with SQL={sql}, params={params}")
+        logger.info(f"Fetching rows with SQL={sql.as_string()}, params={params}")
         cur.execute(sql, params)
 
         while True:
