@@ -1,11 +1,13 @@
-from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
 
 # Create your views here.
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
-from .models import DatabaseConfiguration, ETLConfiguration
+from django.shortcuts import get_object_or_404, redirect, render
+from task_manager.models import Graph, Task
+
 from .forms import DatabaseConfigurationForm, ETLConfigurationForm
+from .models import DatabaseConfiguration, ETLConfiguration
 from .tasks import run_etl
+
 
 # Home
 def home(request):
@@ -41,6 +43,7 @@ def database_edit(request, pk):
     else:
         form = DatabaseConfigurationForm(instance=db)
     return render(request, "databank/database_form.html", {"form": form})
+
 
 def database_delete(request, pk):
     # Delete the selected database config immediately
@@ -79,6 +82,7 @@ def etl_edit(request, pk):
         form = ETLConfigurationForm(instance=etl)
     return render(request, "databank/etl_form.html", {"form": form})
 
+
 def etl_delete(request, pk):
     # Remove ETL pipeline definition
     etl = get_object_or_404(ETLConfiguration, pk=pk)
@@ -89,29 +93,32 @@ def etl_delete(request, pk):
 # RUN ETL FROM UI
 def run_single_etl(request, etl_id):
     # execute one ETL pipeline manually from the UI
-    try:
-        run_etl(etl_id)
-        status = "success"
-        message = f"ETL {etl_id} completed successfully."
-    except Exception as e:
-        status = "error"
-        message = f"ETL {etl_id} failed: {str(e)}"
+    graph = Graph.objects.get_or_create(name=f"etl_{etl_id}")[0]
+    for task in graph.tasks.all():
+        task.delete()
 
-    return render(request, "databank/etl_result.html", {
-        "status": status,
-        "message": message,
-        "etl_id": etl_id,
-    })
+    task = Task.create_task(fn=run_etl, args={"etl_config_id": etl_id}, graph=graph)
+
+    return render(
+        request,
+        "databank/etl_result.html",
+        {
+            "status": "Task creation successful",
+            "message": f"Task {task.id} created",
+            "etl_id": etl_id,
+        },
+    )
 
 
 def run_all_etls(request):
     # execute every ETL config in sequence and returns a JSON response so UI or API can consume the results
-    etls = ETLConfiguration.objects.all()
-    results = []
-    for e in etls:
-        try:
-            run_etl(e.id)
-            results.append({"id": e.id, "status": "ok"})
-        except Exception as ex:
-            results.append({"id": e.id, "status": "error", "error": str(ex)})
+    # etls = ETLConfiguration.objects.all()
+    # results = []
+    # for e in etls:
+    #     try:
+    #         run_etl(e.id)
+    #         results.append({"id": e.id, "status": "ok"})
+    #     except Exception as ex:
+    #         results.append({"id": e.id, "status": "error", "error": str(ex)})
+    pass
     return JsonResponse({"results": results})
