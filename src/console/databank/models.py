@@ -17,6 +17,9 @@ class DatabaseConfiguration(models.Model):
     database_type = models.CharField(choices=DBTypes.choices)
     connection_config = models.JSONField()
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 
 class ETLConfiguration(models.Model):
     source_database = models.ForeignKey(
@@ -30,3 +33,6 @@ class ETLConfiguration(models.Model):
     target_table = models.CharField()
     replication_key = models.CharField(null=True)
     replication_state = models.JSONField(null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
