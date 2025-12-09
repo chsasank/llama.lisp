@@ -150,7 +150,7 @@ class PostgresSource(SourceDriver):
             if not batch:
                 break
 
-            logger.info(f"Extracted {len(batch)} rows")
+            logger.info(f"Extracted {len(batch)} rows from {schema}.{table}")
 
             yield batch
             self._save_state(batch, etl_schema)

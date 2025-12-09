@@ -208,3 +208,4 @@ class PostgresTarget(TargetDriver):
             )
         )
         conn.commit()
+        logger.info(f"Loaded {len(rows)} rows into {schema}.{table}")
