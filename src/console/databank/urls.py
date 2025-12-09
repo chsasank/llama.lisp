@@ -3,13 +3,11 @@ from . import views
 
 urlpatterns = [
     path("", views.home, name="home"),
-    
     # Database CRUD
     path("databases/", views.database_list, name="database_list"),
     path("databases/add/", views.database_create, name="database_create"),
     path("databases/<int:pk>/edit/", views.database_edit, name="database_edit"),
     path("databases/<int:pk>/delete/", views.database_delete, name="database_delete"),
-
     # ETL CRUD
     path("etls/", views.etl_list, name="etl_list"),
     path("etls/add/", views.etl_create, name="etl_create"),

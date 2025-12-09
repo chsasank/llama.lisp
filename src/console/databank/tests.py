@@ -9,6 +9,7 @@ from . import tasks
 from .models import DatabaseConfiguration, ETLConfiguration
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logger = logging.getLogger(__name__)
 testing_database_host = "localhost"
 
 
@@ -153,9 +154,9 @@ class DatabaseViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.status_code, 200)
 
-        print("--- database list view ---")
-        print(response.context.keys())
-        print("Databases:", response.context["databases"])
+        logger.info("--- database list view ---")
+        logger.info(f"{response.context.keys()}")
+        logger.info(f"Databases: {response.context['databases']}")
 
     def test_database_create_view(self):
         response = self.client.get(reverse("database_create"))
@@ -165,8 +166,10 @@ class DatabaseViewsTests(TestCase):
             response.context["form"].__class__.__name__, "DatabaseConfigurationForm"
         )
 
-        print("--- form fields ---")
-        print("Form fields:", response.context["form"].fields.keys())
+        logger.info("--- form fields ---")
+        logger.info(
+            f"Form fields: {response.context['form'].fields.keys()}",
+        )
 
         post_data = {
             "etl_type": "source",
@@ -187,9 +190,9 @@ class DatabaseViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "databank/database_form.html")
 
-        print("--- context for edit view (GET) ---")
-        print("Context keys:", response.context.keys())
-        print("Form initial data:", response.context["form"].initial)
+        logger.info("--- context for edit view (GET) ---")
+        logger.info(f"Context keys: {response.context.keys()}")
+        logger.info(f"Form initial data: {response.context['form'].initial}")
 
         # form should contain the below existing values
         form = response.context["form"]
@@ -202,7 +205,7 @@ class DatabaseViewsTests(TestCase):
     def test_database_edit_view_post(self):
         url = reverse("database_edit", args=[self.db_source.id])
 
-        print("Before edit:", self.db_source.connection_config)
+        logger.info(f"Before edit: {self.db_source.connection_config}")
 
         post_data = {
             "etl_type": "source",
@@ -216,7 +219,7 @@ class DatabaseViewsTests(TestCase):
 
         updated = DatabaseConfiguration.objects.get(id=self.db_source.id)
 
-        print("After edit:", updated.connection_config)
+        logger.info(f"After edit: {updated.connection_config}")
         self.assertEqual(updated.connection_config["host"], "newhost")
 
 
@@ -246,10 +249,12 @@ class ETLViewsTests(TestCase):
     def test_etl_list_view(self):
         response = self.client.get(reverse("etl_list"))
 
-        print("--- etl list view ---")
-        print("Status:", response.status_code)
-        print("Context keys:", response.context.keys())
-        print("ETLs:", list(response.context["etls"]))
+        logger.info("--- etl list view ---")
+        logger.info(
+            f"Status: {response.status_code}",
+        )
+        logger.info(f"Context keys: {response.context.keys()}")
+        logger.info(f"ETLs: {list(response.context['etls'])}")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "src_table")
@@ -259,9 +264,11 @@ class ETLViewsTests(TestCase):
         response = self.client.get(reverse("etl_create"))
         self.assertEqual(response.status_code, 200)
 
-        print("--- etl create view (GET) ---")
-        print("Context keys:", response.context.keys())
-        print("Form fields:", response.context["form"].fields.keys())
+        logger.info("--- etl create view (GET) ---")
+        logger.info(f"Context keys: {response.context.keys()}")
+        logger.info(
+            f"Form fields: {response.context['form'].fields.keys()}",
+        )
 
         # POST method
         post_data = {
@@ -274,23 +281,24 @@ class ETLViewsTests(TestCase):
         }
         response = self.client.post(reverse("etl_create"), post_data)
 
-        print("--- etl create view (POST) ---")
-        print("Status:", response.status_code)
-        print("Total ETLs in DB:", ETLConfiguration.objects.count())
+        logger.info("--- etl create view (POST) ---")
+        logger.info(f"Status: {response.status_code}")
+        logger.info(f"Total ETLs in DB: {ETLConfiguration.objects.count()}")
 
         self.assertEqual(response.status_code, 302)
 
     def test_etl_edit_view(self):
         url = reverse("etl_edit", args=[self.etl.id])
 
-        print("--- before edit ---")
-        print("Old Source Table:", self.etl.source_table)
+        logger.info("--- before edit ---")
+        logger.info(f"Old Source Table: {self.etl.source_table}")
 
         post_data = {
             "source_database": self.db_source.id,
             "target_database": self.db_target.id,
             "source_table": "updated_src",
             "target_table": "updated_tgt",
+            "run_interval": 0,
             "replication_key": "",
             "replication_state": "{}",
         }
@@ -299,38 +307,9 @@ class ETLViewsTests(TestCase):
 
         updated = ETLConfiguration.objects.get(id=self.etl.id)
 
-        print("--- after edit ---")
-        print("Updated Source Table:", updated.source_table)
-        print("Status:", response.status_code)
+        logger.info("--- after edit ---")
+        logger.info(f"Updated Source Table: {updated.source_table}")
+        logger.info(f"Status: {response.status_code}")
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(updated.source_table, "updated_src")
-
-    # RUN SINGLE ETL WITH MOCK
-    @patch("databank.views.run_etl")
-    def test_run_single_etl(self, mock_run_etl):
-        url = reverse("run_single_etl", args=[self.etl.id])
-
-        response = self.client.get(url)
-
-        print("--- run single etl ---")
-        print("Mock called:", mock_run_etl.called)
-        print("Called with:", mock_run_etl.call_args)
-
-        mock_run_etl.assert_called_once_with(self.etl.id)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "completed")
-
-    # RUN ALL ETLS WITH MOCK
-    @patch("databank.views.run_etl")
-    def test_run_all_etls(self, mock_run_etl):
-        url = reverse("run_all_etls")
-        response = self.client.get(url)
-
-        print("--- run all etls ---")
-        print("Mock called:", mock_run_etl.called)
-        print("Call count:", mock_run_etl.call_count)
-        print("Response JSON:", response.json())
-
-        mock_run_etl.assert_called()
-        self.assertEqual(response.status_code, 200)

@@ -1,12 +1,12 @@
 import json
 import logging
 
-from databank.etl.common.state_manager import StateManagerDriver
-from databank.etl.sources import MssqlSource, OracleSource, PostgresSource
-from databank.etl.targets import ClickhouseTarget, PostgresTarget
+from etl.common.state_manager import StateManagerDriver
+from etl.sources import MssqlSource, OracleSource, PostgresSource
+from etl.targets import ClickhouseTarget, PostgresTarget
+from task_manager.models import Graph, Task
 
 from .models import DatabaseConfiguration, ETLConfiguration
-from task_manager.models import Graph, Task
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,6 @@ def run_etl(etl_config_id):
     logger.info(f"Total batches: {batch_count}")
 
 
-
 def recreate_etl_task(etl_id):
     graph_name = f"etl_{etl_id}"
 
@@ -114,7 +113,12 @@ def recreate_etl_task(etl_id):
 
     etl_config = ETLConfiguration.objects.get(id=etl_id)
     # again it will create a new task
-    Task.create_task(fn=run_etl, args={"etl_config_id": etl_id}, graph=graph, periodic_interval=etl_config.run_interval)
+    Task.create_task(
+        fn=run_etl,
+        args={"etl_config_id": etl_id},
+        graph=graph,
+        periodic_interval=etl_config.run_interval,
+    )
 
     logger.info(f"[ETL] Task graph recreated for ETL {etl_id}")
 

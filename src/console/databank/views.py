@@ -11,6 +11,7 @@ from .tasks import recreate_etl_task, delete_etl_graph
 
 logger = logging.getLogger(__name__)
 
+
 # Home
 def home(request):
     return render(request, "databank/home.html")
