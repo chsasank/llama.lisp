@@ -75,16 +75,16 @@ def run_etl(etl_config_id):
     etl_config = ETLConfiguration.objects.get(id=etl_config_id)
 
     logger.info("=== START ETL ===")
-    logger.info("Source DB:", etl_config.source_database.connection_config)
-    logger.info("Target DB:", etl_config.target_database.connection_config)
-    logger.info("Source Table:", etl_config.source_table)
-    logger.info("Target Table:", etl_config.target_table)
+    logger.info(f"Source DB: {etl_config.source_database}")
+    logger.info(f"Target DB: {etl_config.target_database}")
+    logger.info(f"Source Table: {etl_config.source_table}")
+    logger.info(f"Target Table: {etl_config.target_table}")
 
     src = _get_etl_src(etl_config)
     tgt = _get_etl_tgt(etl_config)
 
     etl_schema = src.get_etl_schema()
-    logger.info("Schema:", etl_schema)
+    logger.info(f"Source schema: {etl_schema}")
 
     tgt.ensure_schema(etl_schema)
     logger.info("Schema ensured on target.")

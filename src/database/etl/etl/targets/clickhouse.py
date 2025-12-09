@@ -1,8 +1,7 @@
-import clickhouse_connect
-import random
-from databank.etl.common import TargetDriver, ETLDataTypes
 import logging
-import json
+
+import clickhouse_connect
+from etl.common import ETLDataTypes, TargetDriver
 
 logger = logging.getLogger(__name__)
 
