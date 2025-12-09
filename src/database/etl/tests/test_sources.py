@@ -5,7 +5,7 @@ import oracledb
 import psycopg
 import pyodbc
 from common import testing_database_host
-from etl.common import ETLDataTypes
+from etl.common import ETLDataTypes, JSONStateManager
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -166,9 +166,14 @@ def test_psql_stream_batches():
 
 
 def test_psql_stream_batches_replication():
-    src = PostgresSource(
-        {**test_psql_config, "replication_key": "commit_timestamp"},
+    state_manager = JSONStateManager(
+        json_path="testing.json",
         state_id="test_run_psql_source",
+        replication_key="commit_timestamp",
+    )
+    src = PostgresSource(
+        test_psql_config,
+        state_manager,
         batch_size=100,
     )
     for batch in src.stream_batches():
@@ -282,9 +287,14 @@ def test_mssql_stream_batches():
 
 
 def test_mssql_stream_batches_replication():
-    src = MssqlSource(
-        {**test_mssql_config, "replication_key": "CustomerID"},
+    state_manager = JSONStateManager(
+        json_path="testing.json",
         state_id="test_run_mssql_source",
+        replication_key="CustomerID",
+    )
+    src = MssqlSource(
+        test_mssql_config,
+        state_manager,
         batch_size=100,
     )
 
@@ -352,9 +362,14 @@ def test_oracle_stream_batches():
 
 
 def test_oracle_stream_batches_replication():
-    src = OracleSource(
-        {**test_oracle_config, "replication_key": "EMPLOYEE_ID"},
+    state_manager = JSONStateManager(
+        json_path="testing.json",
         state_id="test_run_oracle_source",
+        replication_key="EMPLOYEE_ID",
+    )
+    src = OracleSource(
+        test_oracle_config,
+        state_manager,
         batch_size=5,
     )
 

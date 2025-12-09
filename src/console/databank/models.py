@@ -17,6 +17,9 @@ class DatabaseConfiguration(models.Model):
     database_type = models.CharField(choices=DBTypes.choices)
     connection_config = models.JSONField()
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         host = self.connection_config.get("host")
         port = self.connection_config.get("port")
@@ -35,3 +38,6 @@ class ETLConfiguration(models.Model):
     target_table = models.CharField()
     replication_key = models.CharField(null=True, blank=True)
     replication_state = models.JSONField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

@@ -1,24 +1,20 @@
 import logging
-from errno import ETIME
 
 import oracledb
-from databank.etl.common import ETLDataTypes, SourceDriver, StateManager
+from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
 
 
 class OracleSource(SourceDriver):
-    def __init__(self, config, state_id=None, batch_size=10000):
+    def __init__(self, config, state_manager=None, batch_size=10000):
         self.config = config
         self.conn = self._connect()
         self.cur = None
         self.batch_size = batch_size
-
-        if "replication_key" in self.config:
-            assert state_id is not None
-            self.state_manager = StateManager(state_id, self.config["replication_key"])
-        else:
-            self.state_manager = None
+        self.state_manager = state_manager
+        if self.state_manager is not None:
+            assert isinstance(self.state_manager, StateManagerDriver)
 
     def _connect(self):
         cfg = self.config["connection"]

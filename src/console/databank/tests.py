@@ -1,8 +1,15 @@
-from django.test import TestCase, Client
-
-from .models import DatabaseConfiguration, ETLConfiguration
-from django.urls import reverse
+import logging
+import sys
 from unittest.mock import patch
+
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from . import tasks
+from .models import DatabaseConfiguration, ETLConfiguration
+
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+testing_database_host = "localhost"
 
 
 # Create your tests here.
@@ -48,6 +55,77 @@ class ETLConfigurationModelTests(TestCase):
         etl_config.save()
         assert etl_config.source_database.etl_type == "source"
 
+    def test_run_etl(self):
+        source_db_config = DatabaseConfiguration.objects.create(
+            etl_type="source",
+            database_type="postgres",
+            connection_config={
+                "host": testing_database_host,
+                "port": 5511,
+                "user": "testing",
+                "password": "intelarc",
+                "database": "github",
+            },
+        )
+        target_db_config = DatabaseConfiguration.objects.create(
+            etl_type="target",
+            database_type="postgres",
+            connection_config={
+                "host": testing_database_host,
+                "port": 5512,
+                "user": "testing",
+                "password": "intelarc",
+                "database": "github",
+            },
+        )
+        etl_config = ETLConfiguration.objects.create(
+            source_database=source_db_config,
+            target_database=target_db_config,
+            source_table="tap_github.commits",
+            target_table="tap_github.commits",
+        )
+
+        tasks.run_etl(etl_config.id)
+
+    def test_run_etl_replication_key(self):
+        source_db_config = DatabaseConfiguration.objects.create(
+            etl_type="source",
+            database_type="postgres",
+            connection_config={
+                "host": testing_database_host,
+                "port": 5511,
+                "user": "testing",
+                "password": "intelarc",
+                "database": "github",
+            },
+        )
+        target_db_config = DatabaseConfiguration.objects.create(
+            etl_type="target",
+            database_type="postgres",
+            connection_config={
+                "host": testing_database_host,
+                "port": 5512,
+                "user": "testing",
+                "password": "intelarc",
+                "database": "github",
+            },
+        )
+        etl_config = ETLConfiguration.objects.create(
+            source_database=source_db_config,
+            target_database=target_db_config,
+            source_table="tap_github.commits",
+            target_table="tap_github.commits",
+            replication_key="commit_timestamp",
+        )
+
+        tasks.run_etl(etl_config.id)
+
+        # verify if etl_config is updated
+        etl_config.refresh_from_db()
+        assert etl_config.replication_state == {
+            "replication_value": "2025-11-25 04:36:31"
+        }
+
 
 class DatabaseViewsTests(TestCase):
     def setUp(self):
@@ -84,8 +162,7 @@ class DatabaseViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("form", response.context)
         self.assertEqual(
-            response.context["form"].__class__.__name__,
-            "DatabaseConfigurationForm"
+            response.context["form"].__class__.__name__, "DatabaseConfigurationForm"
         )
 
         print("--- form fields ---")
@@ -118,7 +195,9 @@ class DatabaseViewsTests(TestCase):
         form = response.context["form"]
         self.assertEqual(form.initial["etl_type"], "source")
         self.assertEqual(form.initial["database_type"], "postgres")
-        self.assertEqual(form.initial["connection_config"], {"host": "localhost", "port": 5432})
+        self.assertEqual(
+            form.initial["connection_config"], {"host": "localhost", "port": 5432}
+        )
 
     def test_database_edit_view_post(self):
         url = reverse("database_edit", args=[self.db_source.id])
