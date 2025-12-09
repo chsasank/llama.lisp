@@ -1,23 +1,20 @@
 import logging
 
 import psycopg
-from etl.common import ETLDataTypes, SourceDriver, StateManager
+from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
 
 
 class PostgresSource(SourceDriver):
-    def __init__(self, config, state_id=None, batch_size=10000):
+    def __init__(self, config, state_manager=None, batch_size=10000):
         self.config = config
         self.conn = self._connect()  # ONE connection for entire ETL
         self.cur = None  # streaming cursor reused
         self.batch_size = batch_size
-
-        if "replication_key" in self.config:
-            assert state_id is not None
-            self.state_manager = StateManager(state_id, self.config["replication_key"])
-        else:
-            self.state_manager = None
+        self.state_manager = state_manager
+        if self.state_manager is not None:
+            assert isinstance(self.state_manager, StateManagerDriver)
 
     def _connect(self):
         cfg = self.config["connection"]
@@ -112,9 +109,9 @@ class PostgresSource(SourceDriver):
         format_cols = ", ".join(col_names)
 
         if self.state_manager:
-            assert (
-                self.state_manager.replication_key in col_names
-            ), f"{self.state_manager.replication_key} is not in cols {col_names}"
+            assert self.state_manager.replication_key in col_names, (
+                f"{self.state_manager.replication_key} is not in cols {col_names}"
+            )
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")
