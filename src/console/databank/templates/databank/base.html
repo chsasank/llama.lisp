@@ -30,29 +30,54 @@
     <!-- Header section -->
     <header class="border-b border-consoleBorder bg-consolePanel/80 backdrop-blur">
         <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+
+            <!-- logo -->
             <div class="flex items-center gap-2">
                 <span class="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
                 <h1 class="text-lg md:text-xl font-semibold tracking-tight">
                     DATABASE CONSOLE
                 </h1>
             </div>
+
+            <!-- logout -->
+            {% if user.is_authenticated %}
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit"
+                    class="px-3 py-1 text-sm border border-consoleAccent text-consoleAccent rounded 
+                        hover:bg-consoleAccent hover:text-black transition">
+                    Logout
+                </button>
+            </form>
+            {% endif %}
         </div>
     </header>
 
     <!-- Navigation bar -->
     <nav class="border-b border-consoleBorder bg-black/40">
         <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-2 justify-center text-sm">
-            <a href="{% url 'home' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                $ Home
-            </a>
-            <a href="{% url 'database_list' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                $ Databases
-            </a>
-            <a href="{% url 'etl_list' %}" class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                $ ETLs
-            </a>
+
+            {% if user.is_authenticated %}
+
+                <a href="{% url 'home' %}" 
+                class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
+                    $ Home
+                </a>
+
+                <a href="{% url 'database_list' %}" 
+                class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
+                    $ Databases
+                </a>
+
+                <a href="{% url 'etl_list' %}" 
+                class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
+                    $ ETLs
+                </a>
+            {% endif %}
+
         </div>
     </nav>
+
 
     <!-- Main content -->
     <main class="w-full flex-1 max-w-6xl mx-auto px-4 py-6">
