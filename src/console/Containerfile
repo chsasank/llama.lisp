@@ -1,0 +1,8 @@
+FROM johnaic/etl
+
+WORKDIR /app/console
+ADD requirements.txt .
+RUN /venv/bin/pip install -r requirements.txt
+
+# add code
+ADD . .

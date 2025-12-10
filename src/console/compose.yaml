@@ -1,0 +1,19 @@
+services:
+    web:
+        image: johnaic/console
+        ports:
+            - "8134:8000"
+        command: bash -c "sleep 5 && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+        env_file: ./deploy/.pg.env
+    worker:
+        image: johnaic/console
+        command: bash -c "sleep 20 && python manage.py startworker"
+        env_file: ./deploy/.pg.env
+        deploy:
+            mode: replicated
+            replicas: 4
+    db:
+        image: "postgres:17"
+        env_file: ./deploy/.pg.env
+        volumes:
+            - ./deploy/pgdata:/var/lib/postgresql/data
