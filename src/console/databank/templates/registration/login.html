@@ -1,0 +1,45 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+
+    {% if form.errors %}
+    <p class="text-consoleAccent text-xl font-semibold mb-6">
+        Your username and password didn't match. Please try again.
+    </p>
+    {% endif %} {% if next %} {% if user.is_authenticated %}
+    <p class="text-consoleAccent text-xl font-semibold mb-6">
+        Your account doesn't have access to this page. To proceed, please login with
+        an account that has access.
+    </p>
+    {% else %}
+    <p class="text-consoleAccent text-xl font-semibold mb-6">
+        Please login to see this page.
+    </p>
+    {% endif %} {% endif %}
+
+    <form method="post" class="space-y-6" action="{% url 'login' %}">
+        {% csrf_token %}
+        <table>
+            <tr>
+                <td>{{ form.username.label_tag }}</td>
+                <td>{{ form.username }}</td>
+            </tr>
+            <tr>
+                <td>{{ form.password.label_tag }}</td>
+                <td>{{ form.password }}</td>
+            </tr>
+        </table>
+        <button type="submit"
+            class="px-6 py-2 border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
+                Login
+        </button>
+        <input type="hidden" name="next" value="{{ next }}" />
+    </form>
+
+    {# Assumes you set up the password_reset view in your URLConf #}
+    <p><a href="{% url 'password_reset' %}">Lost password?</a></p>
+
+</div>
+
+{% endblock %}
