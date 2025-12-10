@@ -4,6 +4,7 @@ import logging
 from etl.common.state_manager import StateManagerDriver
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
+from task_manager.models import Graph, Task
 
 from .models import DatabaseConfiguration, ETLConfiguration
 
@@ -29,7 +30,7 @@ class DBStateManager(StateManagerDriver):
     def get_state(self):
         try:
             return self.etl_config.replication_state["replication_value"]
-        except TypeError:
+        except (TypeError, KeyError):
             return None
 
 
@@ -53,7 +54,7 @@ def _get_etl_src(etl_config):
     elif source_db_type == DatabaseConfiguration.DBTypes.ORACLE:
         return OracleSource(src_config, state_manager)
     else:
-        raise ValueError(f"Unknown source {etl_config.source_database.database_type}")
+        raise ValueError(f"Unknown source {source_db_type}")
 
 
 def _get_etl_tgt(etl_config):
@@ -68,18 +69,65 @@ def _get_etl_tgt(etl_config):
     elif target_db_type == DatabaseConfiguration.DBTypes.CLICKHOUSE:
         return ClickhouseTarget(target_config)
     else:
-        raise ValueError(f"Unknown source {etl_config.source_database.database_type}")
+        raise ValueError(f"Unknown target {target_db_type}")
 
 
 def run_etl(etl_config_id):
     etl_config = ETLConfiguration.objects.get(id=etl_config_id)
+
+    logger.info("=== START ETL ===")
+    logger.info(f"Source DB: {etl_config.source_database}")
+    logger.info(f"Target DB: {etl_config.target_database}")
+    logger.info(f"Source Table: {etl_config.source_table}")
+    logger.info(f"Target Table: {etl_config.target_table}")
+
     src = _get_etl_src(etl_config)
     tgt = _get_etl_tgt(etl_config)
 
     etl_schema = src.get_etl_schema()
-    tgt.ensure_schema(etl_schema)
+    logger.info(f"Source schema: {etl_schema}")
 
-    batches = src.stream_batches()
-    for batch in batches:
+    tgt.ensure_schema(etl_schema)
+    logger.info("Schema ensured on target.")
+
+    batch_count = 0
+
+    for batch in src.stream_batches():
+        batch_count += 1
+        logger.info(f"Loading batch {batch_count} with {len(batch)} rows...")
         tgt.load_batch(batch, etl_schema)
-        logger.info(f"transferred {len(batch)} rows")
+
+    logger.info("=== END ETL ===")
+    logger.info(f"Total batches: {batch_count}")
+
+
+def recreate_etl_task(etl_id):
+    graph_name = f"etl_{etl_id}"
+
+    # it will create a new graph
+    graph, _ = Graph.objects.get_or_create(name=graph_name)
+
+    # it will delete all old tasks
+    for t in graph.tasks.all():
+        t.delete()
+
+    etl_config = ETLConfiguration.objects.get(id=etl_id)
+    # again it will create a new task
+    Task.create_task(
+        fn=run_etl,
+        args={"etl_config_id": etl_id},
+        graph=graph,
+        periodic_interval=etl_config.run_interval,
+    )
+
+    logger.info(f"[ETL] Task graph recreated for ETL {etl_id}")
+
+
+def delete_etl_graph(etl_id):
+    graph_name = f"etl_{etl_id}"
+    try:
+        graph = Graph.objects.get(name=graph_name)
+        graph.delete()
+        logger.info(f"[ETL] Deleted task graph for ETL {etl_id}")
+    except Graph.DoesNotExist:
+        pass

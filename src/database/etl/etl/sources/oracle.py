@@ -1,5 +1,4 @@
 import logging
-from errno import ETIME
 
 import oracledb
 from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver

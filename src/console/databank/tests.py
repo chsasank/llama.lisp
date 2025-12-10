@@ -1,12 +1,15 @@
 import logging
 import sys
+from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
 
 from . import tasks
 from .models import DatabaseConfiguration, ETLConfiguration
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logger = logging.getLogger(__name__)
 testing_database_host = "localhost"
 
 
@@ -123,3 +126,190 @@ class ETLConfigurationModelTests(TestCase):
         assert etl_config.replication_state == {
             "replication_value": "2025-11-25 04:36:31"
         }
+
+
+class DatabaseViewsTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        self.db_source = DatabaseConfiguration.objects.create(
+            etl_type="source",
+            database_type="postgres",
+            connection_config={"host": "localhost", "port": 5432},
+        )
+
+        self.db_target = DatabaseConfiguration.objects.create(
+            etl_type="target",
+            database_type="postgres",
+            connection_config={"host": "hello", "port": 5433},
+        )
+
+    def test_home_view(self):
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "databank/base.html")
+
+    def test_database_list_view(self):
+        response = self.client.get(reverse("database_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
+
+        logger.info("--- database list view ---")
+        logger.info(f"{response.context.keys()}")
+        logger.info(f"Databases: {response.context['databases']}")
+
+    def test_database_create_view(self):
+        response = self.client.get(reverse("database_create"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("form", response.context)
+        self.assertEqual(
+            response.context["form"].__class__.__name__, "DatabaseConfigurationForm"
+        )
+
+        logger.info("--- form fields ---")
+        logger.info(
+            f"Form fields: {response.context['form'].fields.keys()}",
+        )
+
+        post_data = {
+            "etl_type": "source",
+            "database_type": "postgres",
+            "connection_config": '{"host": "x", "port": 1111}',
+        }
+        response = self.client.post(reverse("database_create"), post_data)
+        self.assertEqual(response.status_code, 302)
+
+        # Confirms the entry created, in setup we are already creating 2 db's, so total 3 db's
+        self.assertEqual(DatabaseConfiguration.objects.count(), 3)
+
+    def test_database_edit_view_get(self):
+        url = reverse("database_edit", args=[self.db_source.id])
+        response = self.client.get(url)
+
+        # Status + template
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "databank/database_form.html")
+
+        logger.info("--- context for edit view (GET) ---")
+        logger.info(f"Context keys: {response.context.keys()}")
+        logger.info(f"Form initial data: {response.context['form'].initial}")
+
+        # form should contain the below existing values
+        form = response.context["form"]
+        self.assertEqual(form.initial["etl_type"], "source")
+        self.assertEqual(form.initial["database_type"], "postgres")
+        self.assertEqual(
+            form.initial["connection_config"], {"host": "localhost", "port": 5432}
+        )
+
+    def test_database_edit_view_post(self):
+        url = reverse("database_edit", args=[self.db_source.id])
+
+        logger.info(f"Before edit: {self.db_source.connection_config}")
+
+        post_data = {
+            "etl_type": "source",
+            "database_type": "postgres",
+            "connection_config": '{"host": "newhost", "port": 5432}',
+        }
+        response = self.client.post(url, post_data)
+
+        # it will redirect after edit
+        self.assertEqual(response.status_code, 302)
+
+        updated = DatabaseConfiguration.objects.get(id=self.db_source.id)
+
+        logger.info(f"After edit: {updated.connection_config}")
+        self.assertEqual(updated.connection_config["host"], "newhost")
+
+
+class ETLViewsTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        self.db_source = DatabaseConfiguration.objects.create(
+            etl_type="source",
+            database_type="postgres",
+            connection_config={"host": "localhost", "port": 5432},
+        )
+
+        self.db_target = DatabaseConfiguration.objects.create(
+            etl_type="target",
+            database_type="postgres",
+            connection_config={"host": "localhost", "port": 5433},
+        )
+
+        self.etl = ETLConfiguration.objects.create(
+            source_database=self.db_source,
+            target_database=self.db_target,
+            source_table="src_table",
+            target_table="tgt_table",
+        )
+
+    def test_etl_list_view(self):
+        response = self.client.get(reverse("etl_list"))
+
+        logger.info("--- etl list view ---")
+        logger.info(
+            f"Status: {response.status_code}",
+        )
+        logger.info(f"Context keys: {response.context.keys()}")
+        logger.info(f"ETLs: {list(response.context['etls'])}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "src_table")
+
+    def test_etl_create_view(self):
+        # GET method
+        response = self.client.get(reverse("etl_create"))
+        self.assertEqual(response.status_code, 200)
+
+        logger.info("--- etl create view (GET) ---")
+        logger.info(f"Context keys: {response.context.keys()}")
+        logger.info(
+            f"Form fields: {response.context['form'].fields.keys()}",
+        )
+
+        # POST method
+        post_data = {
+            "source_database": self.db_source.id,
+            "target_database": self.db_target.id,
+            "source_table": "new_src",
+            "target_table": "new_tgt",
+            "replication_key": "",
+            "replication_state": "{}",
+        }
+        response = self.client.post(reverse("etl_create"), post_data)
+
+        logger.info("--- etl create view (POST) ---")
+        logger.info(f"Status: {response.status_code}")
+        logger.info(f"Total ETLs in DB: {ETLConfiguration.objects.count()}")
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_etl_edit_view(self):
+        url = reverse("etl_edit", args=[self.etl.id])
+
+        logger.info("--- before edit ---")
+        logger.info(f"Old Source Table: {self.etl.source_table}")
+
+        post_data = {
+            "source_database": self.db_source.id,
+            "target_database": self.db_target.id,
+            "source_table": "updated_src",
+            "target_table": "updated_tgt",
+            "run_interval": 0,
+            "replication_key": "",
+            "replication_state": "{}",
+        }
+
+        response = self.client.post(url, post_data)
+
+        updated = ETLConfiguration.objects.get(id=self.etl.id)
+
+        logger.info("--- after edit ---")
+        logger.info(f"Updated Source Table: {updated.source_table}")
+        logger.info(f"Status: {response.status_code}")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(updated.source_table, "updated_src")

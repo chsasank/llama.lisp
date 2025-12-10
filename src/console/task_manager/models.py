@@ -34,7 +34,7 @@ class Task(models.Model):
         SUCCESS = "success"
         FAILED = "failed"
 
-    graph = models.ForeignKey(Graph, on_delete=models.CASCADE)
+    graph = models.ForeignKey(Graph, on_delete=models.CASCADE, related_name="tasks")
     fn = models.CharField()
     args = models.JSONField()
     ret_val = models.JSONField(null=True)
