@@ -1,13 +1,11 @@
-from django.http import HttpResponse, JsonResponse
 import logging
 
 # Create your views here.
 from django.shortcuts import get_object_or_404, redirect, render
-from task_manager.models import Graph, Task
 
 from .forms import DatabaseConfigurationForm, ETLConfigurationForm
 from .models import DatabaseConfiguration, ETLConfiguration
-from .tasks import recreate_etl_task, delete_etl_graph
+from .tasks import delete_etl_graph, recreate_etl_task
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +65,7 @@ def etl_create(request):
         form = ETLConfigurationForm(request.POST)
         if form.is_valid():
             etl = form.save()
-            recreate_etl_task(etl.id)
+            recreate_etl_task(etl_id=etl.id)
             return redirect("etl_list")
     else:
         form = ETLConfigurationForm()
@@ -81,7 +79,7 @@ def etl_edit(request, pk):
         form = ETLConfigurationForm(request.POST, instance=etl)
         if form.is_valid():
             etl = form.save()
-            recreate_etl_task(etl.id)
+            recreate_etl_task(etl_id=etl.id)
             return redirect("etl_list")
     else:
         form = ETLConfigurationForm(instance=etl)
