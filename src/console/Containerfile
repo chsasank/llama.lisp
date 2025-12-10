@@ -5,4 +5,4 @@ ADD requirements.txt .
 RUN /venv/bin/pip install -r requirements.txt
 
 # add code
-ADD . .
+ADD ./src /app/console

@@ -21,5 +21,11 @@ python manage.py createsuperuser
 ## Build Docker
 
 ```
-bash build_docker.sh
+bash build_container.sh
+```
+
+Single liner to deploy
+
+```
+bash build_container.sh  && podman-compose down && podman-compose up
 ```

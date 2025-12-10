@@ -27,7 +27,7 @@ class Command(BaseCommand):
                             state=Task.TaskState.QUEUED, next_run_at__lte=timezone.now()
                         )
                         .order_by("created_at")
-                        .get()
+                        .first()
                     )
                     task_to_run.state = Task.TaskState.RUNNING
                     task_to_run.save()
@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 task_to_run.run()
                 run_time = time.time() - now
                 logger.info(f"Ran {task_to_run.fn} task in {run_time} seconds")
-            except Task.DoesNotExist:
+            except AttributeError:
                 polling_time = options["polling_time"]
                 logger.info(f"No queued tasks. Waiting {polling_time} seconds.")
                 time.sleep(polling_time)
