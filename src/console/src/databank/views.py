@@ -1,13 +1,13 @@
 import logging
 from django.http import JsonResponse
-import json
 
-# Create your views here.
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import DatabaseConfigurationForm, ETLConfigurationForm
 from .models import DatabaseConfiguration, ETLConfiguration
 from .tasks import delete_etl_graph, recreate_etl_task
+from etl.sources import MssqlSource, OracleSource, PostgresSource
+from etl.targets import ClickhouseTarget, PostgresTarget
 
 logger = logging.getLogger(__name__)
 
@@ -97,89 +97,44 @@ def etl_delete(request, pk):
 
 def test_database(request, pk):
     db = get_object_or_404(DatabaseConfiguration, pk=pk)
-    cfg = db.connection_config or {}
-    host = cfg.get("host")
-    port = cfg.get("port")
 
-    if not host or not port:
-        return JsonResponse({"success": False, "message": "Missing host or port"})
+    cfg = {
+        "connection": db.connection_config,   # driver expects this format
+        "table": "dummy.schema",              # required but not used
+    }
 
     try:
-        # POSTGRES (psycopg)
-        if db.database_type == "postgres":
-            try:
-                import psycopg
-            except ImportError:
-                return JsonResponse({"success": False, "message": "psycopg is not installed"})
+        # Picks correct driver automatically
+        driver = None
 
-            conn = psycopg.connect(
-                host=host,
-                port=port,
-                user=cfg.get("user"),
-                password=cfg.get("password"),
-                dbname=cfg.get("database"),
-                connect_timeout=5
-            )
-            conn.close()
-            return JsonResponse({"success": True, "message": "POSTGRES connection OK"})
+        if db.etl_type == "source":
+            if db.database_type == "postgres":
+                driver = PostgresSource(cfg)
+            elif db.database_type == "mssql":
+                driver = MssqlSource(cfg)
+            elif db.database_type == "oracle":
+                driver = OracleSource(cfg)
+        elif db.etl_type == "target":
+            if db.database_type == "postgres":
+                driver = PostgresTarget(cfg)
+            elif db.database_type == "clickhouse":
+                driver = ClickhouseTarget(cfg)
 
-        # CLICKHOUSE (clickhouse-connect)
-        elif db.database_type == "clickhouse":
-            try:
-                from clickhouse_connect import get_client
-            except ImportError:
-                return JsonResponse({"success": False, "message": "clickhouse-connect is not installed"})
+        if driver is None:
+            return JsonResponse({
+                "success": False,
+                "message": f"Unsupported database type: {db.database_type}"
+            })
 
-            client = get_client(
-                host=host,
-                port=int(port),
-                username=cfg.get("user") or "default",
-                password=cfg.get("password") or "",
-                database=cfg.get("database") or "default",
-            )
-            client.query("SELECT 1")
-            return JsonResponse({"success": True, "message": "ClickHouse connection OK"})
+        driver._connect()
 
-        # MSSQL (pyodbc)
-        elif db.database_type == "mssql":
-            try:
-                import pyodbc
-            except ImportError:
-                return JsonResponse({"success": False, "message": "pyodbc is not installed"})
-
-            conn_str = (
-                f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-                f"SERVER={host},{port};"
-                f"UID={cfg.get('user')};"
-                f"PWD={cfg.get('password')};"
-                f"DATABASE={cfg.get('database')};"
-                "Encrypt=no;"
-                "TrustServerCertificate=yes;"
-            )
-            conn = pyodbc.connect(conn_str, timeout=5)
-            conn.close()
-            return JsonResponse({"success": True, "message": "MSSQL connection OK"})
-
-        # ORACLE (oracledb)
-        elif db.database_type == "oracle":
-            try:
-                import oracledb
-            except ImportError:
-                return JsonResponse({"success": False, "message": "oracledb is not installed"})
-
-            conn = oracledb.connect(
-                user=cfg["user"],
-                password=cfg["password"],
-                host=cfg["host"],
-                port=cfg.get("port", 1521),
-                service_name=cfg["service"],
-            )
-            conn.close()
-            return JsonResponse({"success": True, "message": "ORACLE connection OK"})
-
-        # UNSUPPORTED DB TYPE
-        else:
-            return JsonResponse({"success": False, "message": f"Unsupported DB type: {db.database_type}"})
+        return JsonResponse({
+            "success": True,
+            "message": f"{db.database_type.upper()} connection OK"
+        })
 
     except Exception as ex:
-        return JsonResponse({"success": False, "message": str(ex)})
+        return JsonResponse({
+            "success": False,
+            "message": str(ex)
+        })

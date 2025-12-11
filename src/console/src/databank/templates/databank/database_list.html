@@ -48,15 +48,14 @@
                                     {{ db.connection_config.port }}
                                 </td>
                                 <td class="py-2 align-middle">
-                                    <button onclick="testDB('{{ db.id }}', 'source')"
-                                        class="text-xs px-2 py-1 border border-blue-400 text-blue-400 rounded hover:bg-blue-400 hover:text-black transition ">
-                                        Test
-                                    </button>
                                     <button href="{% url 'database_edit' db.id %}"
                                     class="text-xs px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
                                         Edit
                                     </button>
-
+                                    <button onclick="testDB('{{ db.id }}', 'source')"
+                                        class="text-xs px-2 py-1 border border-blue-400 text-blue-400 rounded hover:bg-blue-400 hover:text-black transition ">
+                                        Test
+                                    </button>
                                     <button onclick="openDeleteModel('{{ db.id }}', 'database')"
                                     class="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
                                         Delete
@@ -112,15 +111,14 @@
                                     {{ db.connection_config.port }}
                                 </td>
                                 <td class="py-2 align-middle">
-                                    <button onclick="testDB('{{ db.id }}', 'source')"
-                                        class="text-xs px-2 py-1 border border-blue-400 text-blue-400 rounded hover:bg-blue-400 hover:text-black transition">
-                                        Test
-                                    </button>
                                     <button href="{% url 'database_edit' db.id %}"
                                     class="text-xs px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
                                         Edit
                                     </button>
-
+                                    <button onclick="testDB('{{ db.id }}', 'source')"
+                                        class="text-xs px-2 py-1 border border-blue-400 text-blue-400 rounded hover:bg-blue-400 hover:text-black transition">
+                                        Test
+                                    </button>
                                     <button onclick="openDeleteModel('{{ db.id }}', 'database')"
                                     class="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
                                         Delete
@@ -185,7 +183,7 @@
     }
 </script>
 
-<!-- Add a toast container somewhere in base.html or this template -->
+<!-- Adding a toast container -->
 <div id="toast" class="fixed right-6 bottom-6 z-50 hidden">
   <div id="toast-inner" class="px-4 py-2 rounded shadow-lg text-sm"></div>
 </div>
