@@ -255,12 +255,9 @@ def test_mysql_ch_etl():
 
     # pick any tables you want to copy from employees + sakila
     tables_to_copy = [
-        "employees.departments",
-        "employees.current_dept_emp",
-        "employees.dept_emp_latest_date",
         "sakila.actor",
         "sakila.inventory",
-        "sakila.sales_by_store",
+        "employees.departments",
     ]
 
     for table_name in tables_to_copy:
@@ -300,7 +297,6 @@ def test_mysql_psql_etl():
         "employees.departments",
         "sakila.actor",
         "sakila.inventory",
-        "sakila.sales_by_store",
     ]
 
     for table_name in tables_to_copy:
@@ -328,11 +324,11 @@ def test_mysql_psql_etl():
 
 
 if __name__ == "__main__":
-    # test_psql_psql_etl()
-    # test_psql_ch_etl()
-    # test_mssql_psql_etl()
-    # test_oracle_psql_etl()
-    # test_mssql_ch_etl()
-    # test_oracle_ch_etl()
-    # test_mysql_ch_etl()
+    test_psql_psql_etl()
+    test_psql_ch_etl()
+    test_mssql_psql_etl()
+    test_oracle_psql_etl()
+    test_mssql_ch_etl()
+    test_oracle_ch_etl()
+    test_mysql_ch_etl()
     test_mysql_psql_etl()
