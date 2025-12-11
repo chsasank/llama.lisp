@@ -1,6 +1,7 @@
 import logging
 
 import oracledb
+
 from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,25 @@ class OracleSource(SourceDriver):
         )
         return conn
 
+    def get_all_tables(self):
+        cur = self.conn.cursor()
+        # https://docs.oracle.com/en/database/oracle/oracle-database/26/refrn/ALL_TABLES.html
+        # about ALL_TABLES
+
+        cur.execute(
+            """
+            SELECT OWNER, TABLE_NAME
+            FROM ALL_TABLES
+            WHERE OWNER IN (
+                SELECT USERNAME FROM ALL_USERS WHERE NOT ORACLE_MAINTAINED
+            )
+            ORDER BY OWNER, TABLE_NAME
+            """
+        )
+        cols_raw = cur.fetchall()
+        tables = [f"{r[0]}.{r[1]}" for r in cols_raw]
+        return tables
+
     def normalize_data_type(self, dtype, data_scale):
         # https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Data-Types.html
         if dtype in ("NUMBER"):
@@ -40,14 +60,11 @@ class OracleSource(SourceDriver):
             return ETLDataTypes.FLOAT
         elif dtype in ("BOOLEAN",):
             return ETLDataTypes.BOOLEAN
-        elif dtype in (
-            "TIMESTAMP",
-            "TIMESTAMP WITH TIME ZONE",
-            "TIMESTAMP WITH LOCAL TIME ZONE",
-        ):
+        elif dtype.startswith("TIMESTAMP"):
             return ETLDataTypes.DATE_TIME
         elif dtype in ("DATE",):
-            return ETLDataTypes.DATE
+            # for some reason in oracle date column also has time
+            return ETLDataTypes.DATE_TIME
         elif dtype.startswith("INTERVAL"):
             return ETLDataTypes.TIME_INTERVAL
         elif dtype in ("RAW", "BLOB", "BFILE", "LONG RAW"):
@@ -103,6 +120,8 @@ class OracleSource(SourceDriver):
         )
         cols_raw = cur.fetchall()
         cols = [(r[0], self.normalize_data_type(r[1], r[2])) for r in cols_raw]
+        if len(cols) == 0:
+            raise ValueError(f"Table {schema}.{table} not found in the oracle db")
 
         # https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/ALL_CONSTRAINTS.html
         # about ALL_CONSTRAINTS

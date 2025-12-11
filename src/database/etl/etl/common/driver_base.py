@@ -2,6 +2,9 @@ class SourceDriver:
     def __init__(self, config):
         self.config = config
 
+    def get_all_tables(self):
+        raise NotImplementedError
+
     def get_schema(self):
         raise NotImplementedError
 

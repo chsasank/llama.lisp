@@ -24,6 +24,14 @@ python manage.py createsuperuser
 bash build_container.sh
 ```
 
+Fill the secrets in `deploy/.pg.env`:
+
+```
+POSTGRES_PASSWORD=xxxxxxxxxx
+POSTGRES_DB=console
+POSTGRES_USER=postgres
+```
+
 Single liner to deploy
 
 ```

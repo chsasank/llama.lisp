@@ -1,6 +1,7 @@
 import logging
 
 import psycopg
+
 from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,22 @@ class PostgresSource(SourceDriver):
             password=cfg["password"],
             dbname=cfg["database"],
         )
+
+    def get_all_tables(self):
+        cur = self.conn.cursor()
+
+        # https://stackoverflow.com/a/14730638
+        cur.execute(
+            """
+                SELECT TABLE_SCHEMA, TABLE_NAME
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_TYPE='BASE TABLE' AND TABLE_SCHEMA NOT in ('information_schema', 'pg_catalog')
+                ORDER BY TABLE_SCHEMA, TABLE_NAME
+            """
+        )
+        cols_raw = cur.fetchall()
+        tables = [f"{r[0]}.{r[1]}" for r in cols_raw]
+        return tables
 
     def normalize_data_type(self, dtype):
         if dtype in ("integer", "bigint", "smallint"):
@@ -66,6 +83,8 @@ class PostgresSource(SourceDriver):
         )
 
         cols = [(r[0], self.normalize_data_type(r[1])) for r in cur.fetchall()]
+        if len(cols) == 0:
+            raise ValueError(f"Table {schema}.{table} not found in the postgresql db")
 
         # find primary key: https://stackoverflow.com/a/19570298
         cur = self.conn.cursor()
