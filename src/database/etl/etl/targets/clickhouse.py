@@ -50,6 +50,13 @@ class ClickhouseTarget(TargetDriver):
         table = self.config["table"]
         full_table = f"{database}.`{table}`"
 
+        # Fail fast if no primary key — same rule as PostgresTarget
+        if not etl_schema["primary_keys"]:
+            raise ValueError(
+                f"Table {full_table} has no primary key — ClickHouse requires ORDER BY keys. "
+                "Add a primary key or modify ETL to allow append-only mode."
+            )
+
         # It will check wheather table is exists or not
         result = self.client.query(
             f"""
