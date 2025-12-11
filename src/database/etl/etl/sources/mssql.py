@@ -1,6 +1,7 @@
 import logging
 
 import pyodbc
+
 from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,22 @@ class MssqlSource(SourceDriver):
         conn.add_output_converter(-151, lambda v: v.hex() if v else None)
 
         return conn
+
+    def get_all_tables(self):
+        cur = self.conn.cursor()
+        # https://www.mssqltips.com/tutorial/information-schema-tables/
+
+        cur.execute(
+            """
+            SELECT TABLE_SCHEMA, TABLE_NAME
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_TYPE='BASE TABLE'
+            ORDER BY TABLE_SCHEMA, TABLE_NAME
+            """
+        )
+        cols_raw = cur.fetchall()
+        tables = [f"{r[0]}.{r[1]}" for r in cols_raw]
+        return tables
 
     def normalize_data_type(self, dtype):
         if dtype in ("int", "smallint", "bigint", "tinyint"):
@@ -74,6 +91,8 @@ class MssqlSource(SourceDriver):
             (schema, table),
         )
         cols = [(r[0], self.normalize_data_type(r[1])) for r in cur.fetchall()]
+        if len(cols) == 0:
+            raise ValueError(f"Table {schema}.{table} not found in the MS SQL db")
 
         # Primary key detection
         cur.execute(

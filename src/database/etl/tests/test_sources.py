@@ -55,6 +55,48 @@ def test_psql_init():
     assert isinstance(src.conn, psycopg.Connection)
 
 
+def test_psql_get_tables():
+    src = PostgresSource(test_psql_config)
+    assert src.get_all_tables() == [
+        "public.actor",
+        "public.address",
+        "public.category",
+        "public.city",
+        "public.country",
+        "public.customer",
+        "public.film",
+        "public.film_actor",
+        "public.film_category",
+        "public.inventory",
+        "public.language",
+        "public.payment",
+        "public.payment_p2022_01",
+        "public.payment_p2022_02",
+        "public.payment_p2022_03",
+        "public.payment_p2022_04",
+        "public.payment_p2022_05",
+        "public.payment_p2022_06",
+        "public.payment_p2022_07",
+        "public.rental",
+        "public.staff",
+        "public.store",
+        "tap_github.anonymous_contributors",
+        "tap_github.assignees",
+        "tap_github.branches",
+        "tap_github.collaborators",
+        "tap_github.commit_comments",
+        "tap_github.commit_diffs",
+        "tap_github.commits",
+        "tap_github.community_profile",
+        "tap_github.contributors",
+        "tap_github.dependencies",
+        "tap_github.dependents",
+        "tap_github.deployment_statuses",
+        "tap_github.deployments",
+        "tap_github.repositories",
+    ]
+
+
 def test_psql_schema():
     expected_schemas = {
         "tap_github.commits": {
@@ -194,6 +236,60 @@ def test_mssql_init():
     assert isinstance(src.conn, pyodbc.Connection)
 
 
+def test_mssql_get_tables():
+    src = MssqlSource(test_mssql_config)
+    assert src.get_all_tables() == [
+        "Application.Cities",
+        "Application.Cities_Archive",
+        "Application.Countries",
+        "Application.Countries_Archive",
+        "Application.DeliveryMethods",
+        "Application.DeliveryMethods_Archive",
+        "Application.PaymentMethods",
+        "Application.PaymentMethods_Archive",
+        "Application.People",
+        "Application.People_Archive",
+        "Application.StateProvinces",
+        "Application.StateProvinces_Archive",
+        "Application.SystemParameters",
+        "Application.TransactionTypes",
+        "Application.TransactionTypes_Archive",
+        "Purchasing.PurchaseOrderLines",
+        "Purchasing.PurchaseOrders",
+        "Purchasing.SupplierCategories",
+        "Purchasing.SupplierCategories_Archive",
+        "Purchasing.Suppliers",
+        "Purchasing.Suppliers_Archive",
+        "Purchasing.SupplierTransactions",
+        "Sales.BuyingGroups",
+        "Sales.BuyingGroups_Archive",
+        "Sales.CustomerCategories",
+        "Sales.CustomerCategories_Archive",
+        "Sales.Customers",
+        "Sales.Customers_Archive",
+        "Sales.CustomerTransactions",
+        "Sales.InvoiceLines",
+        "Sales.Invoices",
+        "Sales.OrderLines",
+        "Sales.Orders",
+        "Sales.SpecialDeals",
+        "Warehouse.ColdRoomTemperatures",
+        "Warehouse.ColdRoomTemperatures_Archive",
+        "Warehouse.Colors",
+        "Warehouse.Colors_Archive",
+        "Warehouse.PackageTypes",
+        "Warehouse.PackageTypes_Archive",
+        "Warehouse.StockGroups",
+        "Warehouse.StockGroups_Archive",
+        "Warehouse.StockItemHoldings",
+        "Warehouse.StockItems",
+        "Warehouse.StockItems_Archive",
+        "Warehouse.StockItemStockGroups",
+        "Warehouse.StockItemTransactions",
+        "Warehouse.VehicleTemperatures",
+    ]
+
+
 def test_mssql_schema():
     expected_schemas = {
         "Sales.Customers": {
@@ -314,6 +410,26 @@ def test_oracle_init():
     assert isinstance(src.conn, oracledb.Connection)
 
 
+def test_oracle_get_tables():
+    src = OracleSource(test_oracle_config)
+    assert src.get_all_tables() == [
+        "CO.CUSTOMERS",
+        "CO.INVENTORY",
+        "CO.ORDERS",
+        "CO.ORDER_ITEMS",
+        "CO.PRODUCTS",
+        "CO.SHIPMENTS",
+        "CO.STORES",
+        "HR.COUNTRIES",
+        "HR.DEPARTMENTS",
+        "HR.EMPLOYEES",
+        "HR.JOBS",
+        "HR.JOB_HISTORY",
+        "HR.LOCATIONS",
+        "HR.REGIONS",
+    ]
+
+
 def test_oracle_schema():
     expected_schemas = {
         "HR.EMPLOYEES": {
@@ -323,7 +439,7 @@ def test_oracle_schema():
                 ("LAST_NAME", ETLDataTypes.STRING),
                 ("EMAIL", ETLDataTypes.STRING),
                 ("PHONE_NUMBER", ETLDataTypes.STRING),
-                ("HIRE_DATE", ETLDataTypes.DATE),
+                ("HIRE_DATE", ETLDataTypes.DATE_TIME),
                 ("JOB_ID", ETLDataTypes.STRING),
                 ("SALARY", ETLDataTypes.FLOAT),
                 ("COMMISSION_PCT", ETLDataTypes.FLOAT),
@@ -386,14 +502,17 @@ def test_oracle_stream_batches_replication():
 
 if __name__ == "__main__":
     test_psql_init()
+    test_psql_get_tables()
     test_psql_schema()
     test_psql_stream_batches()
     test_psql_stream_batches_replication()
     test_mssql_init()
+    test_mssql_get_tables()
     test_mssql_schema()
     test_mssql_stream_batches()
     test_mssql_stream_batches_replication()
     test_oracle_init()
+    test_oracle_get_tables()
     test_oracle_schema()
     test_oracle_stream_batches()
     test_oracle_stream_batches_replication()
