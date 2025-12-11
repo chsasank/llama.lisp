@@ -6,6 +6,12 @@ ENV PATH=/venv/bin:$PATH
 
 WORKDIR /app/etl
 
+# install MySQL build dependencies required for mysqlclient
+RUN apt-get update && apt-get install -y \
+    default-libmysqlclient-dev \
+    build-essential \
+    pkg-config \
+    zlib1g-dev
 
 # install mssql odbc driver
 RUN curl -sSL -O https://packages.microsoft.com/config/ubuntu/$(grep VERSION_ID /etc/os-release | cut -d '"' -f 2)/packages-microsoft-prod.deb && \

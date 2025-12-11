@@ -59,6 +59,13 @@ class PostgresTarget(TargetDriver):
     def ensure_schema(self, etl_schema):
         schema, table = self.config["table"].split(".")
 
+        # Fail fast if no primary key
+        if not etl_schema["primary_keys"]:
+            raise ValueError(
+                f"Table {schema}.{table} has no primary key — cannot perform UPSERT. "
+                "Add a primary key or modify ETL to allow append-only mode."
+            )
+
         conn = self.conn
         cur = self.cur
 

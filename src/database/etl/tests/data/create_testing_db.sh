@@ -177,3 +177,81 @@ echo "CO schema installed"
 echo "==> HR and CO Oracle sample schemas installed successfully!"
 
 echo "==> created $TEST_SOURCE_DB"
+
+# Creating MySQL database
+TEST_SOURCE_DB=etl-test-source-mysql-db
+MYSQL_ROOT_PASSWORD="Intelarc123"
+
+podman kill $TEST_SOURCE_DB && podman rm $TEST_SOURCE_DB || true
+
+podman run -d --replace \
+    --name $TEST_SOURCE_DB \
+    -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+    -p 3306:3306 \
+    mysql:8
+
+# After the Database got create use below command for login to database
+# podman exec -it etl-test-source-mysql-db mysql -uroot -pIntelarc123
+
+echo "==> Waiting for MySQL to become ready..."
+# Wait loop until server reports healthy
+until podman exec -it $TEST_SOURCE_DB mysqladmin ping -uroot -p$MYSQL_ROOT_PASSWORD --silent &>/dev/null; do
+    echo "  → MySQL is still starting..."
+    sleep 5
+done
+
+echo "==> MySQL is ready!"
+
+# STEP 1: Download sample datasets 
+SCRIPT_DIR="$(pwd)"
+
+# Download Sakila sample DB if missing
+SCRIPT_DIR="$(pwd)"
+
+if [ ! -d "$SCRIPT_DIR/sakila" ]; then
+    echo "Downloading sakila sample DB..."
+    curl -L -o sakila-db.zip https://downloads.mysql.com/docs/sakila-db.zip
+    unzip -o sakila-db.zip -d sakila_tmp
+    mv sakila_tmp/* sakila/
+    rm -rf sakila_tmp sakila.zip
+fi
+
+# Download Employees DB if missing
+if [ ! -d "$SCRIPT_DIR/test_db-master" ]; then
+    echo "Downloading employees DB..."
+    curl -L -o employees_db.zip \
+        https://github.com/datacharmer/test_db/archive/refs/heads/master.zip
+    unzip -o employees_db.zip
+    mv test_db-master-master test_db-master 2>/dev/null || true
+    rm employees_db.zip
+fi
+
+
+# STEP 2: Copy datasets into container
+podman exec -it $TEST_SOURCE_DB mkdir -p /data
+
+podman cp "$SCRIPT_DIR/sakila"        $TEST_SOURCE_DB:/data/sakila
+podman cp "$SCRIPT_DIR/test_db-master" $TEST_SOURCE_DB:/data/test_db-master
+
+echo "==> Copied schemas into MySQL container."
+
+# STEP 3: Load Sakila schema
+echo "==> Installing sakila schema..."
+
+podman exec -i $TEST_SOURCE_DB bash <<EOF
+mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < /data/sakila/sakila-schema.sql
+mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < /data/sakila/sakila-data.sql
+EOF
+
+echo "==> Sakila schema installed!"
+
+# STEP 4: Load Employees schema
+echo "==> Installing employees schema..."
+
+podman exec -i $TEST_SOURCE_DB bash <<EOF
+cd /data/test_db-master
+mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < employees.sql
+EOF
+
+echo "==> Employees schema installed!"
+echo "==> MySQL test database is ready!"

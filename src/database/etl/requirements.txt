@@ -4,3 +4,4 @@ pyodbc
 tinydb
 pytest
 oracledb
+mysqlclient

@@ -4,9 +4,10 @@ import sys
 import oracledb
 import psycopg
 import pyodbc
+import MySQLdb
 from common import testing_database_host
 from etl.common import ETLDataTypes, JSONStateManager
-from etl.sources import MssqlSource, OracleSource, PostgresSource
+from etl.sources import MssqlSource, OracleSource, PostgresSource, MysqlSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,6 +34,18 @@ test_mssql_config = {
         "database": "WideWorldImporters",
     },
     "table": "Sales.Customers",
+}
+
+# mysql source configuration
+test_mysql_config = {
+    "connection": {
+        "host": testing_database_host,
+        "port": 3306,
+        "user": "root",
+        "password": "Intelarc123",
+        "database": "employees",
+    },
+    "table": "employees.departments",
 }
 
 # oracle source configuration
@@ -500,6 +513,140 @@ def test_oracle_stream_batches_replication():
     assert src.state_manager.get_state() is not None
 
 
+def test_mysql_init():
+    src = MysqlSource(test_mysql_config)
+    assert isinstance(src.conn, MySQLdb.connections.Connection)
+
+def test_mysql_get_tables():
+    src = MysqlSource(test_mysql_config)
+    assert src.get_all_tables() == [
+        "employees.departments",
+        "employees.dept_emp",
+        "employees.dept_manager",
+        "employees.employees",
+        "employees.salaries",
+        "employees.titles",
+        "sakila.actor",
+        "sakila.address",
+        "sakila.category",
+        "sakila.city",
+        "sakila.country",
+        "sakila.customer",
+        "sakila.film",
+        "sakila.film_actor",
+        "sakila.film_category",
+        "sakila.film_text",
+        "sakila.inventory",
+        "sakila.language",
+        "sakila.payment",
+        "sakila.rental",
+        "sakila.staff",
+        "sakila.store",
+    ]
+
+
+def test_mysql_schema():
+    expected_schemas = {
+        "employees.departments": {
+            "columns": [
+                ("dept_no", ETLDataTypes.STRING),
+                ("dept_name", ETLDataTypes.STRING),
+            ],
+            "primary_keys": ["dept_no"],
+        },
+
+        "employees.current_dept_emp": {
+            "columns": [
+                ("emp_no", ETLDataTypes.INTEGER),
+                ("dept_no", ETLDataTypes.STRING),
+                ("from_date", ETLDataTypes.DATE),
+                ("to_date", ETLDataTypes.DATE),
+            ],
+            "primary_keys": [],
+        },
+
+        "employees.dept_emp_latest_date": {
+            "columns": [
+                ("emp_no", ETLDataTypes.INTEGER),
+                ("from_date", ETLDataTypes.DATE),
+                ("to_date", ETLDataTypes.DATE),
+            ],
+            "primary_keys": [],
+        },
+
+        "sakila.actor": {
+            "columns": [
+                ("actor_id", ETLDataTypes.INTEGER),
+                ("first_name", ETLDataTypes.STRING),
+                ("last_name", ETLDataTypes.STRING),
+                ("last_update", ETLDataTypes.DATE_TIME),
+            ],
+            "primary_keys": ["actor_id"],
+        },
+
+        "sakila.inventory": {
+            "columns": [
+                ("inventory_id", ETLDataTypes.INTEGER),
+                ("film_id", ETLDataTypes.INTEGER),
+                ("store_id", ETLDataTypes.INTEGER),
+                ("last_update", ETLDataTypes.DATE_TIME),
+            ],
+            "primary_keys": ["inventory_id"],
+        },
+
+        "sakila.sales_by_store": {
+            "columns": [
+                ("store", ETLDataTypes.STRING),
+                ("manager", ETLDataTypes.STRING),
+                ("total_sales", ETLDataTypes.FLOAT),
+            ],
+            "primary_keys": [],
+        },
+    }
+
+
+    for table_name, expected_schema in expected_schemas.items():
+        src = MysqlSource(
+            {"connection": test_mysql_config["connection"], "table": table_name}
+        )
+        assert src.get_etl_schema() == expected_schema, (
+            f"{table_name} schema didn't match"
+        )
+        logger.info(f"MySQL schema matched!")
+
+def test_mysql_stream_batches():
+    src = MysqlSource(test_mysql_config, batch_size=5)
+    batches = src.stream_batches()
+    first_batch = next(batches)
+
+    assert len(first_batch) <= 5
+    assert len(first_batch[0]) == len(src.get_etl_schema()["columns"])
+
+def test_mysql_stream_batches_replication():
+    state_manager = JSONStateManager(
+        json_path="testing.json",
+        state_id="test_run_mysql_source",
+        replication_key="dept_no",
+    )
+
+    src = MysqlSource(
+        test_mysql_config,
+        state_manager,
+        batch_size=5,
+    )
+
+    schema = src.get_etl_schema()
+    col_count = len(schema["columns"])
+
+    for batch in src.stream_batches():
+        assert len(batch) <= 5
+        row = batch[0]
+        assert len(row) == col_count
+    
+    assert src.state_manager.get_state() is not None
+
+
+
 if __name__ == "__main__":
     test_psql_init()
     test_psql_get_tables()
@@ -516,3 +663,8 @@ if __name__ == "__main__":
     test_oracle_schema()
     test_oracle_stream_batches()
     test_oracle_stream_batches_replication()
+    test_mysql_init()
+    test_mysql_schema()
+    test_mysql_stream_batches()
+    test_mysql_stream_batches_replication()
+    test_mysql_get_tables()
