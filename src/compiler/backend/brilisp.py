@@ -86,6 +86,7 @@ def gen_instr(instr):
             "mul",
             "sub",
             "div",
+            "mod",
             # Integer comparison
             "eq",
             "ne",
