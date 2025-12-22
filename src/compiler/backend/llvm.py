@@ -98,6 +98,7 @@ class LLVMCodeGenerator(object):
             "mul": "mul",
             "sub": "sub",
             "div": "sdiv",
+            "rem": "srem",   
             "not": "not_",
             "and": "and_",
             "or": "or_",
@@ -105,7 +106,6 @@ class LLVMCodeGenerator(object):
             "fsub": "fsub",
             "fmul": "fmul",
             "fdiv": "fdiv",
-            "mod": "srem",  ##chnages made here for mod
         }
 
         cmp_ops = {

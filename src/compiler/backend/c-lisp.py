@@ -463,8 +463,9 @@ class BinOpExpression(Expression):
         "sub": ("_int", None),
         "mul": ("_int", None),
         "div": ("_int", None),
-        "mod" : ("int", "int"), ##changes i hae made here for mod
+        "rem": ("_int", None),
         # Floating-point arithmetic
+        "fadd": ("_float", None),
         "fsub": ("_float", None),
         "fmul": ("_float", None),
         "fdiv": ("_float", None),

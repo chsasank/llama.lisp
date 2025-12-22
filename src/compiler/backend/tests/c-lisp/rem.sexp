@@ -7,9 +7,8 @@
 
         (set i 10)
         (set j 3)
-        (call print (mod i j))
-        
-        (ret 0))
+        (call print (rem i j))
+        (ret))
 
 )
 
