@@ -98,6 +98,7 @@ class LLVMCodeGenerator(object):
             "mul": "mul",
             "sub": "sub",
             "div": "sdiv",
+            "rem": "srem",   
             "not": "not_",
             "and": "and_",
             "or": "or_",
