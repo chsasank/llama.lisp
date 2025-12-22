@@ -105,6 +105,7 @@ class LLVMCodeGenerator(object):
             "fsub": "fsub",
             "fmul": "fmul",
             "fdiv": "fdiv",
+            "mod": "srem",  ##chnages made here for mod
         }
 
         cmp_ops = {
