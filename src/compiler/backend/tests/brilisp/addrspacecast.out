@@ -1,0 +1,18 @@
+; ModuleID = ""
+target triple = "unknown-unknown-unknown"
+target datalayout = ""
+
+define void @"main"(i32 addrspace(1)* %"b")
+{
+alloca:
+  %"b.1" = alloca i32 addrspace(1)*
+  %"tmp" = alloca i32 addrspace(3)*
+  br label %"entry"
+entry:
+  store i32 addrspace(1)* %"b", i32 addrspace(1)** %"b.1"
+  %".4" = load i32 addrspace(1)*, i32 addrspace(1)** %"b.1"
+  %"tmp.1" = addrspacecast i32 addrspace(1)* %".4" to i32 addrspace(3)*
+  store i32 addrspace(3)* %"tmp.1", i32 addrspace(3)** %"tmp"
+  ret void
+}
+

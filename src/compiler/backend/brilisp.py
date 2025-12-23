@@ -131,6 +131,7 @@ def gen_instr(instr):
             "bitcast",
             # String reference
             "string-ref",
+            "addrspacecast"
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 
