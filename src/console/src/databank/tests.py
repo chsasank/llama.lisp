@@ -2,14 +2,13 @@ import logging
 import sys
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from . import tasks
 from .models import DatabaseConfiguration, ETLConfiguration
 from .tasks import DBStateManager
-
-from django.contrib.auth.models import User
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -451,3 +450,21 @@ class DBStateManagerTests(TestCase):
 
         state = DBStateManager(etl_config).get_state()
         assert state is None
+
+    def test_get_state_with_set_state(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={
+                "replication_value": "2025-12-15 16:34:30",
+                "backfill": 3600,
+            },
+        )
+
+        state_manager = DBStateManager(etl_config)
+        state_manager.set_state("2025-12-15 15:34:30")
+        state = state_manager.get_state()
+        assert state == "2025-12-15 14:34:30"
