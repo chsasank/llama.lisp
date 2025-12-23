@@ -77,7 +77,8 @@ class ClickhouseTarget(TargetDriver):
                     ENGINE = ReplacingMergeTree() ORDER BY ({order_keys})"""
             else:
                 ddl = f"""CREATE TABLE {full_table} ({", ".join(col_defs)})
-                    ENGINE = MergeTree()"""
+                    ENGINE = MergeTree()
+                    ORDER BY tuple()"""
 
             logger.info(f"Creating ClickHouse table: {ddl}")
             self.client.command(ddl)
@@ -95,7 +96,7 @@ class ClickhouseTarget(TargetDriver):
                 ch_type = self.ch_data_types(etl_dtype)
                 logger.warning(f"[Schema Drift] Adding col {col} ({ch_type})")
                 self.client.command(
-                    f"ALTER TABLE {full_table} ADD COLUMN `{col}` {ch_type}"
+                    f"ALTER TABLE {full_table} ADD COLUMN `{col}` Nullable({ch_type})"
                 )
 
     def load_batch(self, rows, etl_schema):

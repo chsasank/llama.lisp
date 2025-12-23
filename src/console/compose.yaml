@@ -17,3 +17,11 @@ services:
         env_file: ./deploy/.pg.env
         volumes:
             - ./deploy/pgdata:/var/lib/postgresql/data
+    notebook:
+        image: "johnaic/console"
+        command: bash -c "sleep 30 && cd /app/notebooks && jupyter notebook --allow-root --ip=0.0.0.0"
+        env_file: ./deploy/.pg.env
+        volumes:
+            - ./deploy/notebooks/:/app/notebooks
+        ports:
+            - "8135:8888"

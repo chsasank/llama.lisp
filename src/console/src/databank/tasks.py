@@ -1,6 +1,8 @@
 import json
 import logging
+from datetime import datetime, timedelta
 
+from django.utils.dateparse import parse_datetime
 from etl.common.state_manager import StateManagerDriver
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
@@ -22,16 +24,26 @@ class DBStateManager(StateManagerDriver):
             json.dumps(replication_value)
         except TypeError:
             replication_value = str(replication_value)
-        self.etl_config.replication_state = {
-            "replication_value": replication_value,
-        }
+
+        state = self.etl_config.replication_state or {}
+        state["replication_value"] = replication_value
+        self.etl_config.replication_state = state
         self.etl_config.save()
 
     def get_state(self):
-        try:
-            return self.etl_config.replication_state["replication_value"]
-        except (TypeError, KeyError):
-            return None
+        state = self.etl_config.replication_state or {}
+        if "replication_value" in state:
+            value = state["replication_value"]
+            if "backfill" in state:
+                backfill = state["backfill"]
+                ts = parse_datetime(value)
+                assert ts is not None, (
+                    "{value} not in time format. backfill assumes time"
+                )
+                ts = ts - timedelta(seconds=backfill)
+                return str(ts)
+            else:
+                return value
 
 
 def _get_etl_src(etl_config):
