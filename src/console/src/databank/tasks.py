@@ -31,26 +31,19 @@ class DBStateManager(StateManagerDriver):
 
     def get_state(self):
         try:
-            state = self.etl_config.replication_state
-            if not state:
-                return None
+            state = self.etl_config.replication_state or {}
 
             value = state.get("replication_value")
-            if value is None:
+            if not value:
                 return None
 
-            backfill = state.get("backfill")
-            if not backfill:
-                backfill = 0
+            backfill = state.get("backfill", 0)
 
-            if isinstance(value, datetime):
-                ts = value
-            else:
-                ts = parse_datetime(value)
-                if ts is None:
-                    return value
+            ts = value if isinstance(value, datetime) else parse_datetime(value)
+            if ts is None:
+                return value
 
-            ts = ts - timedelta(seconds=backfill)
+            ts -= timedelta(seconds=backfill)
 
             return ts.strftime("%Y-%m-%d %H:%M:%S")
 
