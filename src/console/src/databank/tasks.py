@@ -7,6 +7,8 @@ from etl.targets import ClickhouseTarget, PostgresTarget
 from task_manager.models import Graph, Task
 
 from .models import DatabaseConfiguration, ETLConfiguration
+from datetime import datetime, timedelta
+from django.utils.dateparse import parse_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,29 @@ class DBStateManager(StateManagerDriver):
 
     def get_state(self):
         try:
-            return self.etl_config.replication_state["replication_value"]
+            state = self.etl_config.replication_state
+            if not state:
+                return None
+
+            value = state.get("replication_value")
+            if value is None:
+                return None
+
+            backfill = state.get("backfill")
+            if not backfill:
+                backfill = 0
+
+            if isinstance(value, datetime):
+                ts = value
+            else:
+                ts = parse_datetime(value)
+                if ts is None:
+                    return value
+
+            ts = ts - timedelta(seconds=backfill)
+
+            return ts.strftime("%Y-%m-%d %H:%M:%S")
+
         except (TypeError, KeyError):
             return None
 
