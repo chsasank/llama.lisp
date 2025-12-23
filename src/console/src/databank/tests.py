@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from . import tasks
 from .models import DatabaseConfiguration, ETLConfiguration
+from .tasks import DBStateManager
 
 from django.contrib.auth.models import User
 
@@ -346,21 +347,22 @@ class ETLViewsTests(TestCase):
 
 
 class DBStateManagerTests(TestCase):
-    def test_get_state_with_backfill(self):
-        source_db_config = DatabaseConfiguration.objects.create(
+    def setUp(self):
+        self.source_db = DatabaseConfiguration.objects.create(
             etl_type="source",
             database_type="postgres",
             connection_config={"host": "localhost"},
         )
-        target_db_config = DatabaseConfiguration.objects.create(
+        self.target_db = DatabaseConfiguration.objects.create(
             etl_type="target",
             database_type="postgres",
             connection_config={"host": "localhost"},
         )
 
+    def test_get_state_with_backfill(self):
         etl_config = ETLConfiguration.objects.create(
-            source_database=source_db_config,
-            target_database=target_db_config,
+            source_database=self.source_db,
+            target_database=self.target_db,
             source_table="src_table",
             target_table="tgt_table",
             replication_key="commit_timestamp",
@@ -370,6 +372,82 @@ class DBStateManagerTests(TestCase):
             },
         )
 
-        state = tasks.DBStateManager(etl_config).get_state()
+        state = DBStateManager(etl_config).get_state()
 
         assert state == "2025-12-15 13:30:00"
+
+    def test_get_state_without_backfill(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={
+                "replication_value": "2025-12-15 16:34:30",
+            },
+        )
+
+        state = DBStateManager(etl_config).get_state()
+
+        assert state == "2025-12-15 16:34:30"
+
+    def test_get_state_with_backfill_and_invalid_datetime(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={
+                "replication_value": "not-a-datetime",
+                "backfill": 3600,
+            },
+        )
+
+        with self.assertRaises(AssertionError):
+            DBStateManager(etl_config).get_state()
+
+    def test_get_state_without_replication_value(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={},
+        )
+
+        state = DBStateManager(etl_config).get_state()
+
+        assert state is None
+
+    def test_get_state_with_zero_backfill(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={
+                "replication_value": "2025-12-15 16:34:30",
+                "backfill": 0,
+            },
+        )
+
+        state = DBStateManager(etl_config).get_state()
+
+        assert state == "2025-12-15 16:34:30"
+
+    def test_get_state_first_run_returns_none(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={},
+        )
+
+        state = DBStateManager(etl_config).get_state()
+        assert state is None

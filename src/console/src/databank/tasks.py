@@ -30,26 +30,17 @@ class DBStateManager(StateManagerDriver):
         self.etl_config.save()
 
     def get_state(self):
-        try:
-            state = self.etl_config.replication_state or {}
-
-            value = state.get("replication_value")
-            if not value:
-                return None
-
-            backfill = state.get("backfill", 0)
-
-            ts = value if isinstance(value, datetime) else parse_datetime(value)
-            if ts is None:
+        state = self.etl_config.replication_state or {}
+        if "replication_value" in state:
+            value = state["replication_value"]
+            if "backfill" in state:
+                backfill = state["backfill"]
+                ts = parse_datetime(value)
+                assert ts is not None, "{value} not in time format. backfill assumes time"
+                ts = ts - timedelta(seconds=backfill)
+                return str(ts)
+            else:
                 return value
-
-            ts -= timedelta(seconds=backfill)
-
-            return ts.strftime("%Y-%m-%d %H:%M:%S")
-
-        except (TypeError, KeyError):
-            return None
-
 
 def _get_etl_src(etl_config):
     source_db_type = etl_config.source_database.database_type
