@@ -139,6 +139,7 @@ class LLVMCodeGenerator(object):
             "ptrtoint": "ptrtoint",
             "inttoptr": "inttoptr",
             "bitcast": "bitcast",
+            "addrspacecast" : "addrspacecast"
         }
 
         def gen_label(instr):

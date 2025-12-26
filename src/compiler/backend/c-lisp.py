@@ -676,6 +676,7 @@ class CastExpression(Expression):
         "fpext": ("_float", "_float"),
         "fptrunc": ("_float", "_float"),
         "bitcast": (None, None),
+        "addrspacecast": (None, None)
     }
 
     @classmethod
