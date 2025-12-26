@@ -5,7 +5,6 @@
     (define ((main void) (b (ptr int (addrspace 1))) ) 
         
         (set (tmp (ptr int (addrspace 3)))    (addrspacecast b (ptr (addrspace 3) ) ) )
-        
         (ret)
     
     ))
