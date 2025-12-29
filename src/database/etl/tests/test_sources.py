@@ -11,6 +11,10 @@ from etl.sources import MssqlSource, OracleSource, PostgresSource
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+oracledb.init_oracle_client(
+    lib_dir="/opt/oracle/instantclient_21_20"
+)
+
 # psql source configuration
 test_psql_config = {
     "connection": {
@@ -499,6 +503,15 @@ def test_oracle_stream_batches_replication():
 
     assert src.state_manager.get_state() is not None
 
+def test_oracle_thick_mode_enabled():
+    # This call only works in thick mode
+    version = oracledb.clientversion()
+
+    assert version is not None
+    assert isinstance(version, tuple)
+    assert len(version) >= 2
+
+    print(f"Oracle THICK mode confirmed, client version = {version}")
 
 if __name__ == "__main__":
     test_psql_init()
@@ -516,3 +529,4 @@ if __name__ == "__main__":
     test_oracle_schema()
     test_oracle_stream_batches()
     test_oracle_stream_batches_replication()
+    test_oracle_thick_mode_enabled()

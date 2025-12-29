@@ -1,10 +1,28 @@
 FROM ubuntu:24.04
 
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv curl gnupg
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv curl gnupg unzip libaio1t64
+
+# REQUIRED for Oracle on Ubuntu 24.04 (t64 transition)
+RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 \
+          /usr/lib/x86_64-linux-gnu/libaio.so.1
+
 RUN python3 -m venv /venv
 ENV PATH=/venv/bin:$PATH
 
 WORKDIR /app/etl
+
+# Oracle Instant Client (THICK MODE)
+RUN mkdir -p /opt/oracle && \
+    cd /opt/oracle && \
+    curl -L -o instantclient-basic.zip \
+      -H "Cookie: oraclelicense=accept-securebackup-cookie" \
+      https://download.oracle.com/otn_software/linux/instantclient/2120000/instantclient-basic-linux.x64-21.20.0.0.0dbru.zip && \
+    unzip instantclient-basic.zip && \
+    rm instantclient-basic.zip && \
+    echo /opt/oracle/instantclient_21_20 > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    ldconfig
+
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_21_20
 
 
 # install mssql odbc driver

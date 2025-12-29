@@ -6,6 +6,9 @@ from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
 
+oracledb.init_oracle_client(
+    lib_dir="/opt/oracle/instantclient_21_20"
+)
 
 class OracleSource(SourceDriver):
     def __init__(self, config, state_manager=None, batch_size=10000):
