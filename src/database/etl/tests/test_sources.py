@@ -504,8 +504,6 @@ def test_oracle_stream_batches_replication():
     assert src.state_manager.get_state() is not None
 
 def test_oracle_thick_mode_enabled():
-    import oracledb
-
     # This call only works in thick mode
     version = oracledb.clientversion()
 
