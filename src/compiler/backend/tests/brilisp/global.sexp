@@ -2,8 +2,8 @@
 
     (define ((print int) (n int)))
     
-    (set (a int) (const 20) )
-    (set (b int) (const 10) )
+    (define-global (a int) (const 20) )
+    (define-global (b int) (const 10) )
 
     (define ((main void)) 
         (set (tmp int) (add a b))
