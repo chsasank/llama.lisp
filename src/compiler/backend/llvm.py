@@ -42,6 +42,8 @@ class LLVMCodeGenerator(object):
         # Manages all labels in a function
         self.func_bbs = {}
 
+        self.global_vars = {}
+
     def generate(self, bril_prog):
         for struct in bril_prog.structs:
             self.gen_struct(struct)
@@ -49,6 +51,8 @@ class LLVMCodeGenerator(object):
             self.gen_string_defn(string)
         for fn in bril_prog.functions:
             self.gen_function(fn)
+        for glob in bril_prog.globals:
+            self.gen_globals(glob)
 
     def gen_type(self, type):
         if isinstance(type, dict):
@@ -443,6 +447,18 @@ class LLVMCodeGenerator(object):
         )
         elem_types = [self.gen_type(typ) for typ in struct.elements]
         self.struct_types[struct.name].set_body(*elem_types)
+
+    def gen_globals(self, glob):
+        name=glob.name
+        typ = self.gen_type(glob.type)
+        global_var = ir.GlobalVariable(
+            module=self.module,
+            typ=typ,
+            name=glob.name,
+        )
+        val = glob.elements[1]
+        global_var.align = 4
+        global_var.initializer = ir.Constant(typ, val)
 
     def gen_string_defn(self, string):
         string_arr = bytearray(string.value + "\x00", encoding="UTF-8")

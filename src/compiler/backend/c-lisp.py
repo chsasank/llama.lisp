@@ -46,6 +46,8 @@ class BrilispCodeGenerator:
                 brilisp_funcs.append(self.gen_function(defn))
             elif defn[0] == "define-struct":
                 brilisp_structs.append(self.gen_struct(defn))
+            # elif defn[0] == "global":
+            #     brilisp_structs.append(self.gen_global_var(defn))
             else:
                 raise CodegenError(f"Neither function nor struct definition: {defn}")
 
@@ -676,7 +678,7 @@ class CastExpression(Expression):
         "fpext": ("_float", "_float"),
         "fptrunc": ("_float", "_float"),
         "bitcast": (None, None),
-        "addrspacecast": (None, None)
+        "addrspacecast": ("_ptr", "_ptr")
     }
 
     @classmethod

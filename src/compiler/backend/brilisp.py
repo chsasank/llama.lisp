@@ -9,6 +9,8 @@ def is_list(x):
 def is_struct(expr):
     return isinstance(expr, list) and (expr[0] == "define-struct")
 
+def is_global(expr):
+    return isinstance(expr, list) and (expr[0] == "set")
 
 def gen_struct(expr):
     return {
@@ -16,6 +18,12 @@ def gen_struct(expr):
         "elements": [gen_type(typ) for typ in expr[2]],
     }
 
+def gen_globals(expr):
+    return {
+        "name": expr[1][0],
+        "type": gen_type(expr[1][1]),
+        "elements": expr[2],
+    }
 
 def is_function(expr):
     return isinstance(expr, list) and (expr[0] == "define")
@@ -216,17 +224,20 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
-    functions, strings, structs = [], [], []
+    functions, strings, structs, globals = [], [], [], []
     for x in body:
+        # print(x)
         if is_function(x):
             functions.append(gen_function(x))
         elif is_string(x):
             strings.append(gen_string(x))
         elif is_struct(x):
             structs.append(gen_struct(x))
+        elif is_global(x):
+            globals.append(gen_globals(x))
         else:
             raise Exception(f"{x} is neither function nor string nor struct")
-    return {"functions": functions, "strings": strings, "structs": structs}
+    return {"functions": functions, "strings": strings, "structs": structs, "globals": globals}
 
 
 def main():
