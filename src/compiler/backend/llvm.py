@@ -42,17 +42,18 @@ class LLVMCodeGenerator(object):
         # Manages all labels in a function
         self.func_bbs = {}
 
-        self.global_vars = {}
+        self.global_variables = {}
 
     def generate(self, bril_prog):
         for struct in bril_prog.structs:
             self.gen_struct(struct)
         for string in bril_prog.strings:
             self.gen_string_defn(string)
-        for fn in bril_prog.functions:
-            self.gen_function(fn)
         for glob in bril_prog.globals:
             self.gen_globals(glob)
+        for fn in bril_prog.functions:
+            self.gen_function(fn)
+        
 
     def gen_type(self, type):
         if isinstance(type, dict):
@@ -381,6 +382,9 @@ class LLVMCodeGenerator(object):
 
     def declare_var(self, typ, name):
         """Allocate a pointer using alloca and add it to the symbol table, if it doesn't already exist"""
+        if name in self.global_variables:
+            return
+
         if (name not in self.func_alloca_symtab) or (
             self.func_alloca_symtab[name].type != typ.as_pointer()
         ):
@@ -393,12 +397,16 @@ class LLVMCodeGenerator(object):
     def gen_symbol_load(self, name):
         if name in self.func_alloca_symtab:
             return self.builder.load(self.func_alloca_symtab[name])
+        elif name in self.global_variables:
+            return self.builder.load(self.global_variables[name])
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
     def gen_symbol_store(self, name, val):
         if name in self.func_alloca_symtab:
             self.builder.store(val, self.func_alloca_symtab[name])
+        elif name in self.global_variables:
+            self.builder.store(val, self.global_variables[name])
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
@@ -449,7 +457,6 @@ class LLVMCodeGenerator(object):
         self.struct_types[struct.name].set_body(*elem_types)
 
     def gen_globals(self, glob):
-        name=glob.name
         typ = self.gen_type(glob.type)
         global_var = ir.GlobalVariable(
             module=self.module,
@@ -459,6 +466,8 @@ class LLVMCodeGenerator(object):
         val = glob.elements[1]
         global_var.align = 4
         global_var.initializer = ir.Constant(typ, val)
+
+        self.global_variables[glob.name] = global_var
 
     def gen_string_defn(self, string):
         string_arr = bytearray(string.value + "\x00", encoding="UTF-8")
