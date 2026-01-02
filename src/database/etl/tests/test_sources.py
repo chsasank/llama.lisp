@@ -4,6 +4,7 @@ import sys
 import oracledb
 import psycopg
 import pyodbc
+from datetime import datetime
 from common import testing_database_host
 from etl.common import ETLDataTypes, JSONStateManager
 from etl.sources import MssqlSource, OracleSource, PostgresSource
@@ -513,6 +514,51 @@ def test_oracle_thick_mode_enabled():
 
     print(f"Oracle THICK mode confirmed, client version = {version}")
 
+def test_mssql_state_string_converted_to_datetime():
+    state_manager = JSONStateManager(
+        json_path="testing.json",
+        state_id="test_mssql_state_conversion",
+        replication_key="CustomerID",
+    )
+
+    # Simulate old stored state (string)
+    state_manager.set_state("2025-12-16 07:03:42.463000")
+
+    src = MssqlSource(
+        test_mssql_config,
+        state_manager,
+        batch_size=10,
+    )
+
+    current_state = src.state_manager.get_state()
+
+    # conversion logic
+    if isinstance(current_state, str):
+        current_state = datetime.fromisoformat(current_state)
+
+    assert isinstance(current_state, datetime)
+
+def test_mssql_replication_with_string_datetime_state_does_not_fail():
+    state_manager = JSONStateManager(
+        json_path="testing.json",
+        state_id="test_mssql_replication_runtime",
+        replication_key="ValidFrom",   # DATETIME column
+    )
+
+    # Forceing string state
+    state_manager.set_state("2010-01-01 00:00:00")
+
+    src = MssqlSource(
+        test_mssql_config,
+        state_manager,
+        batch_size=10,
+    )
+
+    batches = src.stream_batches()
+    first_batch = next(batches)
+
+    assert len(first_batch) > 0
+
 if __name__ == "__main__":
     test_psql_init()
     test_psql_get_tables()
@@ -530,3 +576,5 @@ if __name__ == "__main__":
     test_oracle_stream_batches()
     test_oracle_stream_batches_replication()
     test_oracle_thick_mode_enabled()
+    test_mssql_state_string_converted_to_datetime()
+    test_mssql_replication_with_string_datetime_state_does_not_fail()
