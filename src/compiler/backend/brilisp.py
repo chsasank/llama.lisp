@@ -15,14 +15,14 @@ def is_global(expr):
 def gen_struct(expr):
     return {
         "name": expr[1],
-        "elements": [gen_type(typ) for typ in expr[2]],
+        "element": [gen_type(typ) for typ in expr[2]],
     }
 
 def gen_globals(expr):
     return {
         "name": expr[1][0],
         "type": gen_type(expr[1][1]),
-        "elements": expr[2],
+        "element": expr[2],
     }
 
 def is_function(expr):

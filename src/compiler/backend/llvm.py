@@ -41,7 +41,8 @@ class LLVMCodeGenerator(object):
 
         # Manages all labels in a function
         self.func_bbs = {}
-
+        
+        #Manages all globals
         self.global_variables = {}
 
     def generate(self, bril_prog):
@@ -398,7 +399,7 @@ class LLVMCodeGenerator(object):
         if name in self.func_alloca_symtab:
             return self.builder.load(self.func_alloca_symtab[name])
         elif name in self.global_variables:
-            return self.builder.load(self.global_variables[name])
+                return self.global_variables[name]
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
@@ -453,7 +454,7 @@ class LLVMCodeGenerator(object):
         self.struct_types[struct.name] = ir.global_context.get_identified_type(
             struct.name
         )
-        elem_types = [self.gen_type(typ) for typ in struct.elements]
+        elem_types = [self.gen_type(typ) for typ in struct.element]
         self.struct_types[struct.name].set_body(*elem_types)
 
     def gen_globals(self, glob):
@@ -463,7 +464,7 @@ class LLVMCodeGenerator(object):
             typ=typ,
             name=glob.name,
         )
-        val = glob.elements[1]
+        val = glob.element[1]
         global_var.align = 4
         global_var.initializer = ir.Constant(typ, val)
 

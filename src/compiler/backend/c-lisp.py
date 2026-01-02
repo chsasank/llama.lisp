@@ -33,7 +33,7 @@ class BrilispCodeGenerator:
         self.struct_types = {}
         # String literals
         self.string_literals = {}
-        #global variables stored as is
+        #global variables stored as is. (name, type, element)
         self.global_variables = {}
 
     def c_lisp(self, prog):
@@ -158,14 +158,10 @@ class BrilispCodeGenerator:
 
         return ["define-struct", name, struct_membs]
 
- 
-
     def gen_global_var(self, glob):
-        
         name, typ = glob[1]
         init = glob[2]
         self.global_variables[name] = typ
-        self.variable_types[name] = ["ptr", typ]
 
         return ["define-global", [name, typ], init]
 
@@ -470,7 +466,19 @@ class VarExpression(Expression):
     def compile(self, expr):
         instructions = []
         symbol = self.ctx.scoped_lookup(expr)
-        typ = self.ctx.variable_types[symbol]
+
+        if symbol in self.ctx.variable_types:
+            typ = self.ctx.variable_types[symbol]
+        else:
+            # because global variable should be ["ptr", type]
+            typ = ["ptr", self.ctx.global_variables[symbol]]
+            # to load type of the global var without ptr in the instruction, 
+            # we give a temporary symbol to store the value 
+            tmp_sym = random_label(CLISP_PREFIX)
+            instructions.append(["set", [tmp_sym, typ[1]], ["load", symbol]])
+            symbol = tmp_sym
+            typ = typ[1]  
+
         return ExpressionResult(instructions, symbol, typ)
 
 
