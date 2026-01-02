@@ -1,7 +1,7 @@
 import logging
 
 import pyodbc
-from datetime import datetime
+
 from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
@@ -143,9 +143,6 @@ class MssqlSource(SourceDriver):
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")
-
-            if isinstance(current_state, str):
-                current_state = datetime.fromisoformat(current_state)
 
             if current_state:
                 sql = (
