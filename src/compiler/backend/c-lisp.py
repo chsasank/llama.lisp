@@ -71,8 +71,6 @@ class BrilispCodeGenerator:
 
     def scoped_lookup(self, name):
         """Look up the name in reverse order of current scope stack"""
-        print("==>",self.global_variables)
-        print("name", name)
         # be as specific as possible first
         if name in self.global_variables:
             return name
