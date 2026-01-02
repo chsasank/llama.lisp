@@ -1,5 +1,5 @@
-import sys
 import json
+import sys
 
 
 def is_list(x):
@@ -9,14 +9,17 @@ def is_list(x):
 def is_struct(expr):
     return isinstance(expr, list) and (expr[0] == "define-struct")
 
+
 def is_global(expr):
     return isinstance(expr, list) and (expr[0] == "define-global")
+
 
 def gen_struct(expr):
     return {
         "name": expr[1],
-        "element": [gen_type(typ) for typ in expr[2]],
+        "elements": [gen_type(typ) for typ in expr[2]],
     }
+
 
 def gen_globals(expr):
     return {
@@ -24,6 +27,7 @@ def gen_globals(expr):
         "type": gen_type(expr[1][1]),
         "element": expr[2],
     }
+
 
 def is_function(expr):
     return isinstance(expr, list) and (expr[0] == "define")
@@ -139,7 +143,7 @@ def gen_instr(instr):
             "bitcast",
             # String reference
             "string-ref",
-            "addrspacecast"
+            "addrspacecast",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 
@@ -236,7 +240,12 @@ def brilisp(expr):
             globals.append(gen_globals(x))
         else:
             raise Exception(f"{x} is neither function nor string nor struct")
-    return {"functions": functions, "strings": strings, "structs": structs, "globals": globals}
+    return {
+        "functions": functions,
+        "strings": strings,
+        "structs": structs,
+        "globals": globals,
+    }
 
 
 def main():

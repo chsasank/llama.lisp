@@ -6,10 +6,11 @@ References:
 2. https://llvm.org/docs/tutorial/
 """
 
-import sys
 import json
-import munch
+import sys
+
 import llvmlite.ir as ir
+import munch
 from utils.random import random_label
 
 
@@ -41,8 +42,7 @@ class LLVMCodeGenerator(object):
 
         # Manages all labels in a function
         self.func_bbs = {}
-        
-        #Manages all globals
+        # Manages all globals
         self.global_variables = {}
 
     def generate(self, bril_prog):
@@ -54,7 +54,6 @@ class LLVMCodeGenerator(object):
             self.gen_globals(glob)
         for fn in bril_prog.functions:
             self.gen_function(fn)
-        
 
     def gen_type(self, type):
         if isinstance(type, dict):
@@ -104,7 +103,7 @@ class LLVMCodeGenerator(object):
             "mul": "mul",
             "sub": "sub",
             "div": "sdiv",
-            "rem": "srem",   
+            "rem": "srem",
             "not": "not_",
             "and": "and_",
             "or": "or_",
@@ -145,7 +144,7 @@ class LLVMCodeGenerator(object):
             "ptrtoint": "ptrtoint",
             "inttoptr": "inttoptr",
             "bitcast": "bitcast",
-            "addrspacecast" : "addrspacecast"
+            "addrspacecast": "addrspacecast",
         }
 
         def gen_label(instr):
@@ -399,7 +398,7 @@ class LLVMCodeGenerator(object):
         if name in self.func_alloca_symtab:
             return self.builder.load(self.func_alloca_symtab[name])
         elif name in self.global_variables:
-                return self.global_variables[name]
+            return self.global_variables[name]
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
@@ -454,7 +453,7 @@ class LLVMCodeGenerator(object):
         self.struct_types[struct.name] = ir.global_context.get_identified_type(
             struct.name
         )
-        elem_types = [self.gen_type(typ) for typ in struct.element]
+        elem_types = [self.gen_type(typ) for typ in struct.elements]
         self.struct_types[struct.name].set_body(*elem_types)
 
     def gen_globals(self, glob):

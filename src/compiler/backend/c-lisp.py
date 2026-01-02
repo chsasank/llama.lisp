@@ -33,7 +33,7 @@ class BrilispCodeGenerator:
         self.struct_types = {}
         # String literals
         self.string_literals = {}
-        #global variables stored as is. (name, type, element)
+        # global variables stored as is. (name, type, element)
         self.global_variables = {}
 
     def c_lisp(self, prog):
@@ -74,7 +74,7 @@ class BrilispCodeGenerator:
         # be as specific as possible first
         if name in self.global_variables:
             return name
-        
+
         for s in range(len(self.scopes), -1, -1):
             scoped_name = self.construct_scoped_name(name, self.scopes[:s])
             if scoped_name in self.variable_types:
@@ -472,12 +472,12 @@ class VarExpression(Expression):
         else:
             # because global variable should be ["ptr", type]
             typ = ["ptr", self.ctx.global_variables[symbol]]
-            # to load type of the global var without ptr in the instruction, 
-            # we give a temporary symbol to store the value 
+            # to load type of the global var without ptr in the instruction,
+            # we give a temporary symbol to store the value
             tmp_sym = random_label(CLISP_PREFIX)
             instructions.append(["set", [tmp_sym, typ[1]], ["load", symbol]])
             symbol = tmp_sym
-            typ = typ[1]  
+            typ = typ[1]
 
         return ExpressionResult(instructions, symbol, typ)
 
@@ -704,7 +704,7 @@ class CastExpression(Expression):
         "fpext": ("_float", "_float"),
         "fptrunc": ("_float", "_float"),
         "bitcast": (None, None),
-        "addrspacecast": ("_ptr", "_ptr")
+        "addrspacecast": ("_ptr", "_ptr"),
     }
 
     @classmethod
