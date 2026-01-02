@@ -10,7 +10,7 @@ def is_struct(expr):
     return isinstance(expr, list) and (expr[0] == "define-struct")
 
 def is_global(expr):
-    return isinstance(expr, list) and (expr[0] == "set")
+    return isinstance(expr, list) and (expr[0] == "define-global")
 
 def gen_struct(expr):
     return {
@@ -226,7 +226,6 @@ def brilisp(expr):
     body = expr[1:]
     functions, strings, structs, globals = [], [], [], []
     for x in body:
-        # print(x)
         if is_function(x):
             functions.append(gen_function(x))
         elif is_string(x):

@@ -33,6 +33,8 @@ class BrilispCodeGenerator:
         self.struct_types = {}
         # String literals
         self.string_literals = {}
+        #global variables stored as is
+        self.global_variables = {}
 
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
@@ -41,13 +43,14 @@ class BrilispCodeGenerator:
 
         brilisp_funcs = []
         brilisp_structs = []
+        brilisp_globals = []
         for defn in prog[1:]:
             if defn[0] == "define":
                 brilisp_funcs.append(self.gen_function(defn))
             elif defn[0] == "define-struct":
                 brilisp_structs.append(self.gen_struct(defn))
-            # elif defn[0] == "global":
-            #     brilisp_structs.append(self.gen_global_var(defn))
+            elif defn[0] == "define-global":
+                brilisp_globals.append(self.gen_global_var(defn))
             else:
                 raise CodegenError(f"Neither function nor struct definition: {defn}")
 
@@ -59,6 +62,7 @@ class BrilispCodeGenerator:
             "brilisp",
             *brilisp_strings,
             *brilisp_structs,
+            *brilisp_globals,
             *brilisp_funcs,
         ]
 
@@ -67,7 +71,12 @@ class BrilispCodeGenerator:
 
     def scoped_lookup(self, name):
         """Look up the name in reverse order of current scope stack"""
+        print("==>",self.global_variables)
+        print("name", name)
         # be as specific as possible first
+        if name in self.global_variables:
+            return name
+        
         for s in range(len(self.scopes), -1, -1):
             scoped_name = self.construct_scoped_name(name, self.scopes[:s])
             if scoped_name in self.variable_types:
@@ -150,6 +159,17 @@ class BrilispCodeGenerator:
             struct_membs.append(typ)
 
         return ["define-struct", name, struct_membs]
+
+ 
+
+    def gen_global_var(self, glob):
+        
+        name, typ = glob[1]
+        init = glob[2]
+        self.global_variables[name] = typ
+        self.variable_types[name] = ["ptr", typ]
+
+        return ["define-global", [name, typ], init]
 
     def gen_stmt(self, stmt):
         try:
