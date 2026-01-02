@@ -468,3 +468,22 @@ class DBStateManagerTests(TestCase):
         state_manager.set_state("2025-12-15 15:34:30")
         state = state_manager.get_state()
         assert state == "2025-12-15 14:34:30"
+
+    def test_get_state_rounds_off_microseconds_with_backfill(self):
+        etl_config = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="src_table",
+            target_table="tgt_table",
+            replication_key="commit_timestamp",
+            replication_state={
+                "replication_value": "2025-12-15 16:34:30.987654",
+                "backfill": 60,
+            },
+        )
+
+        state = DBStateManager(etl_config).get_state()
+
+        # microseconds should be removed AND backfill applied
+        assert state == "2025-12-15 16:33:30"
+

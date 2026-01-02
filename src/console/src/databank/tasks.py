@@ -41,6 +41,7 @@ class DBStateManager(StateManagerDriver):
                     "{value} not in time format. backfill assumes time"
                 )
                 ts = ts - timedelta(seconds=backfill)
+                ts = ts.replace(microsecond=0)
                 return str(ts)
             else:
                 return value
