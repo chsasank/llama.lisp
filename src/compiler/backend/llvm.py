@@ -398,7 +398,7 @@ class LLVMCodeGenerator(object):
         if name in self.func_alloca_symtab:
             return self.builder.load(self.func_alloca_symtab[name])
         elif name in self.global_variables:
-            return self.global_variables[name]
+            return self.builder.load(self.global_variables[name])
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
