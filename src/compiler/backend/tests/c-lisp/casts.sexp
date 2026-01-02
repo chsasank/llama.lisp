@@ -10,7 +10,7 @@
     (define ((putchar int) (c int)))
 
     (define ((print16 void) (n int16))
-        (call print (sext n int32)))
+        (call print (sext n int)))
     (define ((newline void))
         (call putchar 10)) ; ASCII newline
 
