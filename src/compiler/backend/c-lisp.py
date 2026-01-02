@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
+
 from utils.random import random_label
 from utils.shape import verify_shape
 
@@ -469,15 +470,10 @@ class VarExpression(Expression):
 
         if symbol in self.ctx.variable_types:
             typ = self.ctx.variable_types[symbol]
+        elif symbol in self.ctx.global_variables:
+            typ = self.ctx.global_variables[symbol]
         else:
-            # because global variable should be ["ptr", type]
-            typ = ["ptr", self.ctx.global_variables[symbol]]
-            # to load type of the global var without ptr in the instruction,
-            # we give a temporary symbol to store the value
-            tmp_sym = random_label(CLISP_PREFIX)
-            instructions.append(["set", [tmp_sym, typ[1]], ["load", symbol]])
-            symbol = tmp_sym
-            typ = typ[1]
+            raise CodegenError(f"Unknown symbol {symbol}")
 
         return ExpressionResult(instructions, symbol, typ)
 
