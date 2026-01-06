@@ -472,9 +472,9 @@ class VarExpression(Expression):
             typ = self.ctx.variable_types[symbol]
         elif symbol in self.ctx.global_variables:
             typ = self.ctx.global_variables[symbol]
-        else:
+        else: 
             raise CodegenError(f"Unknown symbol {symbol}")
-
+ 
         return ExpressionResult(instructions, symbol, typ)
 
 

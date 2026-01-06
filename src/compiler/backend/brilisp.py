@@ -239,14 +239,13 @@ def brilisp(expr):
         elif is_global(x):
             globals.append(gen_globals(x))
         else:
-            raise Exception(f"{x} is neither function nor string nor struct")
+            raise Exception(f"{x} is neither function nor string nor struct") 
     return {
         "functions": functions,
         "strings": strings,
         "structs": structs,
         "globals": globals,
     }
-
 
 def main():
     expr = json.load(sys.stdin)
