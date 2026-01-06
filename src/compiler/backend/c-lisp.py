@@ -163,7 +163,13 @@ class BrilispCodeGenerator:
         name, typ = glob[1]
         init = glob[2]
         self.global_variables[name] = typ
-
+        if init[0] == "const":
+            pass         
+        elif init[0] == "ptr-to":
+            target = init[1]
+            if target not in self.global_variables:
+                raise CodegenError("ptr-to must refer to a global variable")
+         
         return ["define-global", [name, typ], init]
 
     def gen_stmt(self, stmt):
@@ -576,7 +582,10 @@ class PtrAddExpression(Expression):
 
         offset = super().compile(expr[2])
         ptr_name = self.ctx.scoped_lookup(expr[1])
-        ptr_type = self.ctx.variable_types[ptr_name]
+        if ptr_name in self.ctx.variable_types:
+            ptr_type = self.ctx.variable_types[ptr_name]
+        elif ptr_name in self.ctx.global_variables:
+            ptr_type = self.ctx.global_variables[ptr_name]
         res_sym = random_label(CLISP_PREFIX)
 
         instrs = offset.instructions + [
