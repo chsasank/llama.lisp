@@ -67,8 +67,15 @@ def gen_type(typ):
                 assert typ[2][0] == "addrspace"
                 retval["addrspace"] = typ[2][1]
             return retval
+        elif typ[0] == "arr":
+            retval = {"arr": gen_type(typ[2]), "size": typ[1]}
+            if len(typ) > 2 and is_list(typ[2]):
+                assert typ[2][0] == "addrspace"
+                retval["addrspace"] = typ[2][1]
+            return retval
         elif typ[0] == "struct":
             return {"struct": gen_type(typ[1])}
+
         else:
             raise Exception("Invalid type: {typ}")
     else:

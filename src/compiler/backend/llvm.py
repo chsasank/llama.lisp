@@ -61,6 +61,10 @@ class LLVMCodeGenerator(object):
                 addrspace = type.get("addrspace", 0)
                 type_obj = self.gen_type(type["ptr"]).as_pointer(addrspace)
                 return type_obj
+            elif "arr" in type:
+                element_type = self.gen_type(type["arr"])
+                element_size = type["size"]
+                return ir.ArrayType(element_type, element_size)
             elif "struct" in type:
                 return self.struct_types[type["struct"]]
             else:
@@ -260,6 +264,7 @@ class LLVMCodeGenerator(object):
                     indices.append(ir.Constant(ir.IntType(32), arg))
                 else:
                     indices.append(self.gen_var(arg))
+
             self.gen_symbol_store(
                 instr.dest,
                 self.builder.gep(
