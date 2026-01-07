@@ -637,6 +637,47 @@ class StructPtrAddExpression(Expression):
         return ExpressionResult(instrs, res_sym, res_type)
 
 
+class ArrayPtrAddExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "aptradd"
+
+    def is_arr_pointer_type(self, typ):
+        return (
+            isinstance(typ, list)
+            and typ[0] == "ptr"
+            and isinstance(typ[1], list)
+            and typ[1][0] == "arr"
+        )
+
+    def compile(self, expr):
+        if not len(expr) == 3:
+            raise CodegenError(f"Bad aptradd expression: {expr}")
+
+        arr_ptr = super().compile(expr[1])
+        idx = super().compile(expr[2])
+
+        if not self.is_arr_pointer_type(arr_ptr.typ):
+            raise CodegenError(f"Not a array pointer: {expr[1]} {arr_ptr.typ}")
+
+        element_typ = arr_ptr.typ[1][2]
+        res_sym = random_label(CLISP_PREFIX)
+        res_type = ["ptr", element_typ]
+
+        instrs = (
+            arr_ptr.instructions
+            + idx.instructions
+            + [
+                [
+                    "set",
+                    [res_sym, res_type],
+                    ["ptradd", arr_ptr.symbol, 0, idx.symbol],
+                ]
+            ]
+        )
+        return ExpressionResult(instrs, res_sym, res_type)
+
+
 class LoadExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
