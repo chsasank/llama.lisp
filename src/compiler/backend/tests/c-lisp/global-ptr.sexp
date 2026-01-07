@@ -10,5 +10,3 @@
         (set result (add b (load c)))
         (call print result)
         (ret)))
-
-  
