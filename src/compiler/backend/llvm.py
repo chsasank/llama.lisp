@@ -463,17 +463,20 @@ class LLVMCodeGenerator(object):
             typ=typ,
             name=glob.name,
         )
-        global_var.align = 8 if isinstance(typ, ir.PointerType) else 4
 
-        init = glob.element
-        if init[0] == "const":
-            global_var.initializer = ir.Constant(typ, init[1])
-        elif init[0] == "ptr-to":
-            target = self.module.get_global(init[1])
-            global_var.initializer = target
+        if "init" in glob:
+            init = glob.init
+            if init[0] == "const":
+                global_var.initializer = ir.Constant(typ, init[1])
+            elif init[0] == "ptr-to":
+                target = self.module.get_global(init[1])
+                global_var.initializer = target
+            else:
+                raise CodegenError(f"Illegal global initializer in LLVM: {init}")
         else:
-            raise CodegenError(f"Illegal global initializer in LLVM: {init}")
-        
+            # zeroinitializer: https://llvmlite.readthedocs.io/en/latest/user-guide/ir/values.html?highlight=zeroinitializer#llvmlite.ir.Constant
+            global_var.initializer = ir.Constant(typ, None)
+
         self.global_variables[glob.name] = global_var
 
     def gen_string_defn(self, string):

@@ -161,16 +161,20 @@ class BrilispCodeGenerator:
 
     def gen_global_var(self, glob):
         name, typ = glob[1]
-        init = glob[2]
         self.global_variables[name] = typ
-        if init[0] == "const":
-            pass         
-        elif init[0] == "ptr-to":
-            target = init[1]
-            if target not in self.global_variables:
-                raise CodegenError("ptr-to must refer to a global variable")
-         
-        return ["define-global", [name, typ], init]
+
+        if len(glob) == 3:
+            init = glob[2]
+            if init[0] == "const":
+                pass
+            elif init[0] == "ptr-to":
+                target = init[1]
+                if target not in self.global_variables:
+                    raise CodegenError("ptr-to must refer to a global variable")
+
+            return ["define-global", [name, typ], init]
+        else:
+            return ["define-global", [name, typ]]
 
     def gen_stmt(self, stmt):
         try:
@@ -478,9 +482,9 @@ class VarExpression(Expression):
             typ = self.ctx.variable_types[symbol]
         elif symbol in self.ctx.global_variables:
             typ = self.ctx.global_variables[symbol]
-        else: 
+        else:
             raise CodegenError(f"Unknown symbol {symbol}")
- 
+
         return ExpressionResult(instructions, symbol, typ)
 
 

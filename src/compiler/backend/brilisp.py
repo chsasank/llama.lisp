@@ -22,11 +22,11 @@ def gen_struct(expr):
 
 
 def gen_globals(expr):
-    return {
-        "name": expr[1][0],
-        "type": gen_type(expr[1][1]),
-        "element": expr[2],
-    }
+    out = {"name": expr[1][0], "type": gen_type(expr[1][1])}
+    if len(expr) == 3:
+        out["init"] = expr[2]
+
+    return out
 
 
 def is_function(expr):
@@ -239,13 +239,14 @@ def brilisp(expr):
         elif is_global(x):
             globals.append(gen_globals(x))
         else:
-            raise Exception(f"{x} is neither function nor string nor struct") 
+            raise Exception(f"{x} is neither function nor string nor struct")
     return {
         "functions": functions,
         "strings": strings,
         "structs": structs,
         "globals": globals,
     }
+
 
 def main():
     expr = json.load(sys.stdin)
