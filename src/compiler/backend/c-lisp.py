@@ -73,13 +73,14 @@ class BrilispCodeGenerator:
     def scoped_lookup(self, name):
         """Look up the name in reverse order of current scope stack"""
         # be as specific as possible first
-        if name in self.global_variables:
-            return name
-
         for s in range(len(self.scopes), -1, -1):
             scoped_name = self.construct_scoped_name(name, self.scopes[:s])
             if scoped_name in self.variable_types:
                 return scoped_name
+
+        if name in self.global_variables:
+            return name
+
         raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
@@ -642,40 +643,40 @@ class ArrayPtrAddExpression(Expression):
     def is_valid_expr(cls, expr):
         return expr[0] == "aptradd"
 
-    def is_arr_pointer_type(self, typ):
-        return (
-            isinstance(typ, list)
-            and typ[0] == "ptr"
-            and isinstance(typ[1], list)
-            and typ[1][0] == "arr"
-        )
+    def is_arr_type(self, typ):
+        return isinstance(typ, list) and typ[0] == "arr"
 
     def compile(self, expr):
         if not len(expr) == 3:
             raise CodegenError(f"Bad aptradd expression: {expr}")
 
-        arr_ptr = super().compile(expr[1])
+        arr = super().compile(expr[1])
         idx = super().compile(expr[2])
 
-        if not self.is_arr_pointer_type(arr_ptr.typ):
-            raise CodegenError(f"Not a array pointer: {expr[1]} {arr_ptr.typ}")
+        if not self.is_arr_type(arr.typ):
+            raise CodegenError(f"Not an array: {expr[1]} {arr.typ}")
 
-        element_typ = arr_ptr.typ[1][2]
+        ptr_sym = random_label(CLISP_PREFIX)
+        ptr_typ = ["ptr", arr.typ]
         res_sym = random_label(CLISP_PREFIX)
-        res_type = ["ptr", element_typ]
+        element_typ = arr.typ[2]
+        res_typ = ["ptr", element_typ]
 
-        instrs = (
-            arr_ptr.instructions
-            + idx.instructions
-            + [
-                [
-                    "set",
-                    [res_sym, res_type],
-                    ["ptradd", arr_ptr.symbol, 0, idx.symbol],
-                ]
-            ]
-        )
-        return ExpressionResult(instrs, res_sym, res_type)
+        new_instrs = [
+            [
+                "set",
+                [ptr_sym, ptr_typ],
+                ["ptr-to", arr.symbol],
+            ],
+            [
+                "set",
+                [res_sym, res_typ],
+                ["ptradd", ptr_sym, 0, idx.symbol],
+            ],
+        ]
+
+        instrs = arr.instructions + idx.instructions + new_instrs
+        return ExpressionResult(instrs, res_sym, res_typ)
 
 
 class LoadExpression(Expression):

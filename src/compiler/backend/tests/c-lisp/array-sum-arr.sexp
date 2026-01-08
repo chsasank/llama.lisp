@@ -8,7 +8,7 @@
         (for ((set i 0)
               (lt i 10)
               (set i (add i 1)))
-            (store (aptradd (ptr-to arr) i) i))
+            (store (aptradd arr i) i))
 
         (declare sum int)
         (set sum 0)
@@ -16,7 +16,7 @@
         (for ((set i 0)
               (lt i 10)
               (set i (add i 1)))
-            (set sum (add sum (load (aptradd (ptr-to arr) i)))))
+            (set sum (add sum (load (aptradd arr i)))))
 
         (call print sum)
 
