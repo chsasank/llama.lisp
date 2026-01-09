@@ -423,13 +423,27 @@ class SetExpression(Expression):
         name = expr[1]
         scoped_name = self.ctx.scoped_lookup(name)
         res = super().compile(expr[2])
-        instructions = res.instructions + [
-            [
-                "set",
-                [scoped_name, res.typ],
-                ["id", res.symbol],
+
+        if scoped_name in self.ctx.variable_types:
+            new_instrs = [
+                [
+                    "set",
+                    [scoped_name, res.typ],
+                    ["id", res.symbol],
+                ]
             ]
-        ]
+        elif scoped_name in self.ctx.global_variables:
+            new_instrs = [
+                [
+                    "store",
+                    scoped_name,
+                    res.symbol,
+                ]
+            ]
+        else:
+            raise CodegenError(f"Unknown symbol {scoped_name}")
+
+        instructions = res.instructions + new_instrs
         return ExpressionResult(instructions, scoped_name, res.typ)
 
 
@@ -481,12 +495,15 @@ class VarExpression(Expression):
 
         if symbol in self.ctx.variable_types:
             typ = self.ctx.variable_types[symbol]
+            res_sym = symbol
         elif symbol in self.ctx.global_variables:
             typ = self.ctx.global_variables[symbol]
+            res_sym = random_label(CLISP_PREFIX)
+            instructions.append(["set", [res_sym, typ], ["load", symbol]])
         else:
             raise CodegenError(f"Unknown symbol {symbol}")
 
-        return ExpressionResult(instructions, symbol, typ)
+        return ExpressionResult(instructions, res_sym, typ)
 
 
 class BinOpExpression(Expression):
@@ -586,20 +603,23 @@ class PtrAddExpression(Expression):
             raise CodegenError(f"Bad ptradd expression: {expr}")
 
         offset = super().compile(expr[2])
-        ptr_name = self.ctx.scoped_lookup(expr[1])
-        if ptr_name in self.ctx.variable_types:
-            ptr_type = self.ctx.variable_types[ptr_name]
-        elif ptr_name in self.ctx.global_variables:
-            ptr_type = self.ctx.global_variables[ptr_name]
+        if not VarExpression.is_valid_expr(expr[1]):
+            raise CodegenError(
+                f"ptradd accepts only symbols for ptr in the expression: {expr}"
+            )
+        ptr = super().compile(expr[1])
         res_sym = random_label(CLISP_PREFIX)
 
-        instrs = offset.instructions + [
-            ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset.symbol]]
-        ]
-        return ExpressionResult(instrs, res_sym, ptr_type)
+        instrs = (
+            offset.instructions
+            + ptr.instructions
+            + [["set", [res_sym, ptr.typ], ["ptradd", ptr.symbol, offset.symbol]]]
+        )
+        return ExpressionResult(instrs, res_sym, ptr.typ)
 
 
 class StructPtrAddExpression(Expression):
+    # TODO: support globals if required
     @classmethod
     def is_valid_expr(cls, expr):
         return expr[0] == "sptradd"
@@ -650,32 +670,55 @@ class ArrayPtrAddExpression(Expression):
         if not len(expr) == 3:
             raise CodegenError(f"Bad aptradd expression: {expr}")
 
-        arr = super().compile(expr[1])
+        if not VarExpression.is_valid_expr(expr[1]):
+            raise CodegenError(
+                f"aptradd accepts only symbols for arr in the expression: {expr}"
+            )
+
+        # have to handle globals and locals separately because ptradd/gep requires 0 index
+        arr_symbol = self.ctx.scoped_lookup(expr[1])
+        if arr_symbol in self.ctx.variable_types:
+            arr_typ = self.ctx.variable_types[arr_symbol]
+            is_global = False
+        elif arr_symbol in self.ctx.global_variables:
+            arr_typ = self.ctx.global_variables[arr_symbol]
+            is_global = True
+        else:
+            raise CodegenError(f"Unknown symbol {expr}")
+
+        if not self.is_arr_type(arr_typ):
+            raise CodegenError(f"Not an array: {expr[1]} {arr_typ}")
+
         idx = super().compile(expr[2])
 
-        if not self.is_arr_type(arr.typ):
-            raise CodegenError(f"Not an array: {expr[1]} {arr.typ}")
-
-        ptr_sym = random_label(CLISP_PREFIX)
-        ptr_typ = ["ptr", arr.typ]
         res_sym = random_label(CLISP_PREFIX)
-        element_typ = arr.typ[2]
+        element_typ = arr_typ[2]
         res_typ = ["ptr", element_typ]
+        if is_global:
+            new_instrs = [
+                [
+                    "set",
+                    [res_sym, res_typ],
+                    ["ptradd", arr_symbol, 0, idx.symbol],
+                ],
+            ]
+        else:
+            ptr_sym = random_label(CLISP_PREFIX)
+            ptr_typ = ["ptr", arr_typ]
+            new_instrs = [
+                [
+                    "set",
+                    [ptr_sym, ptr_typ],
+                    ["ptr-to", arr_symbol],
+                ],
+                [
+                    "set",
+                    [res_sym, res_typ],
+                    ["ptradd", ptr_sym, 0, idx.symbol],
+                ],
+            ]
 
-        new_instrs = [
-            [
-                "set",
-                [ptr_sym, ptr_typ],
-                ["ptr-to", arr.symbol],
-            ],
-            [
-                "set",
-                [res_sym, res_typ],
-                ["ptradd", ptr_sym, 0, idx.symbol],
-            ],
-        ]
-
-        instrs = arr.instructions + idx.instructions + new_instrs
+        instrs = idx.instructions + new_instrs
         return ExpressionResult(instrs, res_sym, res_typ)
 
 
