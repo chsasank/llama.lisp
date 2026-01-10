@@ -34,7 +34,7 @@ class BrilispCodeGenerator:
         self.struct_types = {}
         # String literals
         self.string_literals = {}
-        # global variables stored as is. (name, type, element)
+        # Global variable name -> type
         self.global_variables = {}
 
     def c_lisp(self, prog):
@@ -162,7 +162,8 @@ class BrilispCodeGenerator:
 
     def gen_global_var(self, glob):
         name, typ = glob[1]
-        self.global_variables[name] = typ
+        save_typ = ["ptr", typ]
+        self.global_variables[name] = save_typ
 
         if len(glob) == 3:
             init = glob[2]
@@ -172,6 +173,10 @@ class BrilispCodeGenerator:
                 target = init[1]
                 if target not in self.global_variables:
                     raise CodegenError("ptr-to must refer to a global variable")
+            elif init[0] == "addrspace":
+                self.global_variables[name] = [*save_typ, ["addrspace", init[1]]]
+            else:
+                raise CodegenError("init should be one of const, ptr-to, addrspace")
 
             return ["define-global", [name, typ], init]
         else:
@@ -497,7 +502,7 @@ class VarExpression(Expression):
             typ = self.ctx.variable_types[symbol]
             res_sym = symbol
         elif symbol in self.ctx.global_variables:
-            typ = self.ctx.global_variables[symbol]
+            typ = self.ctx.global_variables[symbol][1]
             res_sym = random_label(CLISP_PREFIX)
             instructions.append(["set", [res_sym, typ], ["load", symbol]])
         else:
@@ -681,7 +686,7 @@ class ArrayPtrAddExpression(Expression):
             arr_typ = self.ctx.variable_types[arr_symbol]
             is_global = False
         elif arr_symbol in self.ctx.global_variables:
-            arr_typ = self.ctx.global_variables[arr_symbol]
+            arr_typ = self.ctx.global_variables[arr_symbol][1]
             is_global = True
         else:
             raise CodegenError(f"Unknown symbol {expr}")
@@ -695,13 +700,32 @@ class ArrayPtrAddExpression(Expression):
         element_typ = arr_typ[2]
         res_typ = ["ptr", element_typ]
         if is_global:
-            new_instrs = [
-                [
-                    "set",
-                    [res_sym, res_typ],
-                    ["ptradd", arr_symbol, 0, idx.symbol],
-                ],
-            ]
+            global_typ = self.ctx.global_variables[arr_symbol]
+            if len(global_typ) == 3:
+                # has addrspace
+                ptr_sym = random_label(CLISP_PREFIX)
+                ptr_typ = ["ptr", arr_typ]
+
+                new_instrs = [
+                    [
+                        "set",
+                        [ptr_sym, ptr_typ],
+                        ["addrspacecast", arr_symbol, ptr_typ],
+                    ],
+                    [
+                        "set",
+                        [res_sym, res_typ],
+                        ["ptradd", ptr_sym, 0, idx.symbol],
+                    ],
+                ]
+            else:
+                new_instrs = [
+                    [
+                        "set",
+                        [res_sym, res_typ],
+                        ["ptradd", arr_symbol, 0, idx.symbol],
+                    ],
+                ]
         else:
             ptr_sym = random_label(CLISP_PREFIX)
             ptr_typ = ["ptr", arr_typ]

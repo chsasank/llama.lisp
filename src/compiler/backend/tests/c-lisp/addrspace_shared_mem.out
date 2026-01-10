@@ -1,0 +1,95 @@
+; ModuleID = ""
+target triple = "unknown-unknown-unknown"
+target datalayout = ""
+
+@"shared" = addrspace(3) global [64 x i32] zeroinitializer
+declare i32 @"llvm.nvvm.read.ptx.sreg.tid.x"()
+
+declare void @"llvm.nvvm.barrier0"()
+
+define void @"staticReverse"(i32 addrspace(1)* %"d", i32 %"n")
+{
+alloca-piuzfbqp:
+  %"d.1" = alloca i32 addrspace(1)*
+  %"n.1" = alloca i32
+  %"t" = alloca i32
+  %"tmp_clisp-fvjvleoy" = alloca i32
+  %"tr" = alloca i32
+  %"tmp_clisp-hotmbsah" = alloca i32
+  %"tmp_clisp-egjrlyhk" = alloca i32
+  %"tmp_clisp-vronpcus" = alloca i32
+  %"s_t" = alloca i32*
+  %"tmp_clisp-pjtvcrce" = alloca [64 x i32]*
+  %"tmp_clisp-kqfhnhbb" = alloca i32*
+  %"d_t" = alloca i32*
+  %"tmp_clisp-msltedyy" = alloca i32 addrspace(1)*
+  %"d_t.1" = alloca i32 addrspace(1)*
+  %"tmp_clisp-dofzglnn" = alloca i32
+  %"s_tr" = alloca i32*
+  %"tmp_clisp-yfpylknh" = alloca [64 x i32]*
+  %"tmp_clisp-diojfvuf" = alloca i32*
+  %"tmp_clisp-arwbkkhc" = alloca i32
+  br label %"entry-sbnpsago"
+entry-sbnpsago:
+  store i32 addrspace(1)* %"d", i32 addrspace(1)** %"d.1"
+  store i32 %"n", i32* %"n.1"
+  store i32 undef, i32* %"t"
+  %"tmp_clisp-fvjvleoy.1" = call i32 @"llvm.nvvm.read.ptx.sreg.tid.x"()
+  store i32 %"tmp_clisp-fvjvleoy.1", i32* %"tmp_clisp-fvjvleoy"
+  %".8" = load i32, i32* %"tmp_clisp-fvjvleoy"
+  store i32 %".8", i32* %"t"
+  store i32 undef, i32* %"tr"
+  %".11" = load i32, i32* %"n.1"
+  %".12" = load i32, i32* %"t"
+  %"tmp_clisp-hotmbsah.1" = sub i32 %".11", %".12"
+  store i32 %"tmp_clisp-hotmbsah.1", i32* %"tmp_clisp-hotmbsah"
+  store i32 1, i32* %"tmp_clisp-egjrlyhk"
+  %".15" = load i32, i32* %"tmp_clisp-hotmbsah"
+  %".16" = load i32, i32* %"tmp_clisp-egjrlyhk"
+  %"tmp_clisp-vronpcus.1" = sub i32 %".15", %".16"
+  store i32 %"tmp_clisp-vronpcus.1", i32* %"tmp_clisp-vronpcus"
+  %".18" = load i32, i32* %"tmp_clisp-vronpcus"
+  store i32 %".18", i32* %"tr"
+  store i32* undef, i32** %"s_t"
+  %"tmp_clisp-pjtvcrce.1" = addrspacecast [64 x i32] addrspace(3)* @"shared" to [64 x i32]*
+  store [64 x i32]* %"tmp_clisp-pjtvcrce.1", [64 x i32]** %"tmp_clisp-pjtvcrce"
+  %".22" = load i32, i32* %"t"
+  %".23" = load [64 x i32]*, [64 x i32]** %"tmp_clisp-pjtvcrce"
+  %".24" = getelementptr [64 x i32], [64 x i32]* %".23", i32 0, i32 %".22"
+  store i32* %".24", i32** %"tmp_clisp-kqfhnhbb"
+  %".26" = load i32*, i32** %"tmp_clisp-kqfhnhbb"
+  store i32* %".26", i32** %"s_t"
+  store i32* undef, i32** %"d_t"
+  %".29" = load i32, i32* %"t"
+  %".30" = load i32 addrspace(1)*, i32 addrspace(1)** %"d.1"
+  %".31" = getelementptr i32, i32 addrspace(1)* %".30", i32 %".29"
+  store i32 addrspace(1)* %".31", i32 addrspace(1)** %"tmp_clisp-msltedyy"
+  %".33" = load i32 addrspace(1)*, i32 addrspace(1)** %"tmp_clisp-msltedyy"
+  store i32 addrspace(1)* %".33", i32 addrspace(1)** %"d_t.1"
+  %".35" = load i32 addrspace(1)*, i32 addrspace(1)** %"d_t.1"
+  %".36" = load i32, i32 addrspace(1)* %".35"
+  store i32 %".36", i32* %"tmp_clisp-dofzglnn"
+  %".38" = load i32*, i32** %"s_t"
+  %".39" = load i32, i32* %"tmp_clisp-dofzglnn"
+  store i32 %".39", i32* %".38"
+  call void @"llvm.nvvm.barrier0"()
+  store i32* undef, i32** %"s_tr"
+  %"tmp_clisp-yfpylknh.1" = addrspacecast [64 x i32] addrspace(3)* @"shared" to [64 x i32]*
+  store [64 x i32]* %"tmp_clisp-yfpylknh.1", [64 x i32]** %"tmp_clisp-yfpylknh"
+  %".43" = load i32, i32* %"tr"
+  %".44" = load [64 x i32]*, [64 x i32]** %"tmp_clisp-yfpylknh"
+  %".45" = getelementptr [64 x i32], [64 x i32]* %".44", i32 0, i32 %".43"
+  store i32* %".45", i32** %"tmp_clisp-diojfvuf"
+  %".47" = load i32*, i32** %"tmp_clisp-diojfvuf"
+  store i32* %".47", i32** %"s_tr"
+  %".49" = load i32*, i32** %"s_tr"
+  %".50" = load i32, i32* %".49"
+  store i32 %".50", i32* %"tmp_clisp-arwbkkhc"
+  %".52" = load i32 addrspace(1)*, i32 addrspace(1)** %"d_t.1"
+  %".53" = load i32, i32* %"tmp_clisp-arwbkkhc"
+  store i32 %".53", i32 addrspace(1)* %".52"
+  br label %"tmp_clisp.ret_lbl-piuzfbqp"
+tmp_clisp.ret_lbl-piuzfbqp:
+  ret void
+}
+
