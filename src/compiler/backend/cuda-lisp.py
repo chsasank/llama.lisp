@@ -1,0 +1,73 @@
+import importlib
+import json
+import os
+import sys
+
+
+
+class CudaLisp:
+    def __init__(self):
+        self.global_exprs = []
+        self.intrinsics_added = []
+
+    def compile_shared(self, expr):
+        arr_name = expr[1]
+        arr_type = expr[2]
+        return ["define-global", [arr_name, ["arr", *arr_type]], ["addrspace", 3]]
+
+
+    def is_symbol(self, expr):
+        return isinstance(expr, str)
+    
+
+    def compile_intrinsic_symbols(self, expr):
+        symbol_intr_map = {
+            "tid.x": ["llvm.nvvm.read.ptx.sreg.tid.x", "int"],
+            "__syncthreads": ["llvm.nvvm.barrier0", "void"],
+        }
+
+        if isinstance(expr, list):
+            if len(expr) == 1 and self.is_symbol(expr[0]):
+                intr = expr[0]
+                if intr in symbol_intr_map:
+                    # add definition to global_exprs if not alreday
+                    if expr not in self.intrinsics_added:
+                        self.global_exprs.append(["define", [*symbol_intr_map[intr]]])
+                        self.intrinsics_added.append(intr)
+
+                    return ["call", symbol_intr_map[intr][0]]
+                else:
+                    return expr
+            else:
+                return [self.compile_intrinsic_symbols(x) for x in expr]
+        else:
+            return expr
+
+
+    def preprocess(self, expr):
+        assert expr[0] == "cuda-lisp"
+
+        global_exprs = expr[1:]
+        for global_expr in global_exprs:
+            if global_expr[0] == "define-shared":
+                # compile shared
+                self.global_exprs.append(self.compile_shared(global_expr))
+            else:
+                # recursively check for symbols
+                self.global_exprs.append(self.compile_intrinsic_symbols(global_expr))
+
+        return ["c-lisp", *self.global_exprs]
+
+
+def main():
+    cuda = CudaLisp()
+    expr = json.load(sys.stdin)
+    print(json.dumps(cuda.preprocess(expr)))
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="What the program does")
+    args = parser.parse_args()
+    main()
