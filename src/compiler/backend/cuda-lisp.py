@@ -4,7 +4,6 @@ import os
 import sys
 
 
-
 class CudaLisp:
     def __init__(self):
         self.global_exprs = []
@@ -15,14 +14,20 @@ class CudaLisp:
         arr_type = expr[2]
         return ["define-global", [arr_name, ["arr", *arr_type]], ["addrspace", 3]]
 
-
     def is_symbol(self, expr):
         return isinstance(expr, str)
-    
 
     def compile_intrinsic_symbols(self, expr):
         symbol_intr_map = {
+            # threadId.x
             "tid.x": ["llvm.nvvm.read.ptx.sreg.tid.x", "int"],
+            # blockIdx.x
+            "bid.x": ["llvm.nvvm.read.ptx.sreg.ctaid.x", "int"],
+            # blockDim.x
+            "bdim.x": ["llvm.nvvm.read.ptx.sreg.ntid.x", "int"],
+            # gridDim.x
+            "gdim.x": ["llvm.nvvm.read.ptx.sreg.nctaid.x", "int"],
+            # __syncthreads
             "__syncthreads": ["llvm.nvvm.barrier0", "void"],
         }
 
@@ -43,6 +48,18 @@ class CudaLisp:
         else:
             return expr
 
+    def compile_kernel(self, expr):
+        assert len(expr) > 2
+        fn_proto = expr[1]
+        fn_ret = fn_proto[0]
+        for fn_arg in fn_proto[1:]:
+            fn_arg_type = fn_arg[1]
+            # arg pointers have addrspace 1 by default
+            if fn_arg_type[0] == "ptr" and len(fn_arg_type) == 2:
+                fn_arg_type.append(["addrspace", 1])
+        # expand all intrinsics
+        fn_body = self.compile_intrinsic_symbols(expr[2:])
+        return ["define", fn_proto, *fn_body]
 
     def preprocess(self, expr):
         assert expr[0] == "cuda-lisp"
@@ -52,9 +69,11 @@ class CudaLisp:
             if global_expr[0] == "define-shared":
                 # compile shared
                 self.global_exprs.append(self.compile_shared(global_expr))
+            elif global_expr[0] == "define-kernel":
+                self.global_exprs.append(self.compile_kernel(global_expr))
             else:
                 # recursively check for symbols
-                self.global_exprs.append(self.compile_intrinsic_symbols(global_expr))
+                self.global_exprs.append(global_expr)
 
         return ["c-lisp", *self.global_exprs]
 

@@ -4,7 +4,7 @@
 (cuda-lisp
     ;  __shared__ int s[64];
     (define-shared s [64 int])
-    (define ((staticReverse void) (d (ptr int (addrspace 1))) (n int))
+    (define-kernel ((staticReverse void) (d (ptr int)) (n int))
         ; int t = threadIdx.x;
         (declare t int)
         (set t (tid.x))
