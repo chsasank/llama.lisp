@@ -67,15 +67,18 @@ class CudaLisp:
             assert len(expr) == 3
             name = expr[1]
             typ = expr[2]
-            if self.is_ptr_type(fn_arg_type):
+            if self.is_ptr_type(typ):
                 typ.append(["addrspace", 1])
 
             return ["declare", name, typ]
 
         macros = {"declare-global": declare_global}
 
-        if self.is_list(expr) and expr[0] in macros:
-            return macros[expr[0]](expr)
+        if self.is_list(expr):
+            if self.is_symbol(expr[0]) and expr[0] in macros:
+                return macros[expr[0]](expr)
+            else:
+                return [self.compile_macros(x) for x in expr] 
         else:
             return expr
 
@@ -90,6 +93,7 @@ class CudaLisp:
                 fn_arg_type.append(["addrspace", 1])
         # expand all intrinsics
         fn_body = self.compile_intrinsic_symbols(expr[2:])
+        fn_body = self.compile_macros(fn_body)
         return ["define", fn_proto, *fn_body]
 
     def preprocess(self, expr):
