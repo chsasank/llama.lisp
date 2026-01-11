@@ -3,7 +3,7 @@
 (cuda-lisp
     (define-kernel ((kernel void) (a (ptr float)) (b (ptr float)) (c (ptr float)))
         (declare x int)
-        (set x  (add [tid.x] (mul [bdim.x] [bid.x])))
+        (set x (add [tid.x] (mul [bdim.x] [bid.x])))
         (store (ptradd c x)
             (fadd
                 (load (ptradd a x))

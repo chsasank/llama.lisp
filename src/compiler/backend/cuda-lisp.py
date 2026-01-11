@@ -17,16 +17,30 @@ class CudaLisp:
     def is_symbol(self, expr):
         return isinstance(expr, str)
 
+    def is_list(self, expr):
+        return isinstance(expr, list)
+
+    def is_ptr_type(self, typ):
+        return isinstance(typ, list) and typ[0] == "ptr"
+
     def compile_intrinsic_symbols(self, expr):
         symbol_intr_map = {
             # threadId.x
             "tid.x": ["llvm.nvvm.read.ptx.sreg.tid.x", "int"],
+            "tid.y": ["llvm.nvvm.read.ptx.sreg.tid.y", "int"],
+            "tid.z": ["llvm.nvvm.read.ptx.sreg.tid.z", "int"],
             # blockIdx.x
             "bid.x": ["llvm.nvvm.read.ptx.sreg.ctaid.x", "int"],
+            "bid.y": ["llvm.nvvm.read.ptx.sreg.ctaid.y", "int"],
+            "bid.z": ["llvm.nvvm.read.ptx.sreg.ctaid.z", "int"],
             # blockDim.x
             "bdim.x": ["llvm.nvvm.read.ptx.sreg.ntid.x", "int"],
+            "bdim.y": ["llvm.nvvm.read.ptx.sreg.ntid.y", "int"],
+            "bdim.z": ["llvm.nvvm.read.ptx.sreg.ntid.z", "int"],
             # gridDim.x
             "gdim.x": ["llvm.nvvm.read.ptx.sreg.nctaid.x", "int"],
+            "gdim.y": ["llvm.nvvm.read.ptx.sreg.nctaid.y", "int"],
+            "gdim.z": ["llvm.nvvm.read.ptx.sreg.nctaid.z", "int"],
             # __syncthreads
             "__syncthreads": ["llvm.nvvm.barrier0", "void"],
         }
@@ -48,6 +62,23 @@ class CudaLisp:
         else:
             return expr
 
+    def compile_macros(self, expr):
+        def declare_global(expr):
+            assert len(expr) == 3
+            name = expr[1]
+            typ = expr[2]
+            if self.is_ptr_type(fn_arg_type):
+                typ.append(["addrspace", 1])
+
+            return ["declare", name, typ]
+
+        macros = {"declare-global": declare_global}
+
+        if self.is_list(expr) and expr[0] in macros:
+            return macros[expr[0]](expr)
+        else:
+            return expr
+
     def compile_kernel(self, expr):
         assert len(expr) > 2
         fn_proto = expr[1]
@@ -55,7 +86,7 @@ class CudaLisp:
         for fn_arg in fn_proto[1:]:
             fn_arg_type = fn_arg[1]
             # arg pointers have addrspace 1 by default
-            if fn_arg_type[0] == "ptr" and len(fn_arg_type) == 2:
+            if self.is_ptr_type(fn_arg_type) and len(fn_arg_type) == 2:
                 fn_arg_type.append(["addrspace", 1])
         # expand all intrinsics
         fn_body = self.compile_intrinsic_symbols(expr[2:])

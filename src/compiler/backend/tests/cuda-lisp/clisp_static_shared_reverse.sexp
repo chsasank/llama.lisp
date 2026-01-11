@@ -1,6 +1,5 @@
 ;; CMD: guile ../../utils/sexp-json.scm < {filename} | python ../../cuda-lisp.py | guile ../../utils/json-sexp.scm
 
-;python ../../c-lisp.py | python ../../brilisp.py | python ../../llvm.py
 (cuda-lisp
     ;  __shared__ int s[64];
     (define-shared s [64 int])
@@ -28,6 +27,4 @@
         (store d_t (load s_tr))
 
         (ret))
-
-
 )
