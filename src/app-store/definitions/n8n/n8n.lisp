@@ -25,7 +25,7 @@
                     ("init_worker.sh" "/mnt/init_worker.sh")))
             (container
                 (name "n8n")
-                (image "docker.io/n8nio/n8n:1.82.1")
+                (image "docker.io/n8nio/n8n:1.123.11")
                 (volumes
                     ("n8n_storage" "/home/node/.n8n"))
                 (environment
