@@ -26,5 +26,4 @@
         (set s_tr (aptradd shared tr))
         (store d_t (load s_tr))
 
-        (ret))
-)
+        (ret)))

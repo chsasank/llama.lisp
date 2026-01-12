@@ -4,6 +4,10 @@ import os
 import sys
 
 
+class CodegenError(Exception):
+    pass
+
+
 class CudaLisp:
     def __init__(self):
         self.global_exprs = []
@@ -22,6 +26,9 @@ class CudaLisp:
 
     def is_ptr_type(self, typ):
         return isinstance(typ, list) and typ[0] == "ptr"
+
+    def is_arr_type(self, typ):
+        return isinstance(typ, list) and typ[0] == "arr"
 
     def compile_intrinsic_symbols(self, expr):
         symbol_intr_map = {
@@ -51,7 +58,7 @@ class CudaLisp:
                 if intr in symbol_intr_map:
                     # add definition to global_exprs if not alreday
                     if expr not in self.intrinsics_added:
-                        self.global_exprs.append(["define", [*symbol_intr_map[intr]]])
+                        self.global_exprs.append(["define", [[*symbol_intr_map[intr]]]])
                         self.intrinsics_added.append(intr)
 
                     return ["call", symbol_intr_map[intr][0]]
@@ -64,26 +71,34 @@ class CudaLisp:
 
     def compile_macros(self, expr):
         def declare_global(expr):
-            assert len(expr) == 3
+            if len(expr) != 3:
+                raise CodegenError(f"invalid declare-global: {expr}")
+
             name = expr[1]
             typ = expr[2]
             if self.is_ptr_type(typ):
                 typ.append(["addrspace", 1])
+            else:
+                raise CodegenError(f"declare-global has to be a pointer: {expr}")
 
             return ["declare", name, typ]
 
-        macros = {"declare-global": declare_global}
+        macros = {
+            "declare-global": declare_global,
+        }
 
         if self.is_list(expr):
             if self.is_symbol(expr[0]) and expr[0] in macros:
                 return macros[expr[0]](expr)
             else:
-                return [self.compile_macros(x) for x in expr] 
+                return [self.compile_macros(x) for x in expr]
         else:
             return expr
 
     def compile_kernel(self, expr):
-        assert len(expr) > 2
+        if len(expr) < 2:
+            raise CodegenError(f"Invalid define-kernel: {expr}")
+
         fn_proto = expr[1]
         fn_ret = fn_proto[0]
         for fn_arg in fn_proto[1:]:
@@ -91,8 +106,11 @@ class CudaLisp:
             # arg pointers have addrspace 1 by default
             if self.is_ptr_type(fn_arg_type) and len(fn_arg_type) == 2:
                 fn_arg_type.append(["addrspace", 1])
+
         # expand all intrinsics
         fn_body = self.compile_intrinsic_symbols(expr[2:])
+
+        # expand all macros
         fn_body = self.compile_macros(fn_body)
         return ["define", fn_proto, *fn_body]
 

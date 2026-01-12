@@ -1,7 +1,7 @@
 (c-lisp
   (define-global (s (arr 64 int)) (addrspace 3))
-  (define (llvm.nvvm.read.ptx.sreg.tid.x int))
-  (define (llvm.nvvm.barrier0 void))
+  (define ((llvm.nvvm.read.ptx.sreg.tid.x int)))
+  (define ((llvm.nvvm.barrier0 void)))
   (define ((staticReverse void)
            (d (ptr int (addrspace 1)))
            (n int))

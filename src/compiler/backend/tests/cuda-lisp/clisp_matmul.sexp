@@ -23,8 +23,7 @@
         (for ((set k 0)
             (lt k len)
             (set k (add k 1)))
-            (set c-val
-                (fadd c-val (fmul (load a-ptr) (load b-ptr))))
+            (set c-val (fadd c-val (fmul (load a-ptr) (load b-ptr))))
             (set a-ptr (ptradd a-ptr 1))
             (set b-ptr (ptradd b-ptr len)))
 
