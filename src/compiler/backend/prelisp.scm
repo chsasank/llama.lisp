@@ -7,6 +7,11 @@
     (list-ref expr n))
 (define (second expr) (idx expr 1))
 
+(define tmp-symbol-counter 0)
+(define (tmp-symbol)
+    (set! tmp-symbol-counter (+ tmp-symbol-counter 1))
+    (string->symbol (string-append "prelisp-" (number->string tmp-symbol-counter))))
+
 
 (define (prelisp expr)
     (if (not (eq? (first expr) 'prelisp))

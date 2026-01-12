@@ -9,7 +9,7 @@
         (define ceil-div (lambda (M N)
             `(div (add ,M (sub ,N 1)) ,N))))
     (cuda-lisp
-        (define-shared s [,BM int])
+        (define-shared s [,(* TM TN) int])
         (define-kernel ((test void) (d (ptr int)) (n int))
             (declare m int)
             (declare n int)
