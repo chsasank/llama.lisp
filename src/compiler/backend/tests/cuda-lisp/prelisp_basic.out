@@ -1,0 +1,11 @@
+(cuda-lisp
+  (define-shared s (64 int))
+  (define-kernel
+    ((test void) (d (ptr int)) (n int))
+    (declare m int)
+    (declare n int)
+    (declare k int)
+    (set m 64)
+    (set n 8)
+    (set k (div (add m (sub n 1)) n))
+    (ret)))
