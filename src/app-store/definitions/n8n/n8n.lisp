@@ -1,5 +1,5 @@
 (define-app
-    (version "1.82.1")
+    (version "1.123.11")
     (ports 5678)
     (let ((db-password ,(gen-password))
           (non-root-db-password ,(gen-password)))
