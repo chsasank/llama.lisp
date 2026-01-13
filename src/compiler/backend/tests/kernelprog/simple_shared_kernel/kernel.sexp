@@ -1,5 +1,5 @@
 (c-lisp
-    ;  __shared__ int s[64];
+    ;  __shared__ int s[64]; Kernel to reverse an array
     (define-global (shared (arr 64 int)) (addrspace 3))
     (define ((llvm.nvvm.read.ptx.sreg.tid.x  int)))  ; threadid.x
     (define ((llvm.nvvm.barrier0 void)))              ; syncthreads()
