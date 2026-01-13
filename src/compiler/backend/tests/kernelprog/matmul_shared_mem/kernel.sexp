@@ -3,8 +3,8 @@
     (define ((print int) (n int)))
 
     (define ((llvm.nvvm.read.ptx.sreg.tid.x  int)) )  ;;thread id
-    (define ((llvm.nvvm.read.ptx.sreg.ctaid.x int)) )   ;;block id
-    (define ((llvm.nvvm.read.ptx.sreg.ctaid.y int)) )  ;; block id
+    (define ((llvm.nvvm.read.ptx.sreg.ctaid.x int)) )   ;;blockIdx.x
+    (define ((llvm.nvvm.read.ptx.sreg.ctaid.y int)) )  ;; blockIdx.y
     (define ((llvm.nvvm.barrier0 void)))
      
     (define-global (As (arr 1024 float)) (addrspace 3))

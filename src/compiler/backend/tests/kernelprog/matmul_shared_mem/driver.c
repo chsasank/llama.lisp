@@ -31,7 +31,6 @@ void ref_kernel(int M,int N,int K,float alpha,const float* A,const float* B,floa
         }
 }
  
-
 int main(int argc, char** argv) {
     
     if (argc != 2) {
@@ -106,7 +105,7 @@ int main(int argc, char** argv) {
 
     CU_CHECK(cuLaunchKernel(kernel,
          gridX, gridY, 1,      
-         BLOCKSIZE * BLOCKSIZE, 1, 1,   ////  blockX, blockY, 1, => 1D with same no of threads
+         BLOCKSIZE * BLOCKSIZE, 1, 1,   ////  blockX, blockY, 1, => 1D with same no of threads, 32*32,1,1
          0, 0, args, 0));     
 
     CU_CHECK(cuEventRecord(stop, 0));
