@@ -1,0 +1,30 @@
+; ModuleID = ""
+target triple = "unknown-unknown-unknown"
+target datalayout = ""
+
+@"a" = addrspace(1) global i32 0
+declare i32 @"print"(i32 %".1")
+
+define void @"main"()
+{
+alloca-piuzfbqp:
+  %"a_cast" = alloca i32*
+  %"three" = alloca i32
+  %"a_load" = alloca i32
+  %"tmp" = alloca i32
+  br label %"entry-sbnpsago"
+entry-sbnpsago:
+  %"a_cast.1" = addrspacecast i32 addrspace(1)* @"a" to i32*
+  store i32* %"a_cast.1", i32** %"a_cast"
+  store i32 3, i32* %"three"
+  %".4" = load i32*, i32** %"a_cast"
+  %".5" = load i32, i32* %"three"
+  store i32 %".5", i32* %".4"
+  %".7" = load i32, i32 addrspace(1)* @"a"
+  store i32 %".7", i32* %"a_load"
+  %".9" = load i32, i32* %"a_load"
+  %"tmp.1" = call i32 @"print"(i32 %".9")
+  store i32 %"tmp.1", i32* %"tmp"
+  ret void
+}
+
