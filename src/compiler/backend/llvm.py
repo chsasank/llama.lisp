@@ -6,10 +6,11 @@ References:
 2. https://llvm.org/docs/tutorial/
 """
 
-import sys
 import json
-import munch
+import sys
+
 import llvmlite.ir as ir
+import munch
 from utils.random import random_label
 
 
@@ -41,12 +42,16 @@ class LLVMCodeGenerator(object):
 
         # Manages all labels in a function
         self.func_bbs = {}
+        # Manages all globals
+        self.global_variables = {}
 
     def generate(self, bril_prog):
         for struct in bril_prog.structs:
             self.gen_struct(struct)
         for string in bril_prog.strings:
             self.gen_string_defn(string)
+        for glob in bril_prog.globals:
+            self.gen_globals(glob)
         for fn in bril_prog.functions:
             self.gen_function(fn)
 
@@ -56,6 +61,10 @@ class LLVMCodeGenerator(object):
                 addrspace = type.get("addrspace", 0)
                 type_obj = self.gen_type(type["ptr"]).as_pointer(addrspace)
                 return type_obj
+            elif "arr" in type:
+                element_type = self.gen_type(type["arr"])
+                element_size = type["size"]
+                return ir.ArrayType(element_type, element_size)
             elif "struct" in type:
                 return self.struct_types[type["struct"]]
             else:
@@ -98,7 +107,7 @@ class LLVMCodeGenerator(object):
             "mul": "mul",
             "sub": "sub",
             "div": "sdiv",
-            "rem": "srem",   
+            "rem": "srem",
             "not": "not_",
             "and": "and_",
             "or": "or_",
@@ -139,6 +148,7 @@ class LLVMCodeGenerator(object):
             "ptrtoint": "ptrtoint",
             "inttoptr": "inttoptr",
             "bitcast": "bitcast",
+            "addrspacecast": "addrspacecast",
         }
 
         def gen_label(instr):
@@ -254,6 +264,7 @@ class LLVMCodeGenerator(object):
                     indices.append(ir.Constant(ir.IntType(32), arg))
                 else:
                     indices.append(self.gen_var(arg))
+
             self.gen_symbol_store(
                 instr.dest,
                 self.builder.gep(
@@ -376,6 +387,9 @@ class LLVMCodeGenerator(object):
 
     def declare_var(self, typ, name):
         """Allocate a pointer using alloca and add it to the symbol table, if it doesn't already exist"""
+        if name in self.global_variables:
+            return
+
         if (name not in self.func_alloca_symtab) or (
             self.func_alloca_symtab[name].type != typ.as_pointer()
         ):
@@ -388,12 +402,16 @@ class LLVMCodeGenerator(object):
     def gen_symbol_load(self, name):
         if name in self.func_alloca_symtab:
             return self.builder.load(self.func_alloca_symtab[name])
+        elif name in self.global_variables:
+            return self.global_variables[name]
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
     def gen_symbol_store(self, name, val):
         if name in self.func_alloca_symtab:
             self.builder.store(val, self.func_alloca_symtab[name])
+        elif name in self.global_variables:
+            self.builder.store(val, self.global_variables[name])
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
@@ -442,6 +460,32 @@ class LLVMCodeGenerator(object):
         )
         elem_types = [self.gen_type(typ) for typ in struct.elements]
         self.struct_types[struct.name].set_body(*elem_types)
+
+    def gen_globals(self, glob):
+        typ = self.gen_type(glob.type)
+
+        # zeroinitializer: https://llvmlite.readthedocs.io/en/latest/user-guide/ir/values.html?highlight=zeroinitializer#llvmlite.ir.Constant
+        initializer = ir.Constant(typ, None)
+        addrspace = 0
+
+        if "init" in glob:
+            init = glob.init
+            if init[0] == "const":
+                initializer = ir.Constant(typ, init[1])
+            elif init[0] == "ptr-to":
+                target = self.module.get_global(init[1])
+                initializer = target
+            elif init[0] == "addrspace":
+                # addrspace has to be in the init
+                addrspace = init[1]
+            else:
+                raise CodegenError(f"Illegal global initializer in LLVM: {init}")
+
+        global_var = ir.GlobalVariable(
+            module=self.module, typ=typ, name=glob.name, addrspace=addrspace
+        )
+        global_var.initializer = initializer
+        self.global_variables[glob.name] = global_var
 
     def gen_string_defn(self, string):
         string_arr = bytearray(string.value + "\x00", encoding="UTF-8")

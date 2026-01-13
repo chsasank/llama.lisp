@@ -1,5 +1,5 @@
-import sys
 import json
+import sys
 
 
 def is_list(x):
@@ -10,11 +10,23 @@ def is_struct(expr):
     return isinstance(expr, list) and (expr[0] == "define-struct")
 
 
+def is_global(expr):
+    return isinstance(expr, list) and (expr[0] == "define-global")
+
+
 def gen_struct(expr):
     return {
         "name": expr[1],
         "elements": [gen_type(typ) for typ in expr[2]],
     }
+
+
+def gen_globals(expr):
+    out = {"name": expr[1][0], "type": gen_type(expr[1][1])}
+    if len(expr) == 3:
+        out["init"] = expr[2]
+
+    return out
 
 
 def is_function(expr):
@@ -55,8 +67,15 @@ def gen_type(typ):
                 assert typ[2][0] == "addrspace"
                 retval["addrspace"] = typ[2][1]
             return retval
+        elif typ[0] == "arr":
+            retval = {"arr": gen_type(typ[2]), "size": typ[1]}
+            if len(typ) > 2 and is_list(typ[2]):
+                assert typ[2][0] == "addrspace"
+                retval["addrspace"] = typ[2][1]
+            return retval
         elif typ[0] == "struct":
             return {"struct": gen_type(typ[1])}
+
         else:
             raise Exception("Invalid type: {typ}")
     else:
@@ -131,6 +150,7 @@ def gen_instr(instr):
             "bitcast",
             # String reference
             "string-ref",
+            "addrspacecast",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 
@@ -215,7 +235,7 @@ def gen_instr(instr):
 def brilisp(expr):
     assert expr[0] == "brilisp"
     body = expr[1:]
-    functions, strings, structs = [], [], []
+    functions, strings, structs, globals = [], [], [], []
     for x in body:
         if is_function(x):
             functions.append(gen_function(x))
@@ -223,9 +243,16 @@ def brilisp(expr):
             strings.append(gen_string(x))
         elif is_struct(x):
             structs.append(gen_struct(x))
+        elif is_global(x):
+            globals.append(gen_globals(x))
         else:
             raise Exception(f"{x} is neither function nor string nor struct")
-    return {"functions": functions, "strings": strings, "structs": structs}
+    return {
+        "functions": functions,
+        "strings": strings,
+        "structs": structs,
+        "globals": globals,
+    }
 
 
 def main():

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
+
 from utils.random import random_label
 from utils.shape import verify_shape
 
@@ -33,6 +34,8 @@ class BrilispCodeGenerator:
         self.struct_types = {}
         # String literals
         self.string_literals = {}
+        # Global variable name -> type
+        self.global_variables = {}
 
     def c_lisp(self, prog):
         """Entry point to C-Lisp compiler"""
@@ -41,11 +44,14 @@ class BrilispCodeGenerator:
 
         brilisp_funcs = []
         brilisp_structs = []
+        brilisp_globals = []
         for defn in prog[1:]:
             if defn[0] == "define":
                 brilisp_funcs.append(self.gen_function(defn))
             elif defn[0] == "define-struct":
                 brilisp_structs.append(self.gen_struct(defn))
+            elif defn[0] == "define-global":
+                brilisp_globals.append(self.gen_global_var(defn))
             else:
                 raise CodegenError(f"Neither function nor struct definition: {defn}")
 
@@ -57,6 +63,7 @@ class BrilispCodeGenerator:
             "brilisp",
             *brilisp_strings,
             *brilisp_structs,
+            *brilisp_globals,
             *brilisp_funcs,
         ]
 
@@ -70,6 +77,10 @@ class BrilispCodeGenerator:
             scoped_name = self.construct_scoped_name(name, self.scopes[:s])
             if scoped_name in self.variable_types:
                 return scoped_name
+
+        if name in self.global_variables:
+            return name
+
         raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
@@ -148,6 +159,28 @@ class BrilispCodeGenerator:
             struct_membs.append(typ)
 
         return ["define-struct", name, struct_membs]
+
+    def gen_global_var(self, glob):
+        name, typ = glob[1]
+        save_typ = ["ptr", typ]
+        self.global_variables[name] = save_typ
+
+        if len(glob) == 3:
+            init = glob[2]
+            if init[0] == "const":
+                pass
+            elif init[0] == "ptr-to":
+                target = init[1]
+                if target not in self.global_variables:
+                    raise CodegenError("ptr-to must refer to a global variable")
+            elif init[0] == "addrspace":
+                self.global_variables[name] = [*save_typ, ["addrspace", init[1]]]
+            else:
+                raise CodegenError("init should be one of const, ptr-to, addrspace")
+
+            return ["define-global", [name, typ], init]
+        else:
+            return ["define-global", [name, typ]]
 
     def gen_stmt(self, stmt):
         try:
@@ -395,13 +428,27 @@ class SetExpression(Expression):
         name = expr[1]
         scoped_name = self.ctx.scoped_lookup(name)
         res = super().compile(expr[2])
-        instructions = res.instructions + [
-            [
-                "set",
-                [scoped_name, res.typ],
-                ["id", res.symbol],
+
+        if scoped_name in self.ctx.variable_types:
+            new_instrs = [
+                [
+                    "set",
+                    [scoped_name, res.typ],
+                    ["id", res.symbol],
+                ]
             ]
-        ]
+        elif scoped_name in self.ctx.global_variables:
+            new_instrs = [
+                [
+                    "store",
+                    scoped_name,
+                    res.symbol,
+                ]
+            ]
+        else:
+            raise CodegenError(f"Unknown symbol {scoped_name}")
+
+        instructions = res.instructions + new_instrs
         return ExpressionResult(instructions, scoped_name, res.typ)
 
 
@@ -450,8 +497,18 @@ class VarExpression(Expression):
     def compile(self, expr):
         instructions = []
         symbol = self.ctx.scoped_lookup(expr)
-        typ = self.ctx.variable_types[symbol]
-        return ExpressionResult(instructions, symbol, typ)
+
+        if symbol in self.ctx.variable_types:
+            typ = self.ctx.variable_types[symbol]
+            res_sym = symbol
+        elif symbol in self.ctx.global_variables:
+            typ = self.ctx.global_variables[symbol][1]
+            res_sym = random_label(CLISP_PREFIX)
+            instructions.append(["set", [res_sym, typ], ["load", symbol]])
+        else:
+            raise CodegenError(f"Unknown symbol {symbol}")
+
+        return ExpressionResult(instructions, res_sym, typ)
 
 
 class BinOpExpression(Expression):
@@ -551,17 +608,23 @@ class PtrAddExpression(Expression):
             raise CodegenError(f"Bad ptradd expression: {expr}")
 
         offset = super().compile(expr[2])
-        ptr_name = self.ctx.scoped_lookup(expr[1])
-        ptr_type = self.ctx.variable_types[ptr_name]
+        if not VarExpression.is_valid_expr(expr[1]):
+            raise CodegenError(
+                f"ptradd accepts only symbols for ptr in the expression: {expr}"
+            )
+        ptr = super().compile(expr[1])
         res_sym = random_label(CLISP_PREFIX)
 
-        instrs = offset.instructions + [
-            ["set", [res_sym, ptr_type], ["ptradd", ptr_name, offset.symbol]]
-        ]
-        return ExpressionResult(instrs, res_sym, ptr_type)
+        instrs = (
+            offset.instructions
+            + ptr.instructions
+            + [["set", [res_sym, ptr.typ], ["ptradd", ptr.symbol, offset.symbol]]]
+        )
+        return ExpressionResult(instrs, res_sym, ptr.typ)
 
 
 class StructPtrAddExpression(Expression):
+    # TODO: support globals if required
     @classmethod
     def is_valid_expr(cls, expr):
         return expr[0] == "sptradd"
@@ -598,6 +661,89 @@ class StructPtrAddExpression(Expression):
             ]
         ]
         return ExpressionResult(instrs, res_sym, res_type)
+
+
+class ArrayPtrAddExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "aptradd"
+
+    def is_arr_type(self, typ):
+        return isinstance(typ, list) and typ[0] == "arr"
+
+    def compile(self, expr):
+        if not len(expr) == 3:
+            raise CodegenError(f"Bad aptradd expression: {expr}")
+
+        if not VarExpression.is_valid_expr(expr[1]):
+            raise CodegenError(
+                f"aptradd accepts only symbols for arr in the expression: {expr}"
+            )
+
+        # have to handle globals and locals separately because ptradd/gep requires 0 index
+        arr_symbol = self.ctx.scoped_lookup(expr[1])
+        if arr_symbol in self.ctx.variable_types:
+            arr_typ = self.ctx.variable_types[arr_symbol]
+            is_global = False
+        elif arr_symbol in self.ctx.global_variables:
+            arr_typ = self.ctx.global_variables[arr_symbol][1]
+            is_global = True
+        else:
+            raise CodegenError(f"Unknown symbol {expr}")
+
+        if not self.is_arr_type(arr_typ):
+            raise CodegenError(f"Not an array: {expr[1]} {arr_typ}")
+
+        idx = super().compile(expr[2])
+
+        res_sym = random_label(CLISP_PREFIX)
+        element_typ = arr_typ[2]
+        res_typ = ["ptr", element_typ]
+        if is_global:
+            global_typ = self.ctx.global_variables[arr_symbol]
+            if len(global_typ) == 3:
+                # has addrspace
+                ptr_sym = random_label(CLISP_PREFIX)
+                ptr_typ = ["ptr", arr_typ]
+
+                new_instrs = [
+                    [
+                        "set",
+                        [ptr_sym, ptr_typ],
+                        ["addrspacecast", arr_symbol, ptr_typ],
+                    ],
+                    [
+                        "set",
+                        [res_sym, res_typ],
+                        ["ptradd", ptr_sym, 0, idx.symbol],
+                    ],
+                ]
+            else:
+                new_instrs = [
+                    [
+                        "set",
+                        [res_sym, res_typ],
+                        ["ptradd", arr_symbol, 0, idx.symbol],
+                    ],
+                ]
+        else:
+            ptr_sym = random_label(CLISP_PREFIX)
+            ptr_typ = ["ptr", arr_typ]
+            new_instrs = [
+                [
+                    "set",
+                    [ptr_sym, ptr_typ],
+                    ["ptr-to", arr_symbol],
+                ],
+                [
+                    "set",
+                    [res_sym, res_typ],
+                    ["ptradd", ptr_sym, 0, idx.symbol],
+                ],
+            ]
+
+        instrs = idx.instructions + new_instrs
+        return ExpressionResult(instrs, res_sym, res_typ)
 
 
 class LoadExpression(Expression):
@@ -676,6 +822,7 @@ class CastExpression(Expression):
         "fpext": ("_float", "_float"),
         "fptrunc": ("_float", "_float"),
         "bitcast": (None, None),
+        "addrspacecast": ("_ptr", "_ptr"),
     }
 
     @classmethod

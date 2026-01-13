@@ -1,0 +1,10 @@
+(c-lisp
+    (define ((print int) (n int)))
+    (define-global (a (arr 20 int)))
+    (define ((main void))
+        (declare b (arr 20 int))
+        (store (aptradd a 3) 20)
+        (store (aptradd b 3) 20)
+        (call print (load (aptradd a 3)))
+        (call print (load (aptradd b 3)))
+        (ret)))
