@@ -30,7 +30,7 @@ def gen_globals(expr):
 
 
 def is_function(expr):
-    return isinstance(expr, list) and (expr[0] == "define")
+    return isinstance(expr, list) and (expr[0].startswith("define"))
 
 
 def is_string(expr):
@@ -51,9 +51,13 @@ def gen_function(expr):
     typ = header[0][1]
     args = header[1:]
     instrs = expr[2:]
+
+    # remove brilisp attr
+    func_attrs = sorted(set(expr[0].split("-")) - {"define", "brilisp"})
     return {
         "name": name,
         "type": gen_type(typ),
+        "attrs": func_attrs,
         "args": [gen_arg(x) for x in args],
         "instrs": [gen_instr(x) for x in instrs],
     }
@@ -237,14 +241,14 @@ def brilisp(expr):
     body = expr[1:]
     functions, strings, structs, globals = [], [], [], []
     for x in body:
-        if is_function(x):
-            functions.append(gen_function(x))
-        elif is_string(x):
+        if is_string(x):
             strings.append(gen_string(x))
         elif is_struct(x):
             structs.append(gen_struct(x))
         elif is_global(x):
             globals.append(gen_globals(x))
+        elif is_function(x):
+            functions.append(gen_function(x))
         else:
             raise Exception(f"{x} is neither function nor string nor struct")
     return {

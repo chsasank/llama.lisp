@@ -1,0 +1,24 @@
+; ModuleID = ""
+target triple = "unknown-unknown-unknown"
+target datalayout = ""
+
+declare void @"llvm.memcpy.p0i8.p0i8.i64"(i8* %".1", i8* %".2", i32 %".3", i1 %".4")
+
+define void @"memcpy"(i8* %"dst", i8* %"src", i32 %"n") alwaysinline
+{
+alloca-piuzfbqp:
+  %"dst.1" = alloca i8*
+  %"src.1" = alloca i8*
+  %"n.1" = alloca i32
+  br label %"entry-sbnpsago"
+entry-sbnpsago:
+  store i8* %"dst", i8** %"dst.1"
+  store i8* %"src", i8** %"src.1"
+  store i32 %"n", i32* %"n.1"
+  %".8" = load i8*, i8** %"dst.1"
+  %".9" = load i8*, i8** %"src.1"
+  %".10" = load i32, i32* %"n.1"
+  call void @"llvm.memcpy.p0i8.p0i8.i64"(i8* %".8", i8* %".9", i32 %".10", i1 false)
+  ret void
+}
+
