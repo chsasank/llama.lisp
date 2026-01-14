@@ -101,11 +101,14 @@ class CudaLisp:
 
         fn_proto = expr[1]
         fn_ret = fn_proto[0]
+<<<<<<< HEAD
         for fn_arg in fn_proto[1:]:
             fn_arg_type = fn_arg[1]
             # arg pointers have addrspace 1 by default
             if self.is_ptr_type(fn_arg_type) and len(fn_arg_type) == 2:
                 fn_arg_type.append(["addrspace", 1])
+=======
+>>>>>>> 3b9315452d68b2f947b1f3dc387ba727951a3012
 
         # expand all intrinsics
         fn_body = self.compile_intrinsic_symbols(expr[2:])

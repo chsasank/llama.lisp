@@ -2,9 +2,13 @@
   (define-global (s (arr 64 int)) (addrspace 3))
   (define ((llvm.nvvm.read.ptx.sreg.tid.x int)))
   (define ((llvm.nvvm.barrier0 void)))
+<<<<<<< HEAD
   (define ((staticReverse void)
            (d (ptr int (addrspace 1)))
            (n int))
+=======
+  (define ((staticReverse void) (d (ptr int)) (n int))
+>>>>>>> 3b9315452d68b2f947b1f3dc387ba727951a3012
     (declare t int)
     (set t (call llvm.nvvm.read.ptx.sreg.tid.x))
     (declare tr int)

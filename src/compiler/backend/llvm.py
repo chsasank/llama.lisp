@@ -383,6 +383,10 @@ class LLVMCodeGenerator(object):
             # Otherwise create a new function
             func = ir.Function(self.module, func_ty, funcname)
 
+        attrs = fn.get("attrs", [])
+        if "inline" in attrs:
+            func.attributes.add("alwaysinline")
+
         return func
 
     def declare_var(self, typ, name):
@@ -404,6 +408,15 @@ class LLVMCodeGenerator(object):
             return self.builder.load(self.func_alloca_symtab[name])
         elif name in self.global_variables:
             return self.global_variables[name]
+<<<<<<< HEAD
+=======
+        elif isinstance(name, bool):
+            return ir.Constant(ir.IntType(1), name)
+        elif isinstance(name, int):
+            return ir.Constant(ir.IntType(32), name)
+        elif isinstance(name, float):
+            return ir.Constant(ir.FloatType, name)
+>>>>>>> 3b9315452d68b2f947b1f3dc387ba727951a3012
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
