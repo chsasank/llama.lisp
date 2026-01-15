@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     
     cudaMemcpy(c, d_c, m * n * sizeof(float), cudaMemcpyDeviceToHost);
 
-    
+    //if you want to verify the matmul result uncomment these lines:
 //   if (print == 1) {
 //     printf("\nC after SGEMM = \n");
 //     for (i = 0; i < m; i++) {
