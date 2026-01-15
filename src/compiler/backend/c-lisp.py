@@ -46,12 +46,12 @@ class BrilispCodeGenerator:
         brilisp_structs = []
         brilisp_globals = []
         for defn in prog[1:]:
-            if defn[0] == "define":
-                brilisp_funcs.append(self.gen_function(defn))
-            elif defn[0] == "define-struct":
+            if defn[0] == "define-struct":
                 brilisp_structs.append(self.gen_struct(defn))
             elif defn[0] == "define-global":
                 brilisp_globals.append(self.gen_global_var(defn))
+            elif defn[0].startswith("define"):
+                brilisp_funcs.append(self.gen_function(defn))
             else:
                 raise CodegenError(f"Neither function nor struct definition: {defn}")
 
@@ -84,8 +84,14 @@ class BrilispCodeGenerator:
         raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
-        if not func[0] == "define":
+        if not func[0].startswith("define"):
             raise CodegenError(f"Not a function: {func}")
+
+        func_attrs = func[0].split("-")[1:]
+        for attr in func_attrs:
+            allowed_attrs = {"brilisp", "inline"}
+            if attr not in allowed_attrs:
+                raise CodegenError(f"Unknown function attr: {func[0]})")
 
         for elem in func[1]:
             if not len(elem) == 2:
@@ -103,7 +109,7 @@ class BrilispCodeGenerator:
         self.function_types[name] = [ret_type, parm_types]
 
         # If the function has a body, we need to codegen for it
-        if len(func) > 2:
+        if len(func) > 2 and "brilisp" not in func_attrs:
             # Set up a return label and a return variable, if needed
             self.ret_ptr_sym, ret_label, ret_alloc_size_sym, ret_val_sym = [
                 random_label(CLISP_PREFIX, [extra])
@@ -140,12 +146,14 @@ class BrilispCodeGenerator:
                 ),  # C-Lisp function body
                 *ret_label_instrs,
             ]
+        elif len(func) > 2 and "brilisp" in func_attrs:
+            body_instrs = func[2:]
         else:
             # This is a declaration without a body
             body_instrs = []
 
         return [
-            "define",
+            func[0],
             func[1],
             *body_instrs,
         ]
