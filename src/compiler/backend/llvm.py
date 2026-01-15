@@ -326,15 +326,26 @@ class LLVMCodeGenerator(object):
 
             if instr.type == "void":
                 self.builder.asm(
-                    ftype, asm_template, asm_constraint, args, side_effect=True, name=instr.dest
+                    ftype,
+                    asm_template,
+                    asm_constraint,
+                    args,
+                    side_effect=True,
+                    name=instr.dest,
                 )
             else:
                 self.declare_var(out_type, instr.dest)
                 self.gen_symbol_store(
                     instr.dest,
                     self.builder.asm(
-                        ftype, asm_template, asm_constraint, args, side_effect=True, name=instr.dest
-                    ))
+                        ftype,
+                        asm_template,
+                        asm_constraint,
+                        args,
+                        side_effect=True,
+                        name=instr.dest,
+                    ),
+                )
 
         for instr in instrs:
             try:

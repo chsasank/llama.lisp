@@ -155,7 +155,7 @@ def gen_instr(instr):
             # String reference
             "string-ref",
             "addrspacecast",
-            "asm"
+            "asm",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 

@@ -1,6 +1,5 @@
 (c-lisp
     (define ((fprint float) (n float)))
-    (define ((fprint float) (n float)))
     (define ((llvm.memcpy.p0i8.p0i8.i64 void) (dest (ptr int8)) (src (ptr int8)) (len int64) (isvolatile bool)))
     (define-inline-brilisp ((memcpy void) (dst (ptr int8)) (src (ptr int8)) (n int))
         (set (n_64 int64) (sext n int64))
