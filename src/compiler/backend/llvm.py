@@ -312,6 +312,30 @@ class LLVMCodeGenerator(object):
                 ),
             )
 
+        def gen_asm(instr):
+            if not (instr.args[0][0] == "string" and instr.args[1][0] == "string"):
+                raise CodegenError(f"invalid asm instr: {instr}")
+
+            asm_template = instr.args[0][1]
+            asm_constraint = instr.args[1][1]
+
+            args = [self.gen_var(x) for x in instr.args[2:]]
+            arg_types = [x.type for x in args]
+            out_type = self.gen_type(instr.type)
+            ftype = ir.FunctionType(out_type, arg_types)
+
+            if instr.type == "void":
+                self.builder.asm(
+                    ftype, asm_template, asm_constraint, args, side_effect=True, name=instr.dest
+                )
+            else:
+                self.declare_var(out_type, instr.dest)
+                self.gen_symbol_store(
+                    instr.dest,
+                    self.builder.asm(
+                        ftype, asm_template, asm_constraint, args, side_effect=True, name=instr.dest
+                    ))
+
         for instr in instrs:
             try:
                 if "label" in instr:
@@ -344,6 +368,8 @@ class LLVMCodeGenerator(object):
                     gen_id(instr)
                 elif instr.op == "string-ref":
                     gen_string_ref(instr)
+                elif instr.op == "asm":
+                    gen_asm(instr)
                 elif instr.op in value_ops:
                     gen_value(instr)
                 elif instr.op in cmp_ops:
