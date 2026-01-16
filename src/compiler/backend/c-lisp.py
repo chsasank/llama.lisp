@@ -606,6 +606,75 @@ class NotExpression(Expression):
         return ExpressionResult(instrs, res_sym, "bool")
 
 
+class ExtractValueExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "extractvalue"
+
+    def compile(self, expr):
+        if not verify_shape(expr, [str, None, int]):
+            raise CodegenError(f"Bad extractvalue expression: {expr}")
+
+        input_expr = super().compile(expr[1])
+        idx = expr[2]
+
+        if input_expr.typ[0] == "struct":
+            s_type = self.ctx.struct_types[input_expr.typ[1]]
+            if idx > len(s_type):
+                raise CodegenError(f"extractvalue index out of range: {expr}")
+            res_type = [y for x, y in s_type.values() if x == idx][0]
+        elif input_expr.typ[0] == "arr":
+            if idx > input_expr.typ[1]:
+                raise CodegenError(f"extractvalue index out of range: {expr}")
+            res_type = input_expr.typ[2]
+        else:
+            raise CodegenError(f"Operand to `extractvalue` must be a struct or arr")
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = input_expr.instructions + [
+            ["set", [res_sym, res_type], ["extractvalue", input_expr.symbol, idx]]
+        ]
+        return ExpressionResult(instrs, res_sym, res_type)
+
+
+class InsertValueExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "insertvalue"
+
+    def compile(self, expr):
+        if not verify_shape(expr, [str, None, None, int]):
+            raise CodegenError(f"Bad insertvalue expression: {expr}")
+
+        input_expr = super().compile(expr[1])
+        val_expr = super().compile(expr[2])
+        idx = expr[3]
+
+        if input_expr.typ[0] == "struct":
+            if idx > len(input_expr.typ[0]) - 1:
+                raise CodegenError(f"insertvalue index out of range: {expr}")
+        elif input_expr.typ[0] == "arr":
+            if idx > input_expr.typ[1]:
+                raise CodegenError(f"insertvalue index out of range: {expr}")
+        else:
+            raise CodegenError(f"Operand to `insertvalue` must be a struct or arr")
+
+        res_sym = input_expr.symbol
+        res_type = input_expr.typ
+        instrs = (
+            input_expr.instructions
+            + val_expr.instructions
+            + [
+                [
+                    "set",
+                    [res_sym, res_type],
+                    ["insertvalue", input_expr.symbol, val_expr.symbol, idx],
+                ]
+            ]
+        )
+        return ExpressionResult(instrs, res_sym, res_type)
+
+
 class PtrAddExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
