@@ -297,6 +297,26 @@ class LLVMCodeGenerator(object):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             self.gen_symbol_store(instr.dest, self.gen_symbol_load(instr.args[0]))
 
+        def gen_extractvalue(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.extract_value(
+                    agg=self.gen_var(instr.args[0]), idx=instr.args[1]
+                ),
+            )
+
+        def gen_insertvalue(instr):
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.insert_value(
+                    agg=self.gen_var(instr.args[0]),
+                    value=self.gen_var(instr.args[1]),
+                    idx=instr.args[2],
+                ),
+            )
+
         def gen_string_ref(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             # Clang emits something like this, to get a character pointer to
@@ -377,6 +397,10 @@ class LLVMCodeGenerator(object):
                     gen_ptr_to(instr)
                 elif instr.op == "id":
                     gen_id(instr)
+                elif instr.op == "extractvalue":
+                    gen_extractvalue(instr)
+                elif instr.op == "insertvalue":
+                    gen_insertvalue(instr)
                 elif instr.op == "string-ref":
                     gen_string_ref(instr)
                 elif instr.op == "asm":

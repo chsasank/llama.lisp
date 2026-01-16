@@ -127,6 +127,9 @@ def gen_instr(instr):
             "ptradd",
             "ptr-to",
             "id",
+            # struct/array operations
+            "extractvalue",
+            "insertvalue",
             # Floating-point arithmetic
             "fadd",
             "fsub",
