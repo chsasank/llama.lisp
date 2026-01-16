@@ -25,9 +25,8 @@
     (define-global (TM int) (const 8))
     (define-global (TN int) (const 4))
     (define-global (NUM_THREADS int) (const 4))
-    (define-global (K int) (const 4096))
 
-    (define-global (WSUBM int) (const (div (mul WM WMITER))))
+    (define-global (WSUBM int) (const (div WM WMITER)))
     (define-global (WSUBN int) (const (div WN WNITER)))
     (define-global (WMITER int) (const (div (mul WM WN) (mul (mul  (mul WARPSIZE TM) TN) WNITER))))
 
@@ -121,7 +120,7 @@
         (declare wSubColIdx int)
         (declare i int)
 
-        (for ((set dotIdx 0) (lt dotIdx K) (set dotIdx (add dotIdx 1)))
+        (for ((set dotIdx 0) (lt dotIdx BK) (set dotIdx (add dotIdx 1)))
 
             (for ((set wSubRowIdx 0) (lt wSubRowIdx WMITER) (set wSubRowIdx (add wSubRowIdx 1)))
                 (for ((set i 0) (lt i TM) (set i (add i 1)))
@@ -202,7 +201,7 @@
         
         (set A (ptradd A (mul (mul cRow BM) K)))
         (set B (ptradd B (mul cCol BN)))
-        (set B (ptradd C (add 
+        (set C (ptradd C (add 
                             (mul (add (mul cRow BM) (mul warpRow WM)) N)
                             (add (mul cCol BN) (mul warpCol WN)))))
 
