@@ -206,6 +206,7 @@ class LLVMCodeGenerator(object):
             )
 
         def gen_value(instr):
+            print(instr)
             self.declare_var(self.gen_type(instr.type), instr.dest)
             llvm_instr = getattr(self.builder, value_ops[instr.op])
             self.gen_symbol_store(
@@ -275,10 +276,11 @@ class LLVMCodeGenerator(object):
 
         def gen_ptr_to(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            # if instr.args[0] not in self.global_variables:
             self.gen_symbol_store(
-                instr.dest,
-                self.func_alloca_symtab[instr.args[0]],
-            )
+                    instr.dest,
+                    self.func_alloca_symtab[instr.args[0]],
+                )
 
         def gen_castop(instr):
             """this function creates an IR for casting types"""
