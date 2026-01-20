@@ -48,15 +48,18 @@
                                     {{ db.connection_config.port }}
                                 </td>
                                 <td class="py-2 align-middle">
-                                    <a href="{% url 'database_edit' db.id %}"
+                                    <button href="{% url 'database_edit' db.id %}"
                                     class="text-xs px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
                                         Edit
-                                    </a>
-
-                                    <a onclick="openDeleteModel('{{ db.id }}', 'database')"
-                                    class="text-xs ml-3 px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
+                                    </button>
+                                    <button onclick="testDB('{{ db.id }}', 'source')"
+                                        class="text-xs px-2 py-1 border border-blue-400 text-blue-400 rounded hover:bg-blue-400 hover:text-black transition ">
+                                        Test
+                                    </button>
+                                    <button onclick="openDeleteModel('{{ db.id }}', 'database')"
+                                    class="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
                                         Delete
-                                    </a>
+                                    </button>
                                 </td>
                             </tr>
                         {% endif %}
@@ -108,15 +111,18 @@
                                     {{ db.connection_config.port }}
                                 </td>
                                 <td class="py-2 align-middle">
-                                    <a href="{% url 'database_edit' db.id %}"
+                                    <button href="{% url 'database_edit' db.id %}"
                                     class="text-xs px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
                                         Edit
-                                    </a>
-
-                                    <a onclick="openDeleteModel('{{ db.id }}', 'database')"
-                                    class="text-xs ml-3 px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
+                                    </button>
+                                    <button onclick="testDB('{{ db.id }}', 'source')"
+                                        class="text-xs px-2 py-1 border border-blue-400 text-blue-400 rounded hover:bg-blue-400 hover:text-black transition">
+                                        Test
+                                    </button>
+                                    <button onclick="openDeleteModel('{{ db.id }}', 'database')"
+                                    class="text-xs px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
                                         Delete
-                                    </a>
+                                    </button>
                                 </td>
                             </tr>
                         {% endif %}
@@ -176,6 +182,49 @@
         document.getElementById("deleteModel").classList.add("hidden");
     }
 </script>
+
+<!-- Adding a toast container -->
+<div id="toast" class="fixed right-6 bottom-6 z-50 hidden">
+  <div id="toast-inner" class="px-4 py-2 rounded shadow-lg text-sm"></div>
+</div>
+
+<script>
+function showToast(message, ok=true) {
+    const toast = document.getElementById("toast");
+    const inner = document.getElementById("toast-inner");
+    inner.textContent = message;
+    inner.className = `px-4 py-2 rounded shadow-lg text-sm ${ok ? 'bg-green-700 text-white' : 'bg-red-600 text-white'}`;
+    toast.classList.remove('hidden');
+    toast.style.opacity = 1;
+
+    // hide after 4s
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.6s';
+        toast.style.opacity = 0;
+        setTimeout(()=> toast.classList.add('hidden'), 600);
+    }, 4000);
+}
+
+// Test connection for DB id.
+// id is passed as string from Django template: testDB('{{ db.id }}')
+function testDB(id) {
+    // optionally set button loading state
+    fetch(`/database/${id}/test/`)
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                showToast(json.message || "Connection OK", true);
+            } else {
+                showToast(json.message || "Connection failed", false);
+            }
+        })
+        .catch(err => {
+            console.error("Test connection fetch error:", err);
+            showToast("Network or server error", false);
+        });
+}
+</script>
+
 
 
 {% endblock %}
