@@ -2,7 +2,7 @@ import logging
 
 import clickhouse_connect
 from etl.common import ETLDataTypes, TargetDriver
-from datetime import date, datetime, time
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,12 @@ class ClickhouseTarget(TargetDriver):
     def _normalize_value(self, value, etl_dtype):
         if value is None:
             return None
-
+        
+        # MSSQL DATE values arrive as datetime.date ClickHouse DateTime64 requires a datetime.datetime object.
+        # Convert date → datetime at midnight to avoid driver serialization errors.
         if etl_dtype in (ETLDataTypes.DATE, ETLDataTypes.DATE_TIME):
-            if isinstance(value, date) and not isinstance(value, datetime):
-                return datetime.combine(value, time.min)
+            if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+                return datetime.datetime.combine(value, datetime.time.min)
 
         return value
 
