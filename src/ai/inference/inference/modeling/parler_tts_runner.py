@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
+import numpy as np
 
 from transformers.activations import ACT2FN
 from transformers.cache_utils import (
@@ -426,6 +427,92 @@ class ParlerTTSModelRunner():
 
             return output_values
 
+    def model_prefill(self, prompts, descriptions):
+        # no batching of encoder for now
+        encoder_outputs = [
+            runner.my_encoder([prompt], [description])
+            for prompt, description in zip(prompts, descriptions)
+        ]
+        model_inputs = [
+            self.model.prepare_inputs_for_generation(x['delayed_input_ids'], **x['model_kwargs'])
+            for x in encoder_outputs
+        ]
+        
+        # encoder_outputs
+        encoder_last_hidden_states = torch.cat([x["encoder_outputs"].last_hidden_state for x in model_inputs], dim=1)
+        encoder_outputs = copy.deepcopy(model_inputs[0]["encoder_outputs"]) # copy object
+        encoder_outputs.last_hidden_state = encoder_last_hidden_states
+
+        decoder_input_ids = torch.cat([x["decoder_input_ids"] for x in model_inputs], dim=1)
+        prompt_hidden_states = torch.cat([x["prompt_hidden_states"] for x in model_inputs],dim=1,)
+
+        prompt_sizes = [x['prompt_hidden_states'].shape[1] for x in model_inputs]
+        decoder_sizes = [x["decoder_input_ids"].shape[1] for x in model_inputs]
+        description_sizes = [
+            x["encoder_outputs"].last_hidden_state.shape[1] for x in model_inputs
+        ]
+
+        encoder_attn_mask_float, decoder_attn_mask_float = self.prepare_attention_masks(prompt_sizes, decoder_sizes, description_sizes)
+        print("encoder", (encoder_attn_mask_float[0] > -1).int())
+        print("decoder", (decoder_attn_mask_float[0] > -1).int())
+
+
+    def prepare_attention_masks(self, prompt_sizes, decoder_sizes, description_sizes):
+        def _prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes):
+            p = sum(prompt_sizes)
+            d = sum(decoder_sizes)
+            n_dec = p + d
+            n_enc = sum(description_sizes)
+            n_seq = len(prompt_sizes)
+
+            seq_dec_idxs = []
+            p_cum_sum = np.cumsum([0, *prompt_sizes])
+            d_cum_sum = np.cumsum([0, *decoder_sizes])
+
+            seq_dec_idxs = [
+                (
+                    list(range(p_cum_sum[seq_idx], p_cum_sum[seq_idx + 1])) + 
+                    list(range(p + d_cum_sum[seq_idx], p+d_cum_sum[seq_idx + 1]))
+                ) for seq_idx in range(n_seq)
+            ]
+
+            e_cum_sum = np.cumsum([0, *description_sizes])
+            seq_enc_idxs = [
+                list(range(e_cum_sum[seq_idx], e_cum_sum[seq_idx + 1])) 
+                for seq_idx in range(n_seq)
+            ]
+            return seq_enc_idxs, seq_dec_idxs
+
+        n_dec = sum(prompt_sizes) + sum(decoder_sizes)
+        n_enc = sum(description_sizes)
+        n_seq = len(prompt_sizes)
+        seq_enc_idxs, seq_dec_idxs = _prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes)
+
+        encoder_attn_mask = torch.zeros((n_dec, n_enc), dtype=torch.bool)
+        for seq_idx in range(n_seq):
+            for i in seq_dec_idxs[seq_idx]:
+                for j in seq_enc_idxs[seq_idx]:
+                    encoder_attn_mask[i, j] = 1
+
+        # make 4d
+        encoder_attn_mask = encoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
+        encoder_attn_mask_float = torch.full(encoder_attn_mask.shape, float("-inf"), dtype=self.model.dtype, device=self.model.device)
+        encoder_attn_mask_float[encoder_attn_mask] = 0
+
+        decoder_attn_mask = torch.zeros((n_dec, n_dec), dtype=torch.bool, device=self.model.device)
+        for seq_idx in range(n_seq):
+            for i in seq_dec_idxs[seq_idx]:
+                for j in seq_dec_idxs[seq_idx]:
+                    if i >= j:
+                        decoder_attn_mask[i, j] = 1
+
+        # make 4d
+        decoder_attn_mask = decoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
+        decoder_attn_mask_float = torch.full(decoder_attn_mask.shape, float("-inf"), dtype=self.model.dtype, device=self.model.device)
+        decoder_attn_mask_float[decoder_attn_mask] = 0
+
+        return encoder_attn_mask_float, decoder_attn_mask_float
+
 
     @torch.no_grad()
     def model_step(self, y_encoder, synced_gpus):
@@ -549,9 +636,9 @@ if __name__ == '__main__':
                     "Female voice is sweet yet slightly fast in delivery, with a very close recording that almost has no background noise."]
 
     runner = ParlerTTSModelRunner()
-    generation = runner.my_generate(prompts=prompts, descriptions =descriptions)
-    audio_arr = generation.cpu().numpy().squeeze()
-    for idx, track in enumerate(audio_arr):
-        sf.write(f"indic_tts_output_{idx}.wav", track, runner.model.config.sampling_rate)
-
+    # generation = runner.my_generate(prompts=prompts, descriptions =descriptions)
+    # audio_arr = generation.cpu().numpy().squeeze()
+    # for idx, track in enumerate(audio_arr):
+    #     sf.write(f"indic_tts_output_{idx}.wav", track, runner.model.config.sampling_rate)
+    runner.model_prefill(prompts, descriptions)
 
