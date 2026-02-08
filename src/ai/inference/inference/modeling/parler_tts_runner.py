@@ -570,11 +570,24 @@ class ParlerTTSModelRunner:
             x["encoder_outputs"].last_hidden_state.shape[1] for x in model_inputs
         ]
 
-        encoder_attn_mask_float, decoder_attn_mask_float = self.prepare_attention_masks(
+        encoder_attn_mask_float, decoder_attn_mask_float, decoder_position_ids = self.prepare_attention_masks(
             prompt_sizes, decoder_sizes, description_sizes
         )
-        print("encoder", (encoder_attn_mask_float[0] > -1).int())
-        print("decoder", (decoder_attn_mask_float[0] > -1).int())
+
+        past_key_values = EncoderDecoderCache(DynamicCache(), DynamicCache())
+        model_out = self.model(
+            encoder_outputs=encoder_outputs,
+            attention_mask=encoder_attn_mask_float,
+    
+            prompt_hidden_states=prompt_hidden_states,
+            decoder_input_ids=decoder_input_ids,
+            decoder_position_ids=decoder_position_ids,
+            decoder_attention_mask=decoder_attn_mask_float,
+
+            past_key_values=past_key_values,
+            use_cache=True
+        )
+        return model_out
 
     def prepare_attention_masks(self, prompt_sizes, decoder_sizes, description_sizes):
         def _prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes):
@@ -649,7 +662,12 @@ class ParlerTTSModelRunner:
         )
         decoder_attn_mask_float[decoder_attn_mask] = 0
 
-        return encoder_attn_mask_float, decoder_attn_mask_float
+        decoder_position_ids = torch.zeros(n_dec, dtype=torch.long)
+        for seq_idx in range(n_seq): 
+            decoder_position_ids[seq_dec_idxs[seq_idx]] = torch.arange(len(seq_dec_idxs[seq_idx]))
+        decoder_position_ids = decoder_position_ids.unsqueeze(0).to(self.model.device)
+
+        return encoder_attn_mask_float, decoder_attn_mask_float, decoder_position_ids
 
     @torch.no_grad()
     def model_step(self, y_encoder, synced_gpus):
@@ -766,24 +784,25 @@ class ParlerTTSModelRunner:
 
 if __name__ == "__main__":
 
-    bs = 1
-    num_tries = 1
+    with torch.inference_mode():
+        bs = 1
+        num_tries = 1
 
-    prompts = [
-        "अरे, तुम आज कैसे हो?",
-        "अरे, तुम आज कैसे हो? आपका नाम क्या है?",
-        "अरे, आपका नाम क्या है? तुम आज कैसे हो? मेरा नाम विद्या है!",
-    ]
+        prompts = [
+            "अरे, तुम आज कैसे हो?",
+            "अरे, तुम आज कैसे हो? आपका नाम क्या है?",
+            "अरे, आपका नाम क्या है? तुम आज कैसे हो? मेरा नाम विद्या है!",
+        ]
 
-    descriptions = [
-        "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
-        "male voice's voice is very loud yet slightly slow in delivery, with a very close recording.",
-        "Female voice is sweet yet slightly fast in delivery, with a very close recording that almost has no background noise.",
-    ]
+        descriptions = [
+            "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
+            "male voice's voice is very loud yet slightly slow in delivery, with a very close recording.",
+            "Female voice is sweet yet slightly fast in delivery, with a very close recording that almost has no background noise.",
+        ]
 
-    runner = ParlerTTSModelRunner()
-    # generation = runner.my_generate(prompts=prompts, descriptions =descriptions)
-    # audio_arr = generation.cpu().numpy().squeeze()
-    # for idx, track in enumerate(audio_arr):
-    #     sf.write(f"indic_tts_output_{idx}.wav", track, runner.model.config.sampling_rate)
-    runner.model_prefill(prompts, descriptions)
+        runner = ParlerTTSModelRunner()
+        # generation = runner.my_generate(prompts=prompts, descriptions =descriptions)
+        # audio_arr = generation.cpu().numpy().squeeze()
+        # for idx, track in enumerate(audio_arr):
+        #     sf.write(f"indic_tts_output_{idx}.wav", track, runner.model.config.sampling_rate)
+        runner.model_prefill(prompts, descriptions)
