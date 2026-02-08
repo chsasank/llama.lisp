@@ -35,7 +35,7 @@ class ParlerTTSModelRunner():
     def __init__(self):
         self.model = ParlerTTSForConditionalGeneration.from_pretrained("ai4bharat/indic-parler-tts").to(device)
         self.tokenizer = AutoTokenizer.from_pretrained("ai4bharat/indic-parler-tts")
-        self.description_tokenizer = AutoTokenizer.from_pretrained(model.config.text_encoder._name_or_path)
+        self.description_tokenizer = AutoTokenizer.from_pretrained(self.model.config.text_encoder._name_or_path)
 
     @torch.no_grad()
     def _my_encoder_copy(self,
@@ -311,9 +311,9 @@ class ParlerTTSModelRunner():
             return  encoder_output
 
 
-    def my_encoder(prompts, descriptions):
-        description_input_ids = description_tokenizer(descriptions, return_tensors="pt", padding=True).to(device)
-        prompt_input_ids = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
+    def my_encoder(self, prompts, descriptions):
+        description_input_ids = self.description_tokenizer(descriptions, return_tensors="pt", padding=True).to(device)
+        prompt_input_ids = self.tokenizer(prompts, return_tensors="pt", padding=True).to(device)
         kwargs = dict(
             input_ids=description_input_ids.input_ids,
             attention_mask=description_input_ids.attention_mask,
@@ -326,8 +326,7 @@ class ParlerTTSModelRunner():
         stopping_criteria = None
         synced_gpus = None
         streamer = None
-        y_encoder = _my_encoder_copy(
-            self=model,
+        y_encoder = self._my_encoder_copy(
             inputs=inputs,
             generation_config=generation_config,
             logits_processor=logits_processor,
@@ -459,7 +458,7 @@ class ParlerTTSModelRunner():
                     print(k, type(v))
 
             print("-------------")
-            outputs = self(**model_inputs, return_dict=True)
+            outputs = self.model(**model_inputs, return_dict=True)
             model_kwargs = self.model._update_model_kwargs_for_generation(
                 outputs,
                 model_kwargs,
@@ -522,15 +521,15 @@ class ParlerTTSModelRunner():
             synced_gpus=None
         ):
 
-            y_encoder = my_encoder(prompts, descriptions)
+            y_encoder = self.my_encoder(prompts, descriptions)
             y_output = y_encoder
-            while stopping_check(self, y_output, synced_gpus):
-                y_output = model_step(self, y_output, synced_gpus)
+            while self.stopping_check(y_output, synced_gpus):
+                y_output = self.model_step(y_output, synced_gpus)
 
             step10 = time.time() - y_encoder["start"]
             print("step10: ",step10 * 1000, "ms")
 
-            decoder_output = my_decoder(self, y_output, synced_gpus)
+            decoder_output = self.my_decoder(y_output, synced_gpus)
 
             return decoder_output
 
@@ -553,6 +552,6 @@ if __name__ == '__main__':
     generation = runner.my_generate(prompts=prompts, descriptions =descriptions)
     audio_arr = generation.cpu().numpy().squeeze()
     for idx, track in enumerate(audio_arr):
-        sf.write(f"indic_tts_output_{idx}.wav", track, model.config.sampling_rate)
+        sf.write(f"indic_tts_output_{idx}.wav", track, runner.model.config.sampling_rate)
 
 
