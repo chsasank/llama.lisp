@@ -32,289 +32,377 @@ from transformers.generation.utils import GenerateNonBeamOutput
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-class ParlerTTSModelRunner():
+
+class ParlerTTSModelRunner:
     def __init__(self):
-        self.model = ParlerTTSForConditionalGeneration.from_pretrained("ai4bharat/indic-parler-tts").to(device)
+        self.model = ParlerTTSForConditionalGeneration.from_pretrained(
+            "ai4bharat/indic-parler-tts"
+        ).to(device)
         self.tokenizer = AutoTokenizer.from_pretrained("ai4bharat/indic-parler-tts")
-        self.description_tokenizer = AutoTokenizer.from_pretrained(self.model.config.text_encoder._name_or_path)
+        self.description_tokenizer = AutoTokenizer.from_pretrained(
+            self.model.config.text_encoder._name_or_path
+        )
 
     @torch.no_grad()
-    def _my_encoder_copy(self,
+    def _my_encoder_copy(
+        self,
         inputs,
         generation_config,
         logits_processor,
         stopping_criteria,
         streamer=None,
         synced_gpus=None,
-        **kwargs):
-            start = time.time()
+        **kwargs
+    ):
+        start = time.time()
 
-            # 1. Handle `generation_config` and kwargs that might update it, and validate the resulting objects
-            if generation_config is None:
-                generation_config = self.model.generation_config
+        # 1. Handle `generation_config` and kwargs that might update it, and validate the resulting objects
+        if generation_config is None:
+            generation_config = self.model.generation_config
 
-            generation_config = copy.deepcopy(generation_config)
-            model_kwargs = generation_config.update(**kwargs)  # All unused kwargs must be model kwargs
-            generation_config.validate()
-            self.model._validate_model_kwargs(model_kwargs.copy())
+        generation_config = copy.deepcopy(generation_config)
+        model_kwargs = generation_config.update(
+            **kwargs
+        )  # All unused kwargs must be model kwargs
+        generation_config.validate()
+        self.model._validate_model_kwargs(model_kwargs.copy())
 
-
-            if model_kwargs.get("encoder_outputs") is not None and type(model_kwargs["encoder_outputs"]) == tuple:
-                # wrap the unconditional outputs as a BaseModelOutput for compatibility with the rest of generate
-                model_kwargs["encoder_outputs"] = BaseModelOutput(last_hidden_state=model_kwargs["encoder_outputs"][0])
-
-            step1 = time.time() - start
-            print("step1: ", step1 * 1000, "ms")
-
-            # 2. Set generation parameters if not already defined
-            requires_attention_mask = "encoder_outputs" not in model_kwargs
-            kwargs_has_attention_mask = model_kwargs.get("attention_mask", None) is not None
-
-            step2 = time.time() - start
-            print("step2: ", step2 * 1000, "ms")
-
-            # 3. Define model inputs
-            inputs_tensor, model_input_name, model_kwargs = self.model._prepare_model_inputs(
-                inputs, generation_config.bos_token_id, model_kwargs
-            )
-            batch_size = inputs_tensor.shape[0]
-            self.model._prepare_special_tokens(generation_config, kwargs_has_attention_mask, device=inputs_tensor.device)
-
-            logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList([ParlerTTSLogitsProcessor(generation_config.eos_token_id, self.model.decoder.num_codebooks, batch_size, inputs_tensor.device)])
-            stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
-
-            step3 = time.time() - start
-            print("step3: ",step3 * 1000, "ms")
-
-            # 4. Define other model kwargs
-            model_kwargs["use_cache"] = generation_config.use_cache
-
-            if model_kwargs.get("attention_mask", None) is None and requires_attention_mask:
-                model_kwargs["attention_mask"] = self.model._prepare_attention_mask_for_generation(
-                    inputs_tensor, generation_config._pad_token_tensor, generation_config._eos_token_tensor
-                )
-
-            if "encoder_outputs" not in model_kwargs:
-                # encoder_outputs are created and added to `model_kwargs`
-                model_kwargs = self.model._prepare_text_encoder_kwargs_for_generation(
-                    inputs_tensor, model_kwargs, model_input_name, generation_config
-                )
-
-            if "prompt_hidden_states" not in model_kwargs and "prompt_input_ids" in model_kwargs:
-                # `prompt_hidden_states` are created and added to `model_kwargs`
-                model_kwargs = self.model._prepare_prompt_kwargs_for_generation(
-                    model_kwargs["prompt_input_ids"],
-                    model_kwargs,
-                )
-
-            if "decoder_input_ids" not in model_kwargs and "input_values" in model_kwargs:
-                model_kwargs = self.model._prepare_audio_encoder_kwargs_for_generation(
-                    model_kwargs["input_values"],
-                    model_kwargs,
-                )
-
-            step4 = time.time() - start
-            print("step4: ",step4 * 1000, "ms")
-
-            # 5. Prepare `input_ids` which will be used for auto-regressive generation
-            input_ids, model_kwargs = self.model._prepare_decoder_input_ids_for_generation(
-                batch_size=batch_size,
-                model_input_name=model_input_name,
-                model_kwargs=model_kwargs,
-                decoder_start_token_id=generation_config._decoder_start_token_tensor,
-                bos_token_id=generation_config._bos_token_tensor,
-                device=inputs_tensor.device,
+        if (
+            model_kwargs.get("encoder_outputs") is not None
+            and type(model_kwargs["encoder_outputs"]) == tuple
+        ):
+            # wrap the unconditional outputs as a BaseModelOutput for compatibility with the rest of generate
+            model_kwargs["encoder_outputs"] = BaseModelOutput(
+                last_hidden_state=model_kwargs["encoder_outputs"][0]
             )
 
-            step5 = time.time() - start
-            print("step5: ",step5 * 1000, "ms")
+        step1 = time.time() - start
+        print("step1: ", step1 * 1000, "ms")
 
-            # 6. Prepare `max_length` depending on other stopping criteria.
-            input_ids_length = input_ids.shape[-1]
-            has_default_max_length = kwargs.get("max_length") is None and generation_config.max_length is not None
-            has_default_min_length = kwargs.get("min_length") is None and generation_config.min_length is not None
-            generation_config = self.model._prepare_generated_length(
-                generation_config=generation_config,
-                has_default_max_length=has_default_max_length,
-                has_default_min_length=has_default_min_length,
-                model_input_name=model_input_name,
-                inputs_tensor=inputs_tensor,
-                input_ids_length=input_ids_length,
-            )
+        # 2. Set generation parameters if not already defined
+        requires_attention_mask = "encoder_outputs" not in model_kwargs
+        kwargs_has_attention_mask = model_kwargs.get("attention_mask", None) is not None
 
-            if generation_config.cache_implementation is not None and model_kwargs.get("past_key_values") is not None:
-                raise ValueError(
-                    "Passing both `cache_implementation` (used to initialize certain caches) and `past_key_values` (a "
-                    "Cache object) is unsupported. Please use only one of the two."
-                )
-            elif generation_config.cache_implementation is not None:
-                if generation_config.cache_implementation in NEED_SETUP_CACHE_CLASSES_MAPPING:
-                    if generation_config.cache_implementation == "static" and not self.model._supports_static_cache:
-                        raise ValueError(
-                            "This model does not support `cache_implementation='static'`. Please check the following "
-                            "issue: https://github.com/huggingface/transformers/issues/28981"
-                        )
-                    if not self.model.prompt_cross_attention:
-                        # when we prepend prompt_hidden_state to inputs_embeds, max_cache_len needs to be actualised
-                        # generation_config.max_length has already been increased by input_ids_length which is
-                        # already counted in input_embeds_seq_length so we remove it
-                        input_embeds_seq_length = model_kwargs["inputs_embeds"].shape[1]
-                        max_cache_len = generation_config.max_length + input_embeds_seq_length - input_ids_length
-                    else:
-                        max_cache_len = self.model.generation_config.max_length
-                    model_kwargs["past_key_values"] = self.model._get_cache(
-                        generation_config.cache_implementation,
-                        getattr(generation_config, "num_beams", 1) * batch_size,
-                        max_cache_len,
-                        model_kwargs,
+        step2 = time.time() - start
+        print("step2: ", step2 * 1000, "ms")
+
+        # 3. Define model inputs
+        (
+            inputs_tensor,
+            model_input_name,
+            model_kwargs,
+        ) = self.model._prepare_model_inputs(
+            inputs, generation_config.bos_token_id, model_kwargs
+        )
+        batch_size = inputs_tensor.shape[0]
+        self.model._prepare_special_tokens(
+            generation_config, kwargs_has_attention_mask, device=inputs_tensor.device
+        )
+
+        logits_processor = (
+            logits_processor
+            if logits_processor is not None
+            else LogitsProcessorList(
+                [
+                    ParlerTTSLogitsProcessor(
+                        generation_config.eos_token_id,
+                        self.model.decoder.num_codebooks,
+                        batch_size,
+                        inputs_tensor.device,
                     )
-                elif generation_config.cache_implementation == "quantized":
+                ]
+            )
+        )
+        stopping_criteria = (
+            stopping_criteria
+            if stopping_criteria is not None
+            else StoppingCriteriaList()
+        )
+
+        step3 = time.time() - start
+        print("step3: ", step3 * 1000, "ms")
+
+        # 4. Define other model kwargs
+        model_kwargs["use_cache"] = generation_config.use_cache
+
+        if model_kwargs.get("attention_mask", None) is None and requires_attention_mask:
+            model_kwargs[
+                "attention_mask"
+            ] = self.model._prepare_attention_mask_for_generation(
+                inputs_tensor,
+                generation_config._pad_token_tensor,
+                generation_config._eos_token_tensor,
+            )
+
+        if "encoder_outputs" not in model_kwargs:
+            # encoder_outputs are created and added to `model_kwargs`
+            model_kwargs = self.model._prepare_text_encoder_kwargs_for_generation(
+                inputs_tensor, model_kwargs, model_input_name, generation_config
+            )
+
+        if (
+            "prompt_hidden_states" not in model_kwargs
+            and "prompt_input_ids" in model_kwargs
+        ):
+            # `prompt_hidden_states` are created and added to `model_kwargs`
+            model_kwargs = self.model._prepare_prompt_kwargs_for_generation(
+                model_kwargs["prompt_input_ids"], model_kwargs,
+            )
+
+        if "decoder_input_ids" not in model_kwargs and "input_values" in model_kwargs:
+            model_kwargs = self.model._prepare_audio_encoder_kwargs_for_generation(
+                model_kwargs["input_values"], model_kwargs,
+            )
+
+        step4 = time.time() - start
+        print("step4: ", step4 * 1000, "ms")
+
+        # 5. Prepare `input_ids` which will be used for auto-regressive generation
+        input_ids, model_kwargs = self.model._prepare_decoder_input_ids_for_generation(
+            batch_size=batch_size,
+            model_input_name=model_input_name,
+            model_kwargs=model_kwargs,
+            decoder_start_token_id=generation_config._decoder_start_token_tensor,
+            bos_token_id=generation_config._bos_token_tensor,
+            device=inputs_tensor.device,
+        )
+
+        step5 = time.time() - start
+        print("step5: ", step5 * 1000, "ms")
+
+        # 6. Prepare `max_length` depending on other stopping criteria.
+        input_ids_length = input_ids.shape[-1]
+        has_default_max_length = (
+            kwargs.get("max_length") is None
+            and generation_config.max_length is not None
+        )
+        has_default_min_length = (
+            kwargs.get("min_length") is None
+            and generation_config.min_length is not None
+        )
+        generation_config = self.model._prepare_generated_length(
+            generation_config=generation_config,
+            has_default_max_length=has_default_max_length,
+            has_default_min_length=has_default_min_length,
+            model_input_name=model_input_name,
+            inputs_tensor=inputs_tensor,
+            input_ids_length=input_ids_length,
+        )
+
+        if (
+            generation_config.cache_implementation is not None
+            and model_kwargs.get("past_key_values") is not None
+        ):
+            raise ValueError(
+                "Passing both `cache_implementation` (used to initialize certain caches) and `past_key_values` (a "
+                "Cache object) is unsupported. Please use only one of the two."
+            )
+        elif generation_config.cache_implementation is not None:
+            if (
+                generation_config.cache_implementation
+                in NEED_SETUP_CACHE_CLASSES_MAPPING
+            ):
+                if (
+                    generation_config.cache_implementation == "static"
+                    and not self.model._supports_static_cache
+                ):
                     raise ValueError(
-                        "This model does not support the quantized cache. If you want your model to support quantized "
-                        "cache, please open an issue on the Parler-TTS repository https://github.com/huggingface/parler-tts"
+                        "This model does not support `cache_implementation='static'`. Please check the following "
+                        "issue: https://github.com/huggingface/transformers/issues/28981"
                     )
-            # Use DynamicCache() instance by default. This will avoid back and forth from legacy format that
-            # keeps copying the cache thus using much more memory
-            elif generation_config.cache_implementation is None and self.model._supports_default_dynamic_cache():
-                past = model_kwargs.get("past_key_values", None)
-                requires_cross_attention_cache = (
-                    self.model.config.is_encoder_decoder or model_kwargs.get("encoder_outputs") is not None
+                if not self.model.prompt_cross_attention:
+                    # when we prepend prompt_hidden_state to inputs_embeds, max_cache_len needs to be actualised
+                    # generation_config.max_length has already been increased by input_ids_length which is
+                    # already counted in input_embeds_seq_length so we remove it
+                    input_embeds_seq_length = model_kwargs["inputs_embeds"].shape[1]
+                    max_cache_len = (
+                        generation_config.max_length
+                        + input_embeds_seq_length
+                        - input_ids_length
+                    )
+                else:
+                    max_cache_len = self.model.generation_config.max_length
+                model_kwargs["past_key_values"] = self.model._get_cache(
+                    generation_config.cache_implementation,
+                    getattr(generation_config, "num_beams", 1) * batch_size,
+                    max_cache_len,
+                    model_kwargs,
                 )
-                if past is None:
-                    model_kwargs["past_key_values"] = (
-                        DynamicCache()
-                        if not requires_cross_attention_cache
-                        else EncoderDecoderCache(DynamicCache(), DynamicCache())
-                    )
-                elif isinstance(past, tuple):
-                    model_kwargs["past_key_values"] = (
-                        DynamicCache.from_legacy_cache(past)
-                        if not requires_cross_attention_cache
-                        else EncoderDecoderCache.from_legacy_cache(past)
-                    )
-
-            # build the delay pattern mask for offsetting each codebook prediction by 1 (this behaviour is specific to Parler-TTS)
-            delayed_input_ids, decoder_delay_pattern_mask = self.model.decoder.build_delay_pattern_mask(
-                input_ids,
-                bos_token_id=generation_config._bos_token_tensor,
-                pad_token_id=generation_config._pad_token_tensor,
-                max_length=generation_config.max_length,
-            )
-            # stash the delay mask so that we don't have to recompute in each forward pass
-            model_kwargs["decoder_delay_pattern_mask"] = decoder_delay_pattern_mask
-
-            # input_ids are ready to be placed on the streamer (if used)
-            if streamer is not None:
-                streamer.put(delayed_input_ids.cpu())
-
-            step6 = time.time() - start
-            print("step6: ",step6 * 1000, "ms")
-
-            # 7. determine generation mode
-            generation_mode = generation_config.get_generation_mode()
-
-            step7 = time.time() - start
-            print("step7: ",step7 * 1000, "ms")
-
-            # 8. prepare distribution pre_processing samplers
-            logits_processor = self.model._get_logits_processor(
-                generation_config=generation_config,
-                input_ids_seq_length=input_ids_length,
-                encoder_input_ids=inputs_tensor,
-                prefix_allowed_tokens_fn=None,
-                logits_processor=logits_processor,
-                device=delayed_input_ids.device,
-            )
-
-            step8 = time.time() - start
-            print("step8: ",step8 * 1000, "ms")
-
-            # 9. prepare stopping criteria
-            stopping_criteria = self.model._get_stopping_criteria(
-                generation_config=generation_config, stopping_criteria=stopping_criteria
-            )
-
-            step9 = time.time() - start
-            print("step9: ",step9 * 1000, "ms")
-
-            if generation_mode not in (GenerationMode.SAMPLE, GenerationMode.GREEDY_SEARCH):
+            elif generation_config.cache_implementation == "quantized":
                 raise ValueError(
-                    "Got incompatible mode for generation, should be one of greedy or sampling. "
-                    "Ensure that beam search is de-activated by setting `num_beams=1` and `num_beam_groups=1`."
+                    "This model does not support the quantized cache. If you want your model to support quantized "
+                    "cache, please open an issue on the Parler-TTS repository https://github.com/huggingface/parler-tts"
+                )
+        # Use DynamicCache() instance by default. This will avoid back and forth from legacy format that
+        # keeps copying the cache thus using much more memory
+        elif (
+            generation_config.cache_implementation is None
+            and self.model._supports_default_dynamic_cache()
+        ):
+            past = model_kwargs.get("past_key_values", None)
+            requires_cross_attention_cache = (
+                self.model.config.is_encoder_decoder
+                or model_kwargs.get("encoder_outputs") is not None
+            )
+            if past is None:
+                model_kwargs["past_key_values"] = (
+                    DynamicCache()
+                    if not requires_cross_attention_cache
+                    else EncoderDecoderCache(DynamicCache(), DynamicCache())
+                )
+            elif isinstance(past, tuple):
+                model_kwargs["past_key_values"] = (
+                    DynamicCache.from_legacy_cache(past)
+                    if not requires_cross_attention_cache
+                    else EncoderDecoderCache.from_legacy_cache(past)
                 )
 
-            # expand input_ids with `num_return_sequences` additional sequences per batch
-            delayed_input_ids, model_kwargs = self.model._expand_inputs_for_generation(
-                input_ids=delayed_input_ids,
-                expand_size=generation_config.num_return_sequences,
-                is_encoder_decoder=self.model.config.is_encoder_decoder,
-                **model_kwargs,
+        # build the delay pattern mask for offsetting each codebook prediction by 1 (this behaviour is specific to Parler-TTS)
+        (
+            delayed_input_ids,
+            decoder_delay_pattern_mask,
+        ) = self.model.decoder.build_delay_pattern_mask(
+            input_ids,
+            bos_token_id=generation_config._bos_token_tensor,
+            pad_token_id=generation_config._pad_token_tensor,
+            max_length=generation_config.max_length,
+        )
+        # stash the delay mask so that we don't have to recompute in each forward pass
+        model_kwargs["decoder_delay_pattern_mask"] = decoder_delay_pattern_mask
+
+        # input_ids are ready to be placed on the streamer (if used)
+        if streamer is not None:
+            streamer.put(delayed_input_ids.cpu())
+
+        step6 = time.time() - start
+        print("step6: ", step6 * 1000, "ms")
+
+        # 7. determine generation mode
+        generation_mode = generation_config.get_generation_mode()
+
+        step7 = time.time() - start
+        print("step7: ", step7 * 1000, "ms")
+
+        # 8. prepare distribution pre_processing samplers
+        logits_processor = self.model._get_logits_processor(
+            generation_config=generation_config,
+            input_ids_seq_length=input_ids_length,
+            encoder_input_ids=inputs_tensor,
+            prefix_allowed_tokens_fn=None,
+            logits_processor=logits_processor,
+            device=delayed_input_ids.device,
+        )
+
+        step8 = time.time() - start
+        print("step8: ", step8 * 1000, "ms")
+
+        # 9. prepare stopping criteria
+        stopping_criteria = self.model._get_stopping_criteria(
+            generation_config=generation_config, stopping_criteria=stopping_criteria
+        )
+
+        step9 = time.time() - start
+        print("step9: ", step9 * 1000, "ms")
+
+        if generation_mode not in (GenerationMode.SAMPLE, GenerationMode.GREEDY_SEARCH):
+            raise ValueError(
+                "Got incompatible mode for generation, should be one of greedy or sampling. "
+                "Ensure that beam search is de-activated by setting `num_beams=1` and `num_beam_groups=1`."
             )
 
-            pad_token_id = generation_config._pad_token_tensor
-            output_attentions = generation_config.output_attentions
-            output_hidden_states = generation_config.output_hidden_states
-            output_scores = generation_config.output_scores
-            output_logits = generation_config.output_logits
-            return_dict_in_generate = generation_config.return_dict_in_generate
-            max_length = generation_config.max_length
-            has_eos_stopping_criteria = any(hasattr(criteria, "eos_token_id") for criteria in stopping_criteria)
-            do_sample = generation_config.do_sample
+        # expand input_ids with `num_return_sequences` additional sequences per batch
+        delayed_input_ids, model_kwargs = self.model._expand_inputs_for_generation(
+            input_ids=delayed_input_ids,
+            expand_size=generation_config.num_return_sequences,
+            is_encoder_decoder=self.model.config.is_encoder_decoder,
+            **model_kwargs,
+        )
 
-            scores = () if (return_dict_in_generate and output_scores) else None
-            raw_logits = () if (return_dict_in_generate and output_logits) else None
-            decoder_attentions = () if (return_dict_in_generate and output_attentions) else None
-            cross_attentions = () if (return_dict_in_generate and output_attentions) else None
-            decoder_hidden_states = () if (return_dict_in_generate and output_hidden_states) else None
+        pad_token_id = generation_config._pad_token_tensor
+        output_attentions = generation_config.output_attentions
+        output_hidden_states = generation_config.output_hidden_states
+        output_scores = generation_config.output_scores
+        output_logits = generation_config.output_logits
+        return_dict_in_generate = generation_config.return_dict_in_generate
+        max_length = generation_config.max_length
+        has_eos_stopping_criteria = any(
+            hasattr(criteria, "eos_token_id") for criteria in stopping_criteria
+        )
+        do_sample = generation_config.do_sample
 
-            if return_dict_in_generate and self.model.config.is_encoder_decoder:
-                encoder_attentions = model_kwargs["encoder_outputs"].get("attentions") if output_attentions else None
-                encoder_hidden_states = (
-                    model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
-                )
+        scores = () if (return_dict_in_generate and output_scores) else None
+        raw_logits = () if (return_dict_in_generate and output_logits) else None
+        decoder_attentions = (
+            () if (return_dict_in_generate and output_attentions) else None
+        )
+        cross_attentions = (
+            () if (return_dict_in_generate and output_attentions) else None
+        )
+        decoder_hidden_states = (
+            () if (return_dict_in_generate and output_hidden_states) else None
+        )
 
-            expanded_batch_size, cur_len = delayed_input_ids.shape
-            this_peer_finished = False
-            unfinished_sequences = torch.ones(expanded_batch_size, dtype=torch.long, device=delayed_input_ids.device)
-            model_kwargs = self.model._get_initial_cache_position(delayed_input_ids, model_kwargs)
+        if return_dict_in_generate and self.model.config.is_encoder_decoder:
+            encoder_attentions = (
+                model_kwargs["encoder_outputs"].get("attentions")
+                if output_attentions
+                else None
+            )
+            encoder_hidden_states = (
+                model_kwargs["encoder_outputs"].get("hidden_states")
+                if output_hidden_states
+                else None
+            )
 
-            encoder_output =  {
-                "start": start,
-                "delayed_input_ids": delayed_input_ids,
-                "input_ids": input_ids,
-                "model_kwargs": model_kwargs,
-                "logits_processor": logits_processor,
-                "stopping_criteria": stopping_criteria,
-                "generation_config": generation_config,
-                "generation_mode": generation_mode,
-                "streamer": streamer,
-                "pad_token_id": pad_token_id,
-                "output_attentions": output_attentions,
-                "output_hidden_states": output_hidden_states,
-                "output_scores":output_scores,
-                "output_logits":output_logits,
-                "return_dict_in_generate":return_dict_in_generate,
-                "max_length":max_length,
-                "has_eos_stopping_criteria":has_eos_stopping_criteria,
-                "do_sample":do_sample,
-                "scores": scores,
-                "raw_logits":raw_logits,
-                "decoder_attentions": decoder_attentions,
-                "cross_attentions": cross_attentions,
-                "decoder_hidden_states": decoder_hidden_states,
-                "expanded_batch_size": expanded_batch_size,
-                "batch_size": batch_size,
-                "cur_len": cur_len,
-                "this_peer_finished": this_peer_finished,
-                "unfinished_sequences": unfinished_sequences,
-            }
+        expanded_batch_size, cur_len = delayed_input_ids.shape
+        this_peer_finished = False
+        unfinished_sequences = torch.ones(
+            expanded_batch_size, dtype=torch.long, device=delayed_input_ids.device
+        )
+        model_kwargs = self.model._get_initial_cache_position(
+            delayed_input_ids, model_kwargs
+        )
 
-            return  encoder_output
+        encoder_output = {
+            "start": start,
+            "delayed_input_ids": delayed_input_ids,
+            "input_ids": input_ids,
+            "model_kwargs": model_kwargs,
+            "logits_processor": logits_processor,
+            "stopping_criteria": stopping_criteria,
+            "generation_config": generation_config,
+            "generation_mode": generation_mode,
+            "streamer": streamer,
+            "pad_token_id": pad_token_id,
+            "output_attentions": output_attentions,
+            "output_hidden_states": output_hidden_states,
+            "output_scores": output_scores,
+            "output_logits": output_logits,
+            "return_dict_in_generate": return_dict_in_generate,
+            "max_length": max_length,
+            "has_eos_stopping_criteria": has_eos_stopping_criteria,
+            "do_sample": do_sample,
+            "scores": scores,
+            "raw_logits": raw_logits,
+            "decoder_attentions": decoder_attentions,
+            "cross_attentions": cross_attentions,
+            "decoder_hidden_states": decoder_hidden_states,
+            "expanded_batch_size": expanded_batch_size,
+            "batch_size": batch_size,
+            "cur_len": cur_len,
+            "this_peer_finished": this_peer_finished,
+            "unfinished_sequences": unfinished_sequences,
+        }
 
+        return encoder_output
 
     def my_encoder(self, prompts, descriptions):
-        description_input_ids = self.description_tokenizer(descriptions, return_tensors="pt", padding=True).to(device)
-        prompt_input_ids = self.tokenizer(prompts, return_tensors="pt", padding=True).to(device)
+        description_input_ids = self.description_tokenizer(
+            descriptions, return_tensors="pt", padding=True
+        ).to(device)
+        prompt_input_ids = self.tokenizer(
+            prompts, return_tensors="pt", padding=True
+        ).to(device)
         kwargs = dict(
             input_ids=description_input_ids.input_ids,
             attention_mask=description_input_ids.attention_mask,
@@ -338,19 +426,20 @@ class ParlerTTSModelRunner():
         )
         return y_encoder
 
-
     @torch.no_grad()
     def my_decoder(self, y_output, synced_gpus):
 
-        start = y_output['start']
-        output_ids = y_output['delayed_input_ids']
-        input_ids =  y_output['input_ids']
-        model_kwargs = y_output['model_kwargs']
-        generation_config =  y_output['generation_config']
+        start = y_output["start"]
+        output_ids = y_output["delayed_input_ids"]
+        input_ids = y_output["input_ids"]
+        model_kwargs = y_output["model_kwargs"]
+        generation_config = y_output["generation_config"]
         batch_size = y_output["batch_size"]
 
         # Apply the pattern mask to the final ids
-        output_ids = self.model.decoder.apply_delay_pattern_mask(output_ids, model_kwargs["decoder_delay_pattern_mask"])
+        output_ids = self.model.decoder.apply_delay_pattern_mask(
+            output_ids, model_kwargs["decoder_delay_pattern_mask"]
+        )
 
         # Revert the pattern delay mask by filtering the eos and bos token ids from the delay pattern mask
         _, mask = self.model.decoder.build_delay_pattern_mask(
@@ -360,9 +449,12 @@ class ParlerTTSModelRunner():
             max_length=output_ids.shape[1],
         )
 
-
-        mask = (mask != generation_config.bos_token_id) & (mask != generation_config.pad_token_id)
-        output_ids = output_ids[mask].reshape(batch_size, self.model.decoder.num_codebooks, -1)
+        mask = (mask != generation_config.bos_token_id) & (
+            mask != generation_config.pad_token_id
+        )
+        output_ids = output_ids[mask].reshape(
+            batch_size, self.model.decoder.num_codebooks, -1
+        )
 
         # append the frame dimension back to the audio codes
         output_ids = output_ids[None, ...]
@@ -373,7 +465,6 @@ class ParlerTTSModelRunner():
             if audio_scales is None:
                 audio_scales = [None] * batch_size
             audio_decode_kwargs["audio_scales"] = audio_scales
-
 
         if not self.model.use_4dim_audio_codes:
             # remove chunk dim
@@ -387,22 +478,37 @@ class ParlerTTSModelRunner():
 
         if not decode_sequentially:
             output_values = self.model.audio_encoder.decode(
-                audio_codes=output_ids,
-                **audio_decode_kwargs,
+                audio_codes=output_ids, **audio_decode_kwargs,
             ).audio_values.squeeze(1)
             output_lengths = [audio.shape[0] for audio in output_values]
         else:
             output_values = []
             for sample_id in range(batch_size):
-                sample = output_ids[:, sample_id] if self.model.use_4dim_audio_codes else output_ids[sample_id]
-                sample_mask = (sample >= self.model.audio_encoder.config.codebook_size)
-                sample_mask = (sample_mask.sum(dim=(0, 1)) == 0) if self.model.use_4dim_audio_codes else (sample_mask.sum(dim=0) == 0)
+                sample = (
+                    output_ids[:, sample_id]
+                    if self.model.use_4dim_audio_codes
+                    else output_ids[sample_id]
+                )
+                sample_mask = sample >= self.model.audio_encoder.config.codebook_size
+                sample_mask = (
+                    (sample_mask.sum(dim=(0, 1)) == 0)
+                    if self.model.use_4dim_audio_codes
+                    else (sample_mask.sum(dim=0) == 0)
+                )
                 single_audio_decode_kwargs = {}
                 if self.model.use_audio_scales:
-                    single_audio_decode_kwargs["audio_scales"] = [audio_decode_kwargs["audio_scales"][sample_id]]
+                    single_audio_decode_kwargs["audio_scales"] = [
+                        audio_decode_kwargs["audio_scales"][sample_id]
+                    ]
                 if sample_mask.sum() > 0:
-                    sample = sample[:, :, sample_mask] if self.model.use_4dim_audio_codes else sample[:, sample_mask]
-                    sample = self.model.audio_encoder.decode(audio_codes=sample[None, ...], **single_audio_decode_kwargs).audio_values
+                    sample = (
+                        sample[:, :, sample_mask]
+                        if self.model.use_4dim_audio_codes
+                        else sample[:, sample_mask]
+                    )
+                    sample = self.model.audio_encoder.decode(
+                        audio_codes=sample[None, ...], **single_audio_decode_kwargs
+                    ).audio_values
                     sample = sample if sample.ndim == 3 else sample.unsqueeze(0)
                     output_values.append(sample.transpose(0, 2))
                 else:
@@ -410,7 +516,9 @@ class ParlerTTSModelRunner():
                     output_values.append(torch.zeros((1, 1, 1)).to(self.model.device))
             output_lengths = [audio.shape[0] for audio in output_values]
             output_values = (
-                torch.nn.utils.rnn.pad_sequence(output_values, batch_first=True, padding_value=0)
+                torch.nn.utils.rnn.pad_sequence(
+                    output_values, batch_first=True, padding_value=0
+                )
                 .squeeze(-1)
                 .squeeze(-1)
             )
@@ -434,28 +542,39 @@ class ParlerTTSModelRunner():
             for prompt, description in zip(prompts, descriptions)
         ]
         model_inputs = [
-            self.model.prepare_inputs_for_generation(x['delayed_input_ids'], **x['model_kwargs'])
+            self.model.prepare_inputs_for_generation(
+                x["delayed_input_ids"], **x["model_kwargs"]
+            )
             for x in encoder_outputs
         ]
-        
+
         # encoder_outputs
-        encoder_last_hidden_states = torch.cat([x["encoder_outputs"].last_hidden_state for x in model_inputs], dim=1)
-        encoder_outputs = copy.deepcopy(model_inputs[0]["encoder_outputs"]) # copy object
+        encoder_last_hidden_states = torch.cat(
+            [x["encoder_outputs"].last_hidden_state for x in model_inputs], dim=1
+        )
+        encoder_outputs = copy.deepcopy(
+            model_inputs[0]["encoder_outputs"]
+        )  # copy object
         encoder_outputs.last_hidden_state = encoder_last_hidden_states
 
-        decoder_input_ids = torch.cat([x["decoder_input_ids"] for x in model_inputs], dim=1)
-        prompt_hidden_states = torch.cat([x["prompt_hidden_states"] for x in model_inputs],dim=1,)
+        decoder_input_ids = torch.cat(
+            [x["decoder_input_ids"] for x in model_inputs], dim=1
+        )
+        prompt_hidden_states = torch.cat(
+            [x["prompt_hidden_states"] for x in model_inputs], dim=1,
+        )
 
-        prompt_sizes = [x['prompt_hidden_states'].shape[1] for x in model_inputs]
+        prompt_sizes = [x["prompt_hidden_states"].shape[1] for x in model_inputs]
         decoder_sizes = [x["decoder_input_ids"].shape[1] for x in model_inputs]
         description_sizes = [
             x["encoder_outputs"].last_hidden_state.shape[1] for x in model_inputs
         ]
 
-        encoder_attn_mask_float, decoder_attn_mask_float = self.prepare_attention_masks(prompt_sizes, decoder_sizes, description_sizes)
+        encoder_attn_mask_float, decoder_attn_mask_float = self.prepare_attention_masks(
+            prompt_sizes, decoder_sizes, description_sizes
+        )
         print("encoder", (encoder_attn_mask_float[0] > -1).int())
         print("decoder", (decoder_attn_mask_float[0] > -1).int())
-
 
     def prepare_attention_masks(self, prompt_sizes, decoder_sizes, description_sizes):
         def _prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes):
@@ -471,14 +590,15 @@ class ParlerTTSModelRunner():
 
             seq_dec_idxs = [
                 (
-                    list(range(p_cum_sum[seq_idx], p_cum_sum[seq_idx + 1])) + 
-                    list(range(p + d_cum_sum[seq_idx], p+d_cum_sum[seq_idx + 1]))
-                ) for seq_idx in range(n_seq)
+                    list(range(p_cum_sum[seq_idx], p_cum_sum[seq_idx + 1]))
+                    + list(range(p + d_cum_sum[seq_idx], p + d_cum_sum[seq_idx + 1]))
+                )
+                for seq_idx in range(n_seq)
             ]
 
             e_cum_sum = np.cumsum([0, *description_sizes])
             seq_enc_idxs = [
-                list(range(e_cum_sum[seq_idx], e_cum_sum[seq_idx + 1])) 
+                list(range(e_cum_sum[seq_idx], e_cum_sum[seq_idx + 1]))
                 for seq_idx in range(n_seq)
             ]
             return seq_enc_idxs, seq_dec_idxs
@@ -486,7 +606,9 @@ class ParlerTTSModelRunner():
         n_dec = sum(prompt_sizes) + sum(decoder_sizes)
         n_enc = sum(description_sizes)
         n_seq = len(prompt_sizes)
-        seq_enc_idxs, seq_dec_idxs = _prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes)
+        seq_enc_idxs, seq_dec_idxs = _prepare_seq_idxs(
+            prompt_sizes, decoder_sizes, description_sizes
+        )
 
         encoder_attn_mask = torch.zeros((n_dec, n_enc), dtype=torch.bool)
         for seq_idx in range(n_seq):
@@ -495,11 +617,20 @@ class ParlerTTSModelRunner():
                     encoder_attn_mask[i, j] = 1
 
         # make 4d
-        encoder_attn_mask = encoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
-        encoder_attn_mask_float = torch.full(encoder_attn_mask.shape, float("-inf"), dtype=self.model.dtype, device=self.model.device)
+        encoder_attn_mask = (
+            encoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
+        )
+        encoder_attn_mask_float = torch.full(
+            encoder_attn_mask.shape,
+            float("-inf"),
+            dtype=self.model.dtype,
+            device=self.model.device,
+        )
         encoder_attn_mask_float[encoder_attn_mask] = 0
 
-        decoder_attn_mask = torch.zeros((n_dec, n_dec), dtype=torch.bool, device=self.model.device)
+        decoder_attn_mask = torch.zeros(
+            (n_dec, n_dec), dtype=torch.bool, device=self.model.device
+        )
         for seq_idx in range(n_seq):
             for i in seq_dec_idxs[seq_idx]:
                 for j in seq_dec_idxs[seq_idx]:
@@ -507,89 +638,104 @@ class ParlerTTSModelRunner():
                         decoder_attn_mask[i, j] = 1
 
         # make 4d
-        decoder_attn_mask = decoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
-        decoder_attn_mask_float = torch.full(decoder_attn_mask.shape, float("-inf"), dtype=self.model.dtype, device=self.model.device)
+        decoder_attn_mask = (
+            decoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
+        )
+        decoder_attn_mask_float = torch.full(
+            decoder_attn_mask.shape,
+            float("-inf"),
+            dtype=self.model.dtype,
+            device=self.model.device,
+        )
         decoder_attn_mask_float[decoder_attn_mask] = 0
 
         return encoder_attn_mask_float, decoder_attn_mask_float
 
-
     @torch.no_grad()
     def model_step(self, y_encoder, synced_gpus):
 
-            delayed_input_ids = y_encoder["delayed_input_ids"]
-            cur_len = y_encoder["cur_len"]
-            this_peer_finished = y_encoder["this_peer_finished"]
-            unfinished_sequences = y_encoder["unfinished_sequences"]
-            model_kwargs = y_encoder["model_kwargs"]
+        delayed_input_ids = y_encoder["delayed_input_ids"]
+        cur_len = y_encoder["cur_len"]
+        this_peer_finished = y_encoder["this_peer_finished"]
+        unfinished_sequences = y_encoder["unfinished_sequences"]
+        model_kwargs = y_encoder["model_kwargs"]
 
-            logits_processor = y_encoder["logits_processor"]
-            stopping_criteria = y_encoder["stopping_criteria"]
-            streamer = y_encoder["streamer"]
-            pad_token_id = y_encoder["pad_token_id"]
-            do_sample = y_encoder["do_sample"]
-            has_eos_stopping_criteria = y_encoder["has_eos_stopping_criteria"]
-            output_attentions =y_encoder["output_attentions"]
-            output_hidden_states = y_encoder["output_hidden_states"]
-            scores = y_encoder["scores"]
+        logits_processor = y_encoder["logits_processor"]
+        stopping_criteria = y_encoder["stopping_criteria"]
+        streamer = y_encoder["streamer"]
+        pad_token_id = y_encoder["pad_token_id"]
+        do_sample = y_encoder["do_sample"]
+        has_eos_stopping_criteria = y_encoder["has_eos_stopping_criteria"]
+        output_attentions = y_encoder["output_attentions"]
+        output_hidden_states = y_encoder["output_hidden_states"]
+        scores = y_encoder["scores"]
 
-            model_inputs = self.model.prepare_inputs_for_generation(delayed_input_ids, **model_kwargs) 
-            model_inputs.update({"output_attentions": output_attentions} if output_attentions else {})
-            model_inputs.update({"output_hidden_states": output_hidden_states} if output_hidden_states else {})
+        model_inputs = self.model.prepare_inputs_for_generation(
+            delayed_input_ids, **model_kwargs
+        )
+        model_inputs.update(
+            {"output_attentions": output_attentions} if output_attentions else {}
+        )
+        model_inputs.update(
+            {"output_hidden_states": output_hidden_states}
+            if output_hidden_states
+            else {}
+        )
 
-
-            for k, v in model_inputs.items():
-                if isinstance(v, torch.Tensor):
-                    print(k, v.shape)
-                else:
-                    print(k, type(v))
-
-            print("-------------")
-            outputs = self.model(**model_inputs, return_dict=True)
-            model_kwargs = self.model._update_model_kwargs_for_generation(
-                outputs,
-                model_kwargs,
-                is_encoder_decoder=self.model.config.is_encoder_decoder,
-            )
-
-            if synced_gpus and this_peer_finished:
-                # continue
-                y_encoder["cur_len"] += 1
-                return y_encoder
-
-            next_token_logits = outputs.logits.clone()[:, -1, :].float()
-            next_token_logits = next_token_logits.to(delayed_input_ids.device)
-            next_token_scores = logits_processor(delayed_input_ids, next_token_logits)
-
-            if do_sample:
-                probs = nn.functional.softmax(next_token_scores, dim=-1)
-                next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
+        for k, v in model_inputs.items():
+            if isinstance(v, torch.Tensor):
+                print(k, v.shape)
             else:
-                next_tokens = torch.argmax(next_token_scores, dim=-1)
+                print(k, type(v))
 
-            if has_eos_stopping_criteria:
-                next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
+        print("-------------")
+        outputs = self.model(**model_inputs, return_dict=True)
+        model_kwargs = self.model._update_model_kwargs_for_generation(
+            outputs,
+            model_kwargs,
+            is_encoder_decoder=self.model.config.is_encoder_decoder,
+        )
 
-
-            delayed_input_ids = torch.cat([delayed_input_ids, next_tokens[:, None]], dim=-1)
-            if streamer is not None:
-                streamer.put(next_tokens.cpu())
-
-            unfinished_sequences = unfinished_sequences & ~stopping_criteria(delayed_input_ids, scores)
-
-            this_peer_finished = unfinished_sequences.max() == 0
-            cur_len += 1
-
-            del outputs
-
-            y_encoder["delayed_input_ids"] = delayed_input_ids
-            y_encoder["model_kwargs"] = model_kwargs
-            y_encoder["unfinished_sequences"] = unfinished_sequences
-            y_encoder["this_peer_finished"] = this_peer_finished
-            y_encoder["cur_len"] = cur_len
-
+        if synced_gpus and this_peer_finished:
+            # continue
+            y_encoder["cur_len"] += 1
             return y_encoder
 
+        next_token_logits = outputs.logits.clone()[:, -1, :].float()
+        next_token_logits = next_token_logits.to(delayed_input_ids.device)
+        next_token_scores = logits_processor(delayed_input_ids, next_token_logits)
+
+        if do_sample:
+            probs = nn.functional.softmax(next_token_scores, dim=-1)
+            next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
+        else:
+            next_tokens = torch.argmax(next_token_scores, dim=-1)
+
+        if has_eos_stopping_criteria:
+            next_tokens = next_tokens * unfinished_sequences + pad_token_id * (
+                1 - unfinished_sequences
+            )
+
+        delayed_input_ids = torch.cat([delayed_input_ids, next_tokens[:, None]], dim=-1)
+        if streamer is not None:
+            streamer.put(next_tokens.cpu())
+
+        unfinished_sequences = unfinished_sequences & ~stopping_criteria(
+            delayed_input_ids, scores
+        )
+
+        this_peer_finished = unfinished_sequences.max() == 0
+        cur_len += 1
+
+        del outputs
+
+        y_encoder["delayed_input_ids"] = delayed_input_ids
+        y_encoder["model_kwargs"] = model_kwargs
+        y_encoder["unfinished_sequences"] = unfinished_sequences
+        y_encoder["this_peer_finished"] = this_peer_finished
+        y_encoder["cur_len"] = cur_len
+
+        return y_encoder
 
     def stopping_check(self, y_output, synced_gpus):
         return self.model._has_unfinished_sequences(
@@ -602,38 +748,38 @@ class ParlerTTSModelRunner():
 
     @torch.no_grad()
     def my_generate(
-            self:ParlerTTSForConditionalGeneration,
-            prompts,
-            descriptions,
-            synced_gpus=None
-        ):
+        self: ParlerTTSForConditionalGeneration, prompts, descriptions, synced_gpus=None
+    ):
 
-            y_encoder = self.my_encoder(prompts, descriptions)
-            y_output = y_encoder
-            while self.stopping_check(y_output, synced_gpus):
-                y_output = self.model_step(y_output, synced_gpus)
+        y_encoder = self.my_encoder(prompts, descriptions)
+        y_output = y_encoder
+        while self.stopping_check(y_output, synced_gpus):
+            y_output = self.model_step(y_output, synced_gpus)
 
-            step10 = time.time() - y_encoder["start"]
-            print("step10: ",step10 * 1000, "ms")
+        step10 = time.time() - y_encoder["start"]
+        print("step10: ", step10 * 1000, "ms")
 
-            decoder_output = self.my_decoder(y_output, synced_gpus)
+        decoder_output = self.my_decoder(y_output, synced_gpus)
 
-            return decoder_output
+        return decoder_output
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     bs = 1
     num_tries = 1
 
-    prompts = ["अरे, तुम आज कैसे हो?",
-                "अरे, तुम आज कैसे हो? आपका नाम क्या है?",
-                "अरे, आपका नाम क्या है? तुम आज कैसे हो? मेरा नाम विद्या है!"]
+    prompts = [
+        "अरे, तुम आज कैसे हो?",
+        "अरे, तुम आज कैसे हो? आपका नाम क्या है?",
+        "अरे, आपका नाम क्या है? तुम आज कैसे हो? मेरा नाम विद्या है!",
+    ]
 
-    descriptions = ["Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
-                    "male voice's voice is very loud yet slightly slow in delivery, with a very close recording.",
-                    "Female voice is sweet yet slightly fast in delivery, with a very close recording that almost has no background noise."]
+    descriptions = [
+        "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
+        "male voice's voice is very loud yet slightly slow in delivery, with a very close recording.",
+        "Female voice is sweet yet slightly fast in delivery, with a very close recording that almost has no background noise.",
+    ]
 
     runner = ParlerTTSModelRunner()
     # generation = runner.my_generate(prompts=prompts, descriptions =descriptions)
@@ -641,4 +787,3 @@ if __name__ == '__main__':
     # for idx, track in enumerate(audio_arr):
     #     sf.write(f"indic_tts_output_{idx}.wav", track, runner.model.config.sampling_rate)
     runner.model_prefill(prompts, descriptions)
-

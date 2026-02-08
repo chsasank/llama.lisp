@@ -146,9 +146,7 @@ class FlanT5ModelRunner:
 
         # encoder
         encoder_outputs = self.model.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            return_dict=True,
+            input_ids=input_ids, attention_mask=attention_mask, return_dict=True,
         )
         encoder_hidden_states = encoder_outputs.last_hidden_state
 
@@ -231,25 +229,16 @@ with torch.inference_mode():
     messages_batch = [
         # Prompt 1
         [
-            {
-                "role": "system",
-                "content": "You are Qwen, created by Alibaba Cloud.",
-            },
+            {"role": "system", "content": "You are Qwen, created by Alibaba Cloud.",},
             {"role": "user", "content": "What is Grok in one short sentence?"},
         ],
         # Prompt 2
         [
-            {
-                "role": "system",
-                "content": "You are Qwen, created by Alibaba Cloud.",
-            },
+            {"role": "system", "content": "You are Qwen, created by Alibaba Cloud.",},
             {"role": "user", "content": "Give me a haiku about the moon."},
         ],
         [
-            {
-                "role": "system",
-                "content": "You are Qwen, created by Alibaba Cloud.",
-            },
+            {"role": "system", "content": "You are Qwen, created by Alibaba Cloud.",},
             {"role": "user", "content": "Give me a haiku about the moon."},
         ],
     ]
