@@ -3,12 +3,11 @@ import transformers
 
 
 # Same class for encoder and decoder cache mostly
-class BlockedKVCacheManager:
+class SimpleKVCacheManager:
     def __init__(
-        self, max_blocks, block_size, num_layers, num_heads, hidden_dim, dtype, device
+        self, max_size, num_layers, num_heads, hidden_dim, dtype, device
     ):
-        self.max_blocks = max_blocks
-        self.block_size = block_size
+        self.max_size = max_size
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.hidden_dim = hidden_dim
@@ -21,16 +20,15 @@ class BlockedKVCacheManager:
         # kv cache shape for a layer/k
         # bs x num_heads x seq_size x hidden_dim
         # assume bs = 1 and we are doing blocked, so seq_size will by expanded
-        # to max_blocks, block_size. So final shape is
-        # num_layers x 2 x bs x num_heads x max_blocks x block_size x hidden_dim
+        # to max_size. So final shape is
+        # num_layers x 2 x bs x num_heads x max_size x hidden_dim
         self.kv_cache = torch.zeros(
             [
                 self.num_layers,
                 self.kv,
                 self.batch_size,
                 self.num_heads,
-                self.max_blocks,
-                self.block_size,
+                self.max_size
                 self.hidden_dim,
             ],
             dtype=dtype,
