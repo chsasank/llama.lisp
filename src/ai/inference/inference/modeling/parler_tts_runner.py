@@ -533,48 +533,48 @@ class ParlerTTSModelRunner:
             print("End: ", end * 1000, "ms")
 
             return output_values
-    
-    def prepare_attention_masks(self, prompt_sizes, decoder_sizes, description_sizes):
-        def _prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes):
-            p = sum(prompt_sizes)
-            d = sum(decoder_sizes)
-            n_dec = p + d
-            n_enc = sum(description_sizes)
-            n_seq = len(prompt_sizes)
 
-            seq_dec_idxs = []
-            p_cum_sum = np.cumsum([0, *prompt_sizes])
-            d_cum_sum = np.cumsum([0, *decoder_sizes])
-
-            seq_dec_idxs = [
-                (
-                    list(range(p_cum_sum[seq_idx], p_cum_sum[seq_idx + 1]))
-                    + list(range(p + d_cum_sum[seq_idx], p + d_cum_sum[seq_idx + 1]))
-                )
-                for seq_idx in range(n_seq)
-            ]
-
-            e_cum_sum = np.cumsum([0, *description_sizes])
-            seq_enc_idxs = [
-                list(range(e_cum_sum[seq_idx], e_cum_sum[seq_idx + 1]))
-                for seq_idx in range(n_seq)
-            ]
-            return seq_enc_idxs, seq_dec_idxs
-
-        n_dec = sum(prompt_sizes) + sum(decoder_sizes)
+    def _prepare_seq_idxs(self, prompt_sizes, decoder_sizes, description_sizes):
+        p = sum(prompt_sizes)
+        d = sum(decoder_sizes)
+        n_dec = p + d
         n_enc = sum(description_sizes)
         n_seq = len(prompt_sizes)
-        seq_enc_idxs, seq_dec_idxs = _prepare_seq_idxs(
-            prompt_sizes, decoder_sizes, description_sizes
-        )
 
-        encoder_attn_mask = torch.zeros((n_dec, n_enc), dtype=torch.bool)
+        seq_dec_idxs = []
+        p_cum_sum = np.cumsum([0, *prompt_sizes])
+        d_cum_sum = np.cumsum([0, *decoder_sizes])
+
+        seq_dec_idxs = [
+            (
+                list(range(p_cum_sum[seq_idx], p_cum_sum[seq_idx + 1]))
+                + list(range(p + d_cum_sum[seq_idx], p + d_cum_sum[seq_idx + 1]))
+            )
+            for seq_idx in range(n_seq)
+        ]
+
+        e_cum_sum = np.cumsum([0, *description_sizes])
+        seq_enc_idxs = [
+            list(range(e_cum_sum[seq_idx], e_cum_sum[seq_idx + 1]))
+            for seq_idx in range(n_seq)
+        ]
+
+        decoder_position_ids = torch.zeros(n_dec, dtype=torch.long)
+        decoder_sequence_ids = torch.zeros(n_dec, dtype=torch.long)
+        encoder_sequence_ids = torch.zeros(n_enc, dtype=torch.long)
         for seq_idx in range(n_seq):
-            for i in seq_dec_idxs[seq_idx]:
-                for j in seq_enc_idxs[seq_idx]:
-                    encoder_attn_mask[i, j] = 1
+            decoder_position_ids[seq_dec_idxs[seq_idx]] = torch.arange(
+                len(seq_dec_idxs[seq_idx])
+            )
+            decoder_sequence_ids[seq_dec_idxs[seq_idx]] = seq_idx
+            encoder_sequence_ids[seq_enc_idxs[seq_idx]] = seq_idx
 
-        # make 4d
+        return decoder_position_ids, decoder_sequence_ids, encoder_sequence_ids
+
+    def prepare_attention_masks(self, decoder_sequence_ids, encoder_sequence_ids):
+        encoder_attn_mask = (
+            decoder_sequence_ids[:, None] == encoder_sequence_ids[None, :]
+        )
         encoder_attn_mask = (
             encoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
         )
@@ -586,16 +586,10 @@ class ParlerTTSModelRunner:
         )
         encoder_attn_mask_float[encoder_attn_mask] = 0
 
-        decoder_attn_mask = torch.zeros(
-            (n_dec, n_dec), dtype=torch.bool, device=self.model.device
+        decoder_attn_mask = (
+            decoder_sequence_ids[:, None] == decoder_sequence_ids[None, :]
         )
-        for seq_idx in range(n_seq):
-            for i in seq_dec_idxs[seq_idx]:
-                for j in seq_dec_idxs[seq_idx]:
-                    if i >= j:
-                        decoder_attn_mask[i, j] = 1
-
-        # make 4d
+        decoder_attn_mask = torch.tril(decoder_attn_mask)
         decoder_attn_mask = (
             decoder_attn_mask.unsqueeze(0).unsqueeze(0).to(self.model.device)
         )
@@ -606,21 +600,12 @@ class ParlerTTSModelRunner:
             device=self.model.device,
         )
         decoder_attn_mask_float[decoder_attn_mask] = 0
-
-        decoder_position_ids = torch.zeros(n_dec, dtype=torch.long)
-        decoder_sequence_ids = torch.zeros(n_dec, dtype=torch.long)
-        for seq_idx in range(n_seq): 
-            decoder_position_ids[seq_dec_idxs[seq_idx]] = torch.arange(len(seq_dec_idxs[seq_idx]))
-            decoder_sequence_ids[seq_dec_idxs[seq_idx]] = seq_idx
-        decoder_position_ids = decoder_position_ids.unsqueeze(0).to(self.model.device)
-        decoder_sequence_ids = decoder_sequence_ids.unsqueeze(0).to(self.model.device)
-    
-        return encoder_attn_mask_float, decoder_attn_mask_float, decoder_position_ids, decoder_sequence_ids
+        return encoder_attn_mask_float, decoder_attn_mask_float
 
     def model_prefill(self, prompts, descriptions):
         # no batching of encoder for now
         encoder_outputs = [
-            my_encoder([prompt], [description])
+            self.my_encoder([prompt], [description])
             for prompt, description in zip(prompts, descriptions)
         ]
         # Not nice
@@ -655,8 +640,13 @@ class ParlerTTSModelRunner:
             x["encoder_outputs"].last_hidden_state.shape[1] for x in model_inputs
         ]
 
-        encoder_attn_mask_float, decoder_attn_mask_float, decoder_position_ids, decoder_sequence_ids = self.prepare_attention_masks(
-            prompt_sizes, decoder_sizes, description_sizes
+        (
+            decoder_position_ids,
+            decoder_sequence_ids,
+            encoder_sequence_ids,
+        ) = self._prepare_seq_idxs(prompt_sizes, decoder_sizes, description_sizes)
+        encoder_attn_mask_float, decoder_attn_mask_float = self.prepare_attention_masks(
+            decoder_sequence_ids, encoder_sequence_ids
         )
 
         past_key_values = EncoderDecoderCache(DynamicCache(), DynamicCache())
@@ -665,21 +655,22 @@ class ParlerTTSModelRunner:
             attention_mask=encoder_attn_mask_float,
             prompt_hidden_states=prompt_hidden_states,
             decoder_input_ids=decoder_input_ids,
-            decoder_position_ids=decoder_position_ids,
+            decoder_position_ids=decoder_position_ids.unsqueeze(0).to(
+                self.model.device
+            ),
             decoder_attention_mask=decoder_attn_mask_float,
             past_key_values=past_key_values,
-            use_cache=True
+            use_cache=True,
         )
         model_state = {
             "encoder_outputs": encoder_outputs,
-            "encoder_attention_mask": encoder_attn_mask_float,
-            "prompt_hidden_states": prompt_hidden_states,
             "decoder_input_ids": decoder_input_ids,
             "decoder_position_ids": decoder_position_ids,
-            "decoder_attention_mask": decoder_attn_mask_float,
             "past_key_values": model_out.past_key_values,
             "logits": model_out.logits,
-            "decoder_sequence_ids": decoder_sequence_ids
+            "decoder_sequence_ids": decoder_sequence_ids,
+            "encoder_sequence_ids": encoder_sequence_ids,
+            "num_seq": len(prompts),
         }
         model_state = self._sample(model_state)
         return model_state
@@ -688,13 +679,56 @@ class ParlerTTSModelRunner:
         num_seq = model_state["decoder_sequence_ids"].max() + 1
         delayed_input_ids = model_state["decoder_input_ids"]
         next_token_logits = model_state["logits"].float().to(delayed_input_ids.device)
-        next_tokens = torch.argmax(next_token_logits, dim=-1)[:, -num_seq:]     
+        next_tokens = torch.argmax(next_token_logits, dim=-1)[:, -num_seq:]
         delayed_input_ids = torch.cat([delayed_input_ids, next_tokens], dim=1)
         model_state["decoder_input_ids"] = delayed_input_ids
+
+        model_state["decoder_sequence_ids"] = torch.cat(
+            [
+                model_state["decoder_sequence_ids"],
+                torch.arange(0, num_seq, dtype=torch.long),
+            ]
+        )
+        model_state["decoder_position_ids"] = torch.cat(
+            [
+                model_state["decoder_position_ids"],
+                model_state["decoder_position_ids"][-num_seq:] + 1,
+            ]
+        )
+        return model_state
+
+    def model_step(self, model_state):
+        num_seq = model_state["num_seq"]
+        encoder_attn_mask_float, decoder_attn_mask_float = self.prepare_attention_masks(
+            model_state["decoder_sequence_ids"], model_state["encoder_sequence_ids"]
+        )
+        decoder_input_ids = model_state["decoder_input_ids"][:, -num_seq:]
+        decoder_position_ids = (
+            model_state["decoder_position_ids"][-num_seq:]
+            .unsqueeze(0)
+            .to(self.model.device)
+        )
+
+        decoder_attn_mask_float = decoder_attn_mask_float[:, :, -num_seq:]
+        encoder_attn_mask_float = encoder_attn_mask_float[:, :, -num_seq:]
+
+        model_out = self.model(
+            encoder_outputs=model_state["encoder_outputs"],
+            attention_mask=encoder_attn_mask_float,
+            decoder_input_ids=decoder_input_ids,
+            decoder_position_ids=decoder_position_ids,
+            decoder_attention_mask=decoder_attn_mask_float,
+            past_key_values=model_state["past_key_values"],
+            use_cache=True,
+        )
+
+        model_state["past_key_values"] = model_out.past_key_values
+        model_state["logits"] = model_out.logits
+        model_state = self._sample(model_state)
         return model_state
 
     @torch.no_grad()
-    def model_step(self, y_encoder, synced_gpus):
+    def _model_step_copy(self, y_encoder, synced_gpus):
 
         delayed_input_ids = y_encoder["delayed_input_ids"]
         cur_len = y_encoder["cur_len"]
