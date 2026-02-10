@@ -53,23 +53,23 @@ const defaultConfigs = {
         "postgres": `{
     "host": "HOST",
     "port": "PORT",
-    "user": "USER NAME",
+    "user": "USER_NAME",
     "password": "PASSWORD",
-    "database": "DATABASE NAME"
+    "database": "DATABASE_NAME"
 }`,
         "mssql": `{
     "host": "HOST",
     "port": "PORT",
-    "user": "USER NAME",
+    "user": "USER_NAME",
     "password": "PASSWORD",
-    "database": "DATABASE NAME"
+    "database": "DATABASE_NAME"
 }`,
         "oracle": `{
     "host": "HOST",
     "port": "PORT",
-    "user": "USER NAME",
+    "user": "USER_NAME",
     "password": "PASSWORD",
-    "service": "SERVICE NAME"
+    "service": "SERVICE_NAME"
 }`
     },
 
@@ -77,16 +77,16 @@ const defaultConfigs = {
         "postgres": `{
     "host": "HOST",
     "port": "PORT",
-    "user": "USER NAME",
+    "user": "USER_NAME",
     "password": "PASSWORD",
-    "database": "DATABASE NAME"
+    "database": "DATABASE_NAME"
 }`,
         "clickhouse": `{
     "host": "HOST",
     "port": "PORT",
-    "user": "USER NAME",
+    "user": "USER_NAME",
     "password": "PASSWORD",
-    "database": "DATABASE NAME"
+    "database": "DATABASE_NAME"
 }`
     }
 };
@@ -105,7 +105,7 @@ function handleAddMode() {
         if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
             configTextarea.value = defaultConfigs[etl][db];
         } else {
-            configTextarea.value = "Null";
+            configTextarea.value = "{}";
         }
     }
 
