@@ -21,9 +21,10 @@ class DatabaseConfiguration(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
+        id = self.connection_config.get("id")
         host = self.connection_config.get("host")
         port = self.connection_config.get("port")
-        return f"{self.etl_type.upper()} | {self.database_type} | {host}:{port}"
+        return f"#{self.id} | {self.etl_type.upper()} | {self.database_type.upper()} | {host}:{port}"
 
 
 class ETLConfiguration(models.Model):

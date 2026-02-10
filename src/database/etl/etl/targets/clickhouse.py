@@ -2,6 +2,7 @@ import logging
 
 import clickhouse_connect
 from etl.common import ETLDataTypes, TargetDriver
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,18 @@ class ClickhouseTarget(TargetDriver):
             password=cfg["password"],
             database=cfg["database"],
         )
+        
+    def _normalize_value(self, value, etl_dtype):
+        if value is None:
+            return None
+        
+        # MSSQL DATE values arrive as datetime.date ClickHouse DateTime64 requires a datetime.datetime object.
+        # Convert date → datetime at midnight to avoid driver serialization errors.
+        if etl_dtype in (ETLDataTypes.DATE, ETLDataTypes.DATE_TIME):
+            if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+                return datetime.datetime.combine(value, datetime.time.min)
+
+        return value
 
     def ch_data_types(self, etl_dtype):
         if etl_dtype == ETLDataTypes.INTEGER:
@@ -28,10 +41,8 @@ class ClickhouseTarget(TargetDriver):
             return "Float64"
         elif etl_dtype == ETLDataTypes.BOOLEAN:
             return "UInt8"
-        elif etl_dtype == ETLDataTypes.DATE_TIME:
+        elif etl_dtype in (ETLDataTypes.DATE, ETLDataTypes.DATE_TIME):
             return "DateTime64(3)"
-        elif etl_dtype == ETLDataTypes.DATE:
-            return "Date"
         elif etl_dtype == ETLDataTypes.TIME:
             return "String"
         elif etl_dtype == ETLDataTypes.TIME_INTERVAL:
@@ -108,4 +119,12 @@ class ClickhouseTarget(TargetDriver):
         col_types = [dtype for _, dtype in etl_schema["columns"]]
 
         # Bulk insert (ReplacingMergeTree performs UPSERT automatically)
-        self.client.insert(full_table, rows, column_names=columns)
+        normalized_rows = [
+            [
+                self._normalize_value(value, dtype)
+                for value, dtype in zip(row, col_types)
+            ]
+            for row in rows
+        ]
+
+        self.client.insert(full_table, normalized_rows, column_names=columns)

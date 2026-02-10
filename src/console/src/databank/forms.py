@@ -5,7 +5,7 @@ from .models import DatabaseConfiguration, ETLConfiguration
 class DatabaseConfigurationForm(forms.ModelForm):
     class Meta:
         model = DatabaseConfiguration
-        fields = ["etl_type", "database_type", "connection_config"]
+        fields = ["id", "etl_type", "database_type", "connection_config"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -14,8 +14,14 @@ class DatabaseConfigurationForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.update(
                 {
-                    "class": "w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm "
-                    "text-slate-100 focus:outline-none focus:border-consoleAccent"
+                    "class": (
+                        "w-full rounded-md px-3 py-2 text-sm font-mono "
+                        "bg-black/70 border border-consoleBorder text-slate-100 "
+                        "hover:border-consoleAccent/60 "
+                        "focus:outline-none focus:ring-1 focus:ring-consoleAccent "
+                        "focus:border-consoleAccent "
+                        "transition duration-150 ease-in-out"
+                    )
                 }
             )
 
@@ -35,13 +41,22 @@ class ETLConfigurationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        self.fields["source_database"].queryset = DatabaseConfiguration.objects.filter(etl_type="source")
+        self.fields["target_database"].queryset = DatabaseConfiguration.objects.filter(etl_type="target")
 
         # Styling
         for field in self.fields.values():
             field.widget.attrs.update(
                 {
-                    "class": "w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm "
-                    "text-slate-100 focus:outline-none focus:border-consoleAccent"
+                    "class": (
+                        "w-full rounded-md px-3 py-2 text-sm font-mono "
+                        "bg-black/70 border border-consoleBorder text-slate-100 "
+                        "hover:border-consoleAccent/60 "
+                        "focus:outline-none focus:ring-1 focus:ring-consoleAccent "
+                        "focus:border-consoleAccent "
+                        "transition duration-150 ease-in-out"
+                    )
                 }
             )
 

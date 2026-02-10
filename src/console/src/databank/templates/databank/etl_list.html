@@ -6,6 +6,30 @@
         <h2 class="text-xl font-semibold text-consoleAccent">
             $ List ETLs
         </h2>
+
+        <div class="relative w-full md:w-96">
+            <input
+                id="etlSearch"
+                type="text"
+                placeholder="Search ETLs (table, db id, type...)"
+                class="w-full bg-black/60 border border-consoleBorder rounded
+                    px-3 py-2 pr-10 text-sm text-slate-100
+                    focus:outline-none focus:border-consoleAccent"
+            />
+
+            <button
+                id="clearSearch"
+                type="button"
+                class="absolute right-3 top-1/2 -translate-y-1/2
+                    z-10 text-slate-400 hover:text-white
+                    text-lg cursor-pointer opacity-0 pointer-events-none
+                    transition-opacity duration-150"
+                aria-label="Clear search"
+            >
+                ✕
+            </button>
+        </div>
+
         <div class="flex gap-2">
             <a href="{% url 'etl_create' %}"
                class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
@@ -14,13 +38,27 @@
         </div>
     </div>
 
-    <section class="border border-consoleBorder rounded-lg bg-black/40 p-4">
+    <section class="border border-consoleBorder rounded-lg bg-black/40 p-4 ">
+        <p id="etlNotFound"
+        class="hidden text-sm text-slate-400 text-center py-6">
+        </p>
         {% if etls %}
             <div class="space-y-3">
                 {% for e in etls %}
-                    <div class="border border-consoleBorder rounded-md px-3 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:border-consoleAccent/70">
+                    <div
+                        class="etl-row border border-consoleBorder rounded-md px-3 py-2
+                                flex flex-col md:flex-row md:items-center md:justify-between
+                                gap-3 hover:border-consoleAccent/70"
+                        data-search="
+                            {{ e.source_table }}
+                            {{ e.target_table }}
+                            {{ e.source_database.database_type }}
+                            {{ e.source_database.id }}
+                            {{ e.target_database.database_type }}
+                            {{ e.target_database.id }}
+                        ">
                         <div>
-                            <div class="text-sm text-slate-100">
+                            <div class="text-sm text-slate-100 truncate max-w-xl">
                                 <span class="text-consoleAccent">{{ e.source_table }}</span>
                                 <span class="text-slate-500"> → </span>
                                 <span class="text-slate-200">{{ e.target_table }}</span>
@@ -30,13 +68,13 @@
                                 tgt: {{ e.target_database.database_type }} (#{{ e.target_database.id }})
                             </div>
                         </div>
-                        <div class="flex gap-2 text-xs">
+                        <div class="flex items-center gap-3 text-xs">
                             <a href="{% url 'etl_edit' e.id %}"
-                               class="px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
+                            class="px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
                                 Edit
                             </a>
                             <a onclick="openDeleteModel('{{ e.id }}', 'ETL config')"
-                            class="text-xs mx-2 px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
+                            class="px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
                                 Delete
                             </a>
                         </div>
@@ -78,6 +116,23 @@
     </div>
 </div>
 
+<!-- Scroll to Top Button -->
+<button
+    id="scrollToTopBtn"
+    class="fixed bottom-6 right-[calc(max(1.5rem,(100vw-72rem)/2-4rem))] z-50
+           hidden opacity-0
+           bg-black/70 border border-2 border-consoleBorder
+           text-consoleAccent text-2xl font-extrabold
+           rounded-full w-12 h-12
+           flex items-center justify-center
+           hover:border-consoleAccent hover:bg-black
+           transition-all duration-200
+           shadow-lg"
+    aria-label="Scroll to top"
+>
+    ↑
+</button>
+
 <!-- JS to handle the delete model -->
 <script>
     function openDeleteModel(id, label) {
@@ -97,5 +152,69 @@
     function closeDeleteModel() {
         document.getElementById("deleteModel").classList.add("hidden");
     }
+</script>
+
+<script>
+const searchInput = document.getElementById("etlSearch");
+const notFoundMsg = document.getElementById("etlNotFound");
+const clearBtn = document.getElementById("clearSearch");
+
+searchInput.addEventListener("input", function () {
+    const query = this.value.toLowerCase();
+    let visibleCount = 0;
+
+    document.querySelectorAll(".etl-row").forEach(row => {
+        const text = row.dataset.search.toLowerCase();
+        const match = text.includes(query);
+        row.style.display = match ? "" : "none";
+        if (match) visibleCount++;
+    });
+
+    if (query && visibleCount === 0) {
+        notFoundMsg.textContent = `"${this.value}" is not found!!`;
+        notFoundMsg.classList.remove("hidden");
+    } else {
+        notFoundMsg.classList.add("hidden");
+    }
+
+    if (query) {
+        clearBtn.style.opacity = "1";
+        clearBtn.style.pointerEvents = "auto";
+    } else {
+        clearBtn.style.opacity = "0";
+        clearBtn.style.pointerEvents = "none";
+    }
+});
+
+clearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    searchInput.dispatchEvent(new Event("input"));
+    searchInput.focus();
+});
+</script>
+
+<script>
+const scrollBtn = document.getElementById("scrollToTopBtn");
+
+window.addEventListener("scroll", () => {
+    if (window.scrollY > 200) {
+        scrollBtn.classList.remove("hidden");
+        requestAnimationFrame(() => {
+            scrollBtn.style.opacity = "1";
+        });
+    } else {
+        scrollBtn.style.opacity = "0";
+        setTimeout(() => {
+            scrollBtn.classList.add("hidden");
+        }, 200);
+    }
+});
+
+scrollBtn.addEventListener("click", () => {
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+});
 </script>
 {% endblock %}
