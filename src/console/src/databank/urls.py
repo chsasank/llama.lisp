@@ -3,6 +3,8 @@ from . import views
 
 urlpatterns = [
     path("", views.home, name="home"),
+    # Dashboard CRUD
+    path("dashboard/", views.dashboard, name="dashboard_view"),
     # Database CRUD
     path("databases/", views.database_list, name="database_list"),
     path("databases/add/", views.database_create, name="database_create"),
@@ -13,4 +15,9 @@ urlpatterns = [
     path("etls/add/", views.etl_create, name="etl_create"),
     path("etls/<int:pk>/edit/", views.etl_edit, name="etl_edit"),
     path("etls/<int:pk>/delete/", views.etl_delete, name="etl_delete"),
+    # File Downloads
+    path("download/databases/", views.download_databases, name="download_databases"),
+    path("download/etls/", views.download_etls, name="download_etls"),
+    path("download/sources/", views.download_sources, name="download_sources"),
+    path("download/targets/", views.download_targets, name="download_targets"),
 ]

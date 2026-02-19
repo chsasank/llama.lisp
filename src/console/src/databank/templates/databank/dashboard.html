@@ -1,0 +1,228 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto mt-8 space-y-8">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-consoleAccent tracking-wider">
+                $ Dashboard
+            </h2>
+        </div>
+
+        <span class="text-xs text-slate-500">
+            STATUS: <span class="text-green-400 animate-pulse">● ACTIVE</span>
+        </span>
+    </div>
+
+    <!-- STATS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+        <!-- Databases -->
+        <div class="group relative border border-consoleBorder rounded-lg p-4 bg-black/40 overflow-hidden">
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
+                        bg-gradient-to-r from-green-500/10 to-purple-500/10 
+                        blur-xl transition"></div>
+
+            <p class="text-xs text-slate-400">Databases</p>
+            <p class="text-2xl font-bold text-consoleAccent mt-1">
+                {{ database_count }}
+            </p>
+            <a href="{% url 'download_databases' %}"
+            class="absolute top-2 right-2 z-20
+                    text-slate-400 hover:text-consoleAccent
+                    transition"
+            title="Download CSV File">
+
+                <!-- Download Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor"
+                    class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </a>
+
+            <div class="absolute bottom-0 left-0 w-0 h-[2px] bg-consoleAccent 
+                        group-hover:w-full transition-all duration-300"></div>
+        </div>
+
+        <!-- ETLs -->
+        <div class="group relative border border-consoleBorder rounded-lg p-4 bg-black/40 overflow-hidden">
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
+                        bg-gradient-to-r from-green-500/10 to-purple-500/10 
+                        blur-xl transition"></div>
+
+            <p class="text-xs text-slate-400">ETLs</p>
+            <p class="text-2xl font-bold text-consoleAccent mt-1">
+                {{ etl_count }}
+            </p>
+            <a href="{% url 'download_etls' %}"
+            class="absolute top-2 right-2 z-20
+                    text-slate-400 hover:text-consoleAccent
+                    transition"
+            title="Download CSV File">
+
+                <!-- Download Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor"
+                    class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </a>
+
+            <div class="absolute bottom-0 left-0 w-0 h-[2px] bg-consoleAccent 
+                        group-hover:w-full transition-all duration-300"></div>
+        </div>
+        
+        <!-- Sources -->
+        <div class="group relative border border-consoleBorder rounded-lg p-4 bg-black/40 overflow-hidden">
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
+                        bg-gradient-to-r from-green-500/10 to-purple-500/10 
+                        blur-xl transition"></div>
+
+            <p class="text-xs text-slate-400">Sources</p>
+            <p class="text-2xl font-bold text-consoleAccent mt-1">
+                {{ source_count }}
+            </p>
+            <a href="{% url 'download_sources' %}"
+            class="absolute top-2 right-2 z-20
+                    text-slate-400 hover:text-consoleAccent
+                    transition"
+            title="Download CSV File">
+
+                <!-- Download Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor"
+                    class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </a>
+
+            <div class="absolute bottom-0 left-0 w-0 h-[2px] bg-consoleAccent 
+                        group-hover:w-full transition-all duration-300"></div>
+        </div>
+
+        <!-- Targets -->
+        <div class="group relative border border-consoleBorder rounded-lg p-4 bg-black/40 overflow-hidden">
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
+                        bg-gradient-to-r from-green-500/10 to-purple-500/10 
+                        blur-xl transition"></div>
+
+            <p class="text-xs text-slate-400">Targets</p>
+            <p class="text-2xl font-bold text-consoleAccent mt-1">
+                {{ target_count }}
+            </p>
+            <a href="{% url 'download_targets' %}"
+            class="absolute top-2 right-2 z-20
+                    text-slate-400 hover:text-consoleAccent
+                    transition"
+            title="Download CSV File">
+
+                <!-- Download Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor"
+                    class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </a>
+
+            <div class="absolute bottom-0 left-0 w-0 h-[2px] bg-consoleAccent 
+                        group-hover:w-full transition-all duration-300"></div>
+        </div>
+
+    </div>
+
+    <!-- ACTION CARDS -->
+    <div class="grid md:grid-cols-2 gap-6">
+
+        <a href="{% url 'database_list' %}"
+           class="group relative border border-consoleBorder rounded-xl p-5 bg-black/40 
+                  transition-all duration-300 hover:border-consoleAccent/70 hover:scale-[1.03] transition-transform overflow-hidden">
+
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
+                        bg-gradient-to-r from-green-500/10 to-purple-500/10 blur-xl transition"></div>
+
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg text-slate-200 font-semibold group-hover:text-consoleAccent transition">
+                    Databases
+                </h3>
+                <span class="text-slate-500 group-hover:text-consoleAccent">→</span>
+            </div>
+
+            <p class="text-sm text-slate-400 group-hover:text-slate-200 transition mt-2">
+                Manage source & target connections
+            </p>
+        </a>
+
+        <a href="{% url 'etl_list' %}"
+           class="group relative border border-consoleBorder rounded-xl p-5 bg-black/40 
+                  transition-all duration-300 hover:border-consoleAccent/70 hover:scale-[1.03] transition-transform overflow-hidden">
+
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
+                        bg-gradient-to-r from-green-500/10 to-purple-500/10 blur-xl transition"></div>
+
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg text-slate-200 font-semibold group-hover:text-consoleAccent">
+                    ETL Pipelines
+                </h3>
+                <span class="text-slate-500 group-hover:text-consoleAccent">→</span>
+            </div>
+
+            <p class="text-sm text-slate-400 group-hover:text-slate-200 transition mt-2">
+                Create, monitor & control pipelines
+            </p>
+        </a>
+
+    </div>
+
+    <!-- RECENT ETLs -->
+    <div class="border border-consoleBorder rounded-xl p-5 bg-black/40">
+
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-consoleAccent text-lg font-semibold tracking-widest">
+                Recent ETLs
+            </h3>
+        </div>
+
+        {% if recent_etls %}
+            <div class="space-y-2">
+
+                {% for e in recent_etls %}
+                <div class="flex justify-between items-center text-sm 
+                            border-b border-consoleBorder pb-2 
+                            hover:bg-black/60 px-2 rounded transition">
+
+                    <div class="truncate">
+                        <span class="text-consoleAccent">{{ e.source_table }}</span>
+                        <span class="text-slate-500"> → </span>
+                        <span class="text-slate-300">{{ e.target_table }}</span>
+                    </div>
+
+                    <span class="text-xs text-slate-500">
+                        #{{ e.id }}
+                    </span>
+
+                </div>
+                {% endfor %}
+
+            </div>
+        {% else %}
+            <p class="text-sm text-slate-500">
+                No recent ETLs available.
+            </p>
+        {% endif %}
+
+    </div>
+
+</div>
+{% endblock %}

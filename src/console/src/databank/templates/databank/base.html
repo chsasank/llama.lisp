@@ -1,8 +1,20 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Database Console</title>
+    <title>JOHNAIC: Data Console</title>
+
+    <!-- Favicons -->
+    <link rel="icon" href="{% static 'favicon/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="96x96" href="{% static 'favicon/favicon-96x96.png' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon/favicon.svg' %}">
+
+    <!-- Apple -->
+    <link rel="apple-touch-icon" href="{% static 'favicon/apple-touch-icon.png' %}">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="{% static 'favicon/site.webmanifest' %}">
 
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -14,69 +26,135 @@
               mono: ['ui-monospace','SFMono-Regular','Menlo','Monaco','Consolas','Liberation Mono','Courier New','monospace'],
             },
             colors: {
-              consoleBg: '#020617',
-              consolePanel: '#020617',
+              consoleBg: '#000000ff',
+              consolePanel: '#000000ff',
               consoleBorder: '#1f2937',
               consoleAccent: '#22c55e',
             },
+            animation: {
+                'gradient-x': 'gradient-x 6s ease infinite',
+                blob1: "blob1 20s infinite ease-in-out",
+                blob2: "blob2 25s infinite ease-in-out",
+                blob3: "blob3 30s infinite ease-in-out",
+            },
+            keyframes: {
+                'gradient-x': {
+                '0%, 100%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+                },
+                blob1: {
+                  "0%, 100%": { transform: "translate(-50%, 0px) scale(1)" },
+                  "50%": { transform: "translate(-40%, 40px) scale(1.1)" },
+                },
+                blob2: {
+                  "0%, 100%": { transform: "translate(0px, 0px) scale(1)" },
+                  "50%": { transform: "translate(-40px, -60px) scale(1.15)" },
+                },
+                blob3: {
+                  "0%, 100%": { transform: "translate(0px, 0px) scale(1)" },
+                  "50%": { transform: "translate(60px, -40px) scale(1.2)" },
+                },
+            },
+            backgroundSize: {
+                '200%': '200% 200%',
+            }
           },
         },
       }
     </script>
 </head>
 
-<body class="min-h-screen flex flex-col bg-consoleBg text-slate-100 font-mono">
+<body class="min-h-screen flex flex-col bg-consoleBg text-slate-100 font-mono relative overflow-x-hidden">
+
+    <!-- GLOBAL ANIMATED BACKGROUND -->
+    <div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+
+        <!-- GREEN ORB -->
+        <div class="absolute top-[-150px] left-1/2 w-[700px] h-[700px]
+                    bg-green-500/10 blur-[140px] rounded-full
+                    animate-blob1">
+        </div>
+
+        <!-- PURPLE ORB -->
+        <div class="absolute bottom-[-150px] right-1/3 w-[600px] h-[600px]
+                    bg-purple-500/10 blur-[140px] rounded-full
+                    animate-blob2">
+        </div>
+
+        <!-- EXTRA LIGHT GLOW -->
+        <div class="absolute top-1/2 left-1/3 w-[500px] h-[500px]
+                    bg-emerald-400/5 blur-[120px] rounded-full
+                    animate-blob3">
+        </div>
+
+    </div>
 
     <!-- Header section -->
-    <header class="border-b border-consoleBorder bg-consolePanel/80 backdrop-blur">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <header class="bg-black/30 backdrop-blur">
+        <div class="max-w-7xl mx-auto mt-4 px-4 py-2 flex items-center justify-between">
+            <a href="{% url 'home' %}"
+                class="flex items-center gap-1">
 
-            <!-- logo -->
-            <div class="flex items-center gap-2">
-                <span class="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                <h1 class="text-lg md:text-xl font-semibold tracking-tight">
-                    DATABASE CONSOLE
-                </h1>
-            </div>
+                <!-- Logo -->
+                <img 
+                    src="{% static 'images/logo.png' %}" 
+                    alt="Logo"
+                    class="h-14 md:h-15 w-auto object-contain brightness-125 animate-pulse"
+                />
 
-            <!-- logout -->
+                <!-- Text -->
+                <div class="flex flex-col leading-tight">
+                    <h1 class="text-lg md:text-xl font-semibold tracking-widest text-slate-100">
+                        JOHNAIC
+                    </h1>
+
+                    <span class="text-xs text-slate-500 tracking-widest">
+                        DATA CONSOLE
+                    </span>
+                </div>
+
+            </a>
+            <!-- Auth Button -->
             {% if user.is_authenticated %}
-            <form action="{% url 'logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit"
-                    class="px-3 py-1 text-sm border border-consoleAccent text-consoleAccent rounded 
-                        hover:bg-consoleAccent hover:text-black transition">
-                    Logout
-                </button>
-            </form>
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit"
+                        class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
+                            hover:bg-consoleAccent hover:text-black transition">
+                        Logout
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}"
+                class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
+                    hover:bg-consoleAccent hover:text-black transition hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]">
+                    Login →
+                </a>
             {% endif %}
         </div>
     </header>
 
+    {% if user.is_authenticated %}
     <!-- Navigation bar -->
-    <nav class="border-b border-consoleBorder bg-black/40">
-        <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-2 justify-center text-sm">
+    <nav class="bg-black/40 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-6 justify-center text-base">
+            <a href="{% url 'dashboard_view' %}" 
+            class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:shadow-[0_0_10px_rgba(34,197,94,0.2)] hover:scale-[1.03] transition-transform hover:text-consoleAccent transition">
+                $ Dashboard
+            </a>
 
-            {% if user.is_authenticated %}
+            <a href="{% url 'database_list' %}" 
+            class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:shadow-[0_0_10px_rgba(34,197,94,0.2)] hover:scale-[1.03] transition-transform hover:text-consoleAccent transition">
+                $ Databases
+            </a>
 
-                <a href="{% url 'home' %}" 
-                class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                    $ Home
-                </a>
-
-                <a href="{% url 'database_list' %}" 
-                class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                    $ Databases
-                </a>
-
-                <a href="{% url 'etl_list' %}" 
-                class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:text-consoleAccent transition">
-                    $ ETLs
-                </a>
-            {% endif %}
-
+            <a href="{% url 'etl_list' %}" 
+            class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:shadow-[0_0_10px_rgba(34,197,94,0.2)] hover:scale-[1.03] transition-transform hover:text-consoleAccent transition">
+                $ ETLs
+            </a>
         </div>
     </nav>
+    {% endif %}
 
 
     <!-- Main content -->
@@ -88,7 +166,7 @@
     <!-- Footer section -->
     <footer class="border-t border-consoleBorder bg-black/40 mt-auto">
         <div class="max-w-6xl mx-auto px-4 py-2 text-xs text-slate-500 flex justify-between">
-            <span>Database-console</span>
+            <span>Data-console</span>
             <span>Press <span class="text-consoleAccent">F5</span> to refresh</span>
         </div>
     </footer>
