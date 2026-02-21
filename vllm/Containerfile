@@ -1,0 +1,4 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y wget git python3 python3-pip && apt-get clean all
+RUN pip install vllm==0.6.2 --no-cache-dir
