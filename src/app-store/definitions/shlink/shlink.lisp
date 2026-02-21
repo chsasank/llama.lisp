@@ -14,7 +14,7 @@
                     ("POSTGRESQL_PASSWORD" ,db-password)))
             (container 
                 (name "shlink")
-                (image "docker.io/shlinkio/shlink:4.4.0")
+                (image "docker.io/shlinkio/shlink:4.5.2")
                 (environment 
                     ("INITIAL_API_KEY" ,(gen-password))
                     ("DEFAULT_DOMAIN" ,(interactive-input "Where is this going to be deployed?" "Example: sh.example.com"))

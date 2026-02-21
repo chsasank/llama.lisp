@@ -1,0 +1,3 @@
+pyaudio
+pyserial
+openai

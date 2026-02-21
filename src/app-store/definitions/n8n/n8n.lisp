@@ -1,5 +1,5 @@
 (define-app
-    (version "1.82.1")
+    (version "1.123.11")
     (ports 5678)
     (let ((db-password ,(gen-password))
           (non-root-db-password ,(gen-password)))
@@ -25,7 +25,7 @@
                     ("init_worker.sh" "/mnt/init_worker.sh")))
             (container
                 (name "n8n")
-                (image "docker.io/n8nio/n8n:1.82.1")
+                (image "docker.io/n8nio/n8n:1.123.11")
                 (volumes
                     ("n8n_storage" "/home/node/.n8n"))
                 (environment

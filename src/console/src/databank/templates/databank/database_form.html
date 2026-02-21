@@ -1,0 +1,143 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+
+    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
+        $ {% if form.instance.pk %}Edit Database{% else %}Add Database{% endif %}
+    </h2>
+
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="space-y-1">
+
+            <!-- label -->
+            <label class="block text-xs uppercase tracking-wide text-slate-400">
+                {{ field.label }}
+            </label>
+
+            <!-- fields already styled by forms.py -->
+            {{ field }}
+
+            <!-- errors -->
+            {% if field.errors %}
+                <p class="text-xs text-red-400">{{ field.errors }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex justify-between pt-6">
+            <a href="{% url 'database_list' %}"
+               class="px-4 py-2 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent transition">
+                ← Back
+            </a>
+
+            <button type="submit"
+                class="px-6 py-2 border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
+                Save
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+    const isEdit = "{{ form.instance.pk|yesno:'true,false' }}" === "true";
+</script>
+
+<script>
+const defaultConfigs = {
+    "source": {
+        "postgres": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`,
+        "mssql": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`,
+        "oracle": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "service": "SERVICE NAME"
+}`
+    },
+
+    "target": {
+        "postgres": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`,
+        "clickhouse": `{
+    "host": "HOST",
+    "port": "PORT",
+    "user": "USER NAME",
+    "password": "PASSWORD",
+    "database": "DATABASE NAME"
+}`
+    }
+};
+
+const etlType = document.getElementById("id_etl_type");
+const dbType = document.getElementById("id_database_type");
+const configTextarea = document.getElementById("id_connection_config");
+
+// ADD DATABASE
+function handleAddMode() {
+
+    function applyTemplate() {
+        const etl = etlType.value.toLowerCase();
+        const db = dbType.value.toLowerCase();
+
+        if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
+            configTextarea.value = defaultConfigs[etl][db];
+        } else {
+            configTextarea.value = "Null";
+        }
+    }
+
+    // Always apply default on load
+    document.addEventListener("DOMContentLoaded", applyTemplate);
+
+    // Update template when dropdowns change
+    etlType.addEventListener("change", applyTemplate);
+    dbType.addEventListener("change", applyTemplate);
+}
+
+// EDIT DATABASE
+function handleEditMode() {
+    // ONLY CASE: If field is empty (rare), insert template.
+    if (configTextarea.value.trim() === "") {
+        const etl = etlType.value.toLowerCase();
+        const db = dbType.value.toLowerCase();
+
+        if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
+            configTextarea.value = defaultConfigs[etl][db];
+        } else {
+            configTextarea.value = "Null";
+        }
+    }
+}
+
+// APPLY MODE
+if (isEdit) {
+    handleEditMode();
+} else {
+    handleAddMode();
+}
+</script>
+
+{% endblock %}

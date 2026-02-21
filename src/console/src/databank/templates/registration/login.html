@@ -1,0 +1,101 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-20 bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+
+    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
+        $ Login
+    </h2>
+
+    <!-- Error Messages -->
+    {% if form.errors %}
+        <div id="login-error" class="text-red-400 text-sm mb-4">
+            {% if form.username.errors %}
+                <p>{{ form.username.errors.0 }}</p>
+            {% endif %}
+            {% if form.password.errors %}
+                <p>{{ form.password.errors.0 }}</p>
+            {% endif %}
+
+            <!-- Authentication failure -->
+            {% if form.non_field_errors %}
+                <p>Your username or password is incorrect. Please try again.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if next and not form.errors %}
+        <p class="text-slate-300 text-sm mb-4">
+            Please log in to continue.
+        </p>
+    {% endif %}
+
+    <!-- LOGIN FORM -->
+    <form method="post" action="{% url 'login' %}" class="space-y-5">
+        {% csrf_token %}
+
+        <!-- Username -->
+        <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-wide text-slate-400">
+                Username
+            </label>
+            <input 
+                type="text" 
+                name="username"
+                value="{{ form.username.value|default:'' }}"
+                placeholder="Enter your username"
+                class="w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm 
+                       text-slate-100 focus:outline-none focus:border-consoleAccent"
+                required
+            >
+        </div>
+
+        <!-- Password -->
+        <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-wide text-slate-400">
+                Password
+            </label>
+            <input 
+                type="password" 
+                name="password"
+                placeholder="Enter your password"
+                class="w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm 
+                       text-slate-100 focus:outline-none focus:border-consoleAccent"
+                required
+            >
+        </div>
+
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <!-- Submit Button -->
+        <button type="submit"
+            class="w-full py-2 border border-consoleAccent text-consoleAccent rounded 
+                   hover:bg-consoleAccent hover:text-black transition font-semibold">
+            Login
+        </button>
+
+    </form>
+
+    <!-- Password Reset -->
+    <p class="mt-4 text-sm text-slate-400 text-right">
+        <a href="{% url 'password_reset' %}" class="hover:text-consoleAccent transition">
+            Lost your password?
+        </a>
+    </p>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const errorBox = document.getElementById("login-error");
+    if (errorBox) {
+        setTimeout(() => {
+            errorBox.style.transition = "opacity 0.8s ease";
+            errorBox.style.opacity = "0";
+            setTimeout(() => errorBox.remove(), 800);
+        }, 3000);
+    }
+});
+</script>
+
+{% endblock %}

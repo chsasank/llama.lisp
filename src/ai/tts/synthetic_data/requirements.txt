@@ -1,0 +1,4 @@
+indicnlp
+torchaudio
+google-cloud-texttospeech
+torch

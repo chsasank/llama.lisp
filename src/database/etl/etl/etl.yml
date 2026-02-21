@@ -1,0 +1,9 @@
+source:
+  type: postgres
+  config: extractors/postgres/config.json
+
+target:
+  type: postgres
+  config: loaders/postgres/config.json
+
+batch_size: 100000

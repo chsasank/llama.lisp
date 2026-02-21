@@ -27,7 +27,7 @@
                     ("APP_KEY" "")
                     ("APP_URL" ,public-url)
                     ("MYSQL_PORT_3306_TCP_ADDR" "127.0.0.1")
-                    ("MYSQL_PORT_3306_TCP_PORT" "3006")
+                    ("MYSQL_PORT_3306_TCP_PORT" "3306")
                     ("MYSQL_DATABASE" "snipeit")
                     ("MYSQL_USER" "snipeit")
                     ("MYSQL_PASSWORD" ,db-password)

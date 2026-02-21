@@ -1,0 +1,12 @@
+(c-lisp
+    (define ((print int) (n int)))
+    (define-global (a (ptr int)))
+    (define ((main void))
+        (set a (alloc int 20))
+        (declare b (ptr int))
+        (set b (alloc int 20))
+        (store (ptradd a 3) 7)
+        (store (ptradd b 3) 7)
+        (call print (load (ptradd a 3)))
+        (call print (load (ptradd b 3)))
+        (ret)))

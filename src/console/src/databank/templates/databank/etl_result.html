@@ -1,0 +1,30 @@
+{% extends "databank/base.html" %}
+
+{% block content %}
+<div class="max-w-xl mx-auto border border-consoleBorder rounded-lg bg-black/40 p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-consoleAccent">
+        $ Run etl {{ etl_id }}
+    </h2>
+
+    <div class="border rounded px-3 py-2 text-sm
+        {% if status == 'success' %}
+            border-emerald-500 text-emerald-400 bg-emerald-500/5
+        {% else %}
+            border-red-500 text-red-400 bg-red-500/5
+        {% endif %}
+    ">
+        {{ message }}
+    </div>
+
+    <div class="flex justify-between pt-2 text-xs">
+        <a href="{% url 'etl_list' %}"
+           class="px-3 py-1 border border-consoleBorder rounded hover:border-slate-300">
+            ← Back to ETL list
+        </a>
+        <a href="{% url 'home' %}"
+           class="px-3 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
+            Go Home
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -19,7 +19,7 @@
                     ("POSTGRESQL_PASSWORD" ,db-password)))
             (container 
                 (name "webserver")
-                (image "ghcr.io/paperless-ngx/paperless-ngx:2.12.0")
+                (image "ghcr.io/paperless-ngx/paperless-ngx:2.14.7")
                 (volumes 
                     ("data" "/usr/src/paperless/data")
                     ("media" "/usr/src/paperless/media")
