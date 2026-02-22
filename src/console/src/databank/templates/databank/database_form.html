@@ -1,47 +1,167 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+<div class="max-w-4xl mx-auto bg-black/40 border border-consoleBorder rounded-xl p-8 shadow-2xl space-y-8">
 
-    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
-        $ {% if form.instance.pk %}Edit Database{% else %}Add Database{% endif %}
-    </h2>
+    <!-- HEADER -->
+    <div class="text-center">
+        <h2 class="text-2xl font-bold text-consoleAccent tracking-widest">
+            $ {% if form.instance.pk %}EDIT DATABASE{% else %}ADD DATABASE{% endif %}
+        </h2>
+        <p class="text-slate-500 text-sm mt-2">
+            Configure your database connection
+        </p>
+    </div>
 
-    <form method="POST" class="space-y-6">
+    <form method="POST" class="space-y-8" onsubmit="return validateBeforeSave()">
         {% csrf_token %}
 
-        {% for field in form %}
-        <div class="space-y-1">
-
-            <!-- label -->
-            <label class="block text-xs uppercase tracking-wide text-slate-400">
-                {{ field.label }}
+        <!-- ETL TYPE -->
+        <div>
+            <label class="text-xs uppercase tracking-widest text-slate-400 mb-3 block">
+                Connection Type
             </label>
 
-            <!-- fields already styled by forms.py -->
-            {{ field }}
+            <div class="grid grid-cols-2 gap-4">
 
-            <!-- errors -->
-            {% if field.errors %}
-                <p class="text-xs text-red-400">{{ field.errors }}</p>
-            {% endif %}
+                <!-- SOURCE -->
+                <label class="cursor-pointer">
+                    <input type="radio" name="etl_type" value="source"
+                           id="id_etl_type"
+                           {% if form.etl_type.value == "source" %}checked{% endif %}
+                           class="hidden peer">
+
+                    <div class="p-5 rounded-xl border border-consoleBorder bg-black/50
+                                hover:border-consoleAccent
+                                peer-checked:border-consoleAccent
+                                peer-checked:bg-consoleAccent/10
+                                transition-all duration-200">
+
+                        <p class="text-sm font-semibold text-slate-200">SOURCE</p>
+                        <p class="text-xs text-slate-500 mt-1">Read from database</p>
+                    </div>
+                </label>
+
+                <!-- TARGET -->
+                <label class="cursor-pointer">
+                    <input type="radio" name="etl_type" value="target"
+                           {% if form.etl_type.value == "target" %}checked{% endif %}
+                           class="hidden peer">
+
+                    <div class="p-5 rounded-xl border border-consoleBorder bg-black/50
+                                hover:border-consoleAccent
+                                peer-checked:border-consoleAccent
+                                peer-checked:bg-consoleAccent/10
+                                transition-all duration-200">
+
+                        <p class="text-sm font-semibold text-slate-200">TARGET</p>
+                        <p class="text-xs text-slate-500 mt-1">Write to database</p>
+                    </div>
+                </label>
+
+            </div>
         </div>
-        {% endfor %}
 
-        <div class="flex justify-between pt-6">
+        <!-- DATABASE TYPE -->
+        <div>
+            <label class="text-xs uppercase tracking-widest text-slate-400 mb-3 block">
+                Database Type
+            </label>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                {% for value, label in form.fields.database_type.choices %}
+                    {% if value %}
+                    <label class="cursor-pointer">
+                        <input type="radio"
+                            name="database_type"
+                            value="{{ value }}"
+                            id="id_database_type"
+                            {% if form.database_type.value == value %}checked{% endif %}
+                            class="hidden peer">
+
+                        <div class="p-4 text-center rounded-lg border border-consoleBorder bg-black/50
+                                    hover:border-consoleAccent
+                                    peer-checked:border-consoleAccent
+                                    peer-checked:bg-consoleAccent/10
+                                    transition-all duration-200">
+
+                            <p class="text-sm text-slate-300">
+                                {{ label }}
+                            </p>
+                        </div>
+                    </label>
+                    {% endif %}
+                {% endfor %}
+
+            </div>
+        </div>
+
+        <!-- WARNING MESSAGE -->
+        <div id="db_warning"
+            class="hidden text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded-md p-2">
+        </div>
+
+        <!-- CONFIG -->
+        <div>
+            <label class="text-xs uppercase tracking-widest text-slate-400 mb-2 block">
+                Connection Configuration
+            </label>
+
+            <textarea id="id_connection_config"
+                    name="connection_config"
+                    rows="10"
+                    class="w-full p-4 text-sm font-mono bg-black/60 border border-consoleBorder rounded-lg
+                            focus:border-consoleAccent focus:ring-0 outline-none
+                            text-slate-300 resize-none transition-all duration-200">
+            {{ form.connection_config.value|default:"{}" }}
+            </textarea>
+            <p id="connection-result" class="text-sm mt-2"></p>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="flex justify-between pt-4">
+
             <a href="{% url 'database_list' %}"
-               class="text-sm px-3 py-1.5 rounded-md border border-consoleBorder
+               class="text-sm px-4 py-2 font-semibold rounded-md border border-consoleBorder
                     hover:border-consoleAccent hover:text-consoleAccent
                     hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
                     transition-all duration-200">
                 ← Back
             </a>
 
-            <button type="submit"
-                class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
-                    hover:bg-consoleAccent hover:text-black transition hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]">
-                Save
-            </button>
+            <div class="flex justify-end gap-3">
+
+                <!-- TEST BUTTON -->
+                <button type="button"
+                        id="testBtn"
+                        onclick="testConnection()"
+                        class="px-4 py-2 text-sm font-semibold rounded-md border border-yellow-500 text-yellow-400 
+                            hover:bg-yellow-500 hover:text-black
+                            hover:shadow-[0_0_10px_rgba(234,179,8,0.5)]
+                            transition-all duration-200
+                            flex items-center justify-center gap-2">
+
+                    <span id="btnText">Test Connection</span>
+
+                    <!-- Spinner -->
+                    <span id="btnLoader"
+                        class="hidden w-4 h-4 border-2 border-yellow-400 border-t-transparent 
+                                rounded-full animate-spin">
+                    </span>
+                </button>
+
+                <!-- SAVE BUTTON -->
+                <button type="submit"
+                    class="px-4 py-2 text-sm font-semibold rounded-md border border-consoleAccent text-consoleAccent
+                        hover:bg-consoleAccent hover:text-black
+                        hover:shadow-[0_0_15px_rgba(34,197,94,0.5)]
+                        transition-all duration-200">
+                    Save Configuration
+                </button>
+
+            </div>
+
         </div>
 
     </form>
@@ -95,16 +215,22 @@ const defaultConfigs = {
     }
 };
 
-const etlType = document.getElementById("id_etl_type");
-const dbType = document.getElementById("id_database_type");
+function getSelectedETLType() {
+    const selected = document.querySelector('input[name="etl_type"]:checked');
+    return selected ? selected.value.toLowerCase() : null;
+}
+
+function getSelectedDBType() {
+    const selected = document.querySelector('input[name="database_type"]:checked');
+    return selected ? selected.value.toLowerCase() : null;
+}
+
 const configTextarea = document.getElementById("id_connection_config");
 
-// ADD DATABASE
 function handleAddMode() {
-
     function applyTemplate() {
-        const etl = etlType.value.toLowerCase();
-        const db = dbType.value.toLowerCase();
+        const etl = getSelectedETLType();
+        const db = getSelectedDBType();
 
         if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
             configTextarea.value = defaultConfigs[etl][db];
@@ -113,20 +239,26 @@ function handleAddMode() {
         }
     }
 
-    // Always apply default on load
     document.addEventListener("DOMContentLoaded", applyTemplate);
+    document.querySelectorAll('input[name="etl_type"]').forEach(el => {
+        el.addEventListener("change", () => {
+            applyTemplate();
+            validateSelection();
+        });
+    });
 
-    // Update template when dropdowns change
-    etlType.addEventListener("change", applyTemplate);
-    dbType.addEventListener("change", applyTemplate);
+    document.querySelectorAll('input[name="database_type"]').forEach(el => {
+        el.addEventListener("change", () => {
+            applyTemplate();
+            validateSelection();
+        });
+    });
 }
 
-// EDIT DATABASE
 function handleEditMode() {
-    // ONLY CASE: If field is empty (rare), insert template.
     if (configTextarea.value.trim() === "") {
-        const etl = etlType.value.toLowerCase();
-        const db = dbType.value.toLowerCase();
+        const etl = getSelectedETLType();
+        const db = getSelectedDBType();
 
         if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
             configTextarea.value = defaultConfigs[etl][db];
@@ -136,11 +268,175 @@ function handleEditMode() {
     }
 }
 
-// APPLY MODE
 if (isEdit) {
     handleEditMode();
 } else {
     handleAddMode();
+}
+
+function validateSelection() {
+    const etl = getSelectedETLType();
+    const db = getSelectedDBType();
+    const warningBox = document.getElementById("db_warning");
+
+    let message = "";
+
+    if (etl === "source" && db === "clickhouse") {
+        message = "ClickHouse is not supported as a SOURCE. Use Postgres, MSSQL, or Oracle.";
+    }
+
+    if (etl === "target" && (db === "mssql" || db === "oracle")) {
+        message = "MSSQL and Oracle are not supported as TARGET. Use Postgres or ClickHouse.";
+    }
+
+    if (message) {
+        warningBox.innerText = message;
+        warningBox.classList.remove("hidden");
+    } else {
+        warningBox.classList.add("hidden");
+    }
+}
+
+function validateBeforeSave() {
+    const config = document.getElementById("id_connection_config").value;
+
+    if (config.includes("HOST") || config.includes("PORT") || config.includes("USER_NAME")) {
+        alert("Please fill actual database values before saving");
+        return false;
+    }
+
+    return true;
+}
+</script>
+
+<script>
+function formatJSON() {
+    const textarea = document.getElementById("id_connection_config");
+
+    try {
+        const raw = textarea.value.trim();
+
+        if (!raw) return;
+
+        // Convert string → JSON → pretty format
+        const parsed = JSON.parse(raw);
+        textarea.value = JSON.stringify(parsed, null, 4);
+
+    } catch (e) {
+        console.log("Invalid JSON, skipping format");
+    }
+}
+
+// Run on page load (for EDIT mode)
+document.addEventListener("DOMContentLoaded", function () {
+    formatJSON();
+});
+</script>
+
+<script>
+function testConnection() {
+
+    const etl = document.querySelector('input[name="etl_type"]:checked')?.value;
+    const db = document.querySelector('input[name="database_type"]:checked')?.value;
+    const config = document.getElementById("id_connection_config").value;
+
+    const resultBox = document.getElementById("connection-result");
+
+    const btn = document.getElementById("testBtn");
+    const btnText = document.getElementById("btnText");
+    const loader = document.getElementById("btnLoader");
+
+    if (!etl || !db || !config) {
+        resultBox.innerText = "Please fill all fields first";
+        resultBox.className = "text-yellow-400 text-sm mt-2";
+
+        setTimeout(() => {
+            resultBox.style.opacity = "0";
+            setTimeout(() => {
+                resultBox.classList.add("hidden");
+                resultBox.style.opacity = "1";
+            }, 300);
+        }, 3000);
+
+        return;
+    }
+
+    // START LOADING STATE
+    btn.disabled = true;
+    btnText.innerText = "Testing...";
+    loader.classList.remove("hidden");
+    btn.classList.add("opacity-50", "cursor-not-allowed");
+    resultBox.innerText = "Testing connection...";
+    resultBox.className = "text-yellow-400 text-sm mt-2";
+
+    if (config.includes("HOST") || config.includes("PORT") || config.includes("USER_NAME")) {
+        resultBox.innerText = "Please replace placeholder values before testing";
+        resultBox.className = "text-yellow-400 text-sm mt-2";
+
+        setTimeout(() => {
+            resultBox.style.opacity = "0";
+            setTimeout(() => {
+                resultBox.classList.add("hidden");
+                resultBox.style.opacity = "1";
+            }, 300);
+        }, 3000);
+
+        btn.disabled = false;
+        btnText.innerText = "Test Connection";
+        loader.classList.add("hidden");
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+
+        return;
+    }
+
+    fetch("{% url 'test_connection' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+            etl_type: etl,
+            database_type: db,
+            connection_config: config
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            resultBox.innerText = "Connection Successful";
+            resultBox.className = "text-green-400 text-sm mt-2";
+        } else {
+            resultBox.innerText = data.error;
+            resultBox.className = "text-red-400 text-sm mt-2";
+        }
+        setTimeout(() => {
+            resultBox.style.opacity = "0";
+            setTimeout(() => {
+                resultBox.classList.add("hidden");
+                resultBox.style.opacity = "1";
+            }, 300);
+        }, 3000);
+    })
+    .catch(err => {
+        resultBox.innerText = "Error testing connection";
+        resultBox.className = "text-red-400 text-sm mt-2";
+
+        setTimeout(() => {
+            resultBox.style.opacity = "0";
+            setTimeout(() => {
+                resultBox.classList.add("hidden");
+                resultBox.style.opacity = "1";
+            }, 300);
+        }, 3000);
+    })
+    .finally(() => {
+        // STOP LOADING STATE
+        btn.disabled = false;
+        btnText.innerText = "Test Connection";
+        loader.classList.add("hidden");
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+    });
 }
 </script>
 

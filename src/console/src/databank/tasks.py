@@ -1,11 +1,12 @@
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.utils.dateparse import parse_datetime
 from etl.common.state_manager import StateManagerDriver
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
+
 from task_manager.models import Graph, Task
 
 from .models import DatabaseConfiguration, ETLConfiguration
@@ -37,9 +38,9 @@ class DBStateManager(StateManagerDriver):
             if "backfill" in state:
                 backfill = state["backfill"]
                 ts = parse_datetime(value)
-                assert ts is not None, (
-                    "{value} not in time format. backfill assumes time"
-                )
+                assert (
+                    ts is not None
+                ), "{value} not in time format. backfill assumes time"
                 ts = ts - timedelta(seconds=backfill)
                 ts = ts.replace(microsecond=0)
                 return str(ts)
@@ -87,6 +88,10 @@ def _get_etl_tgt(etl_config):
 
 def run_etl(etl_config_id):
     etl_config = ETLConfiguration.objects.get(id=etl_config_id)
+
+    if etl_config.status == "paused":
+        logger.info(f"ETL {etl_config_id} is paused. Skipping...")
+        return
 
     logger.info("=== START ETL ===")
     logger.info(f"Source DB: {etl_config.source_database}")

@@ -119,14 +119,14 @@
                 <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
                     <button type="submit"
-                        class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
+                        class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
                             hover:bg-consoleAccent hover:text-black transition">
                         Logout
                     </button>
                 </form>
             {% else %}
                 <a href="{% url 'login' %}"
-                class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
+                class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
                     hover:bg-consoleAccent hover:text-black transition hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]">
                     Login →
                 </a>
@@ -165,7 +165,7 @@
 
     <!-- Footer section -->
     <footer class="border-t border-consoleBorder bg-black/40 mt-auto">
-        <div class="max-w-6xl mx-auto px-4 py-2 text-xs text-slate-500 flex justify-between">
+        <div class="max-w-6xl mx-auto px-4 py-4 text-xs text-slate-500 flex justify-between">
             <span>Data-console</span>
             <span>Press <span class="text-consoleAccent">F5</span> to refresh</span>
         </div>

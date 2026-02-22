@@ -1,14 +1,22 @@
-import logging
 import csv
+import json
+import logging
+
+import clickhouse_connect
+import oracledb
+import psycopg
+import pyodbc
+from django.contrib.auth.decorators import login_not_required
+from django.http import HttpResponse, JsonResponse
 
 # Create your views here.
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.csrf import csrf_exempt
+from etl.sources import MssqlSource, OracleSource, PostgresSource
 
 from .forms import DatabaseConfigurationForm, ETLConfigurationForm
 from .models import DatabaseConfiguration, ETLConfiguration
 from .tasks import delete_etl_graph, recreate_etl_task
-from django.contrib.auth.decorators import login_not_required
-from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +25,7 @@ logger = logging.getLogger(__name__)
 @login_not_required
 def home(request):
     return render(request, "databank/home.html")
+
 
 # Dashboard
 def dashboard(request):
@@ -45,10 +54,11 @@ def dashboard(request):
         },
     )
 
+
 # DATABASE CONFIG UI
 def database_list(request):
     # Fetch all configured databases to show in UI
-    databases = DatabaseConfiguration.objects.all()
+    databases = DatabaseConfiguration.objects.all().order_by("-id")
     return render(request, "databank/database_list.html", {"databases": databases})
 
 
@@ -124,26 +134,10 @@ def etl_delete(request, pk):
     return redirect("etl_list")
 
 
-# DOWNLOAD DATABASES
-def download_databases(request):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="databases.csv"'
-
-    writer = csv.writer(response)
-
-    fields = [field.name for field in DatabaseConfiguration._meta.fields]
-    writer.writerow(fields)
-
-    for obj in DatabaseConfiguration.objects.all():
-        writer.writerow([getattr(obj, field) for field in fields])
-
-    return response
-
-
 # DOWNLOAD ETLS
 def download_etls(request):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="etls.csv"'
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="etls.csv"'
 
     writer = csv.writer(response)
 
@@ -156,37 +150,115 @@ def download_etls(request):
     return response
 
 
-# DOWNLOAD SOURCES
-def download_sources(request):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="sources.csv"'
+@csrf_exempt
+def test_connection(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
 
-    writer = csv.writer(response)
+            db_type = data.get("database_type")
+            etl_type = data.get("etl_type")
 
-    qs = DatabaseConfiguration.objects.filter(etl_type="source")
-    fields = [field.name for field in DatabaseConfiguration._meta.fields]
+            try:
+                config = json.loads(data.get("connection_config"))
+            except Exception:
+                return JsonResponse({"success": False, "error": "Invalid JSON format"})
 
-    writer.writerow(fields)
+            # Validation rules
+            if etl_type == "source" and db_type == "clickhouse":
+                return JsonResponse(
+                    {"success": False, "error": "ClickHouse cannot be used as SOURCE"}
+                )
 
-    for obj in qs:
-        writer.writerow([getattr(obj, field) for field in fields])
+            if etl_type == "target" and db_type in ["mssql", "oracle"]:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": f"{db_type.upper()} cannot be used as TARGET",
+                    }
+                )
 
-    return response
+            # Connections
+            if db_type == "postgres":
+                conn = psycopg.connect(
+                    host=config["host"],
+                    port=config["port"],
+                    user=config["user"],
+                    password=config["password"],
+                    dbname=config["database"],
+                    connect_timeout=3,
+                )
+                conn.close()
+
+            elif db_type == "clickhouse":
+                client = clickhouse_connect.get_client(
+                    host=config["host"],
+                    port=config["port"],
+                    user=config["user"],
+                    password=config["password"],
+                    database=config["database"],
+                )
+                client.query("SELECT 1")
+
+            elif db_type == "mssql":
+                conn_str = (
+                    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+                    f"SERVER={config['host']},{config['port']};"
+                    f"DATABASE={config['database']};"
+                    f"UID={config['user']};"
+                    f"PWD={config['password']};"
+                    f"Encrypt=yes;"
+                    f"TrustServerCertificate=yes;"
+                )
+                conn = pyodbc.connect(conn_str, timeout=3)
+                conn.close()
+
+            elif db_type == "oracle":
+                dsn = oracledb.makedsn(
+                    config["host"], int(config["port"]), service_name=config["service"]
+                )
+                conn = oracledb.connect(
+                    user=config["user"], password=config["password"], dsn=dsn
+                )
+                conn.close()
+
+            return JsonResponse({"success": True})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e).split("\n")[0]})
+
+    return JsonResponse({"success": False, "error": "Invalid request"})
 
 
-# DOWNLOAD TARGETS
-def download_targets(request):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="targets.csv"'
+def toggle_etl_status(request, pk):
+    etl = get_object_or_404(ETLConfiguration, pk=pk)
 
-    writer = csv.writer(response)
+    if etl.status == ETLConfiguration.Status.ACTIVE:
+        etl.status = ETLConfiguration.Status.PAUSED
+        etl.save()
+        delete_etl_graph(pk)
 
-    qs = DatabaseConfiguration.objects.filter(etl_type="target")
-    fields = [field.name for field in DatabaseConfiguration._meta.fields]
+    else:
+        etl.status = ETLConfiguration.Status.ACTIVE
+        etl.save()
+        recreate_etl_task(etl_id=pk)
 
-    writer.writerow(fields)
+    return redirect("etl_list")
 
-    for obj in qs:
-        writer.writerow([getattr(obj, field) for field in fields])
 
-    return response
+def get_tables(request, db_id):
+    db = DatabaseConfiguration.objects.get(id=db_id)
+    config = db.connection_config
+
+    if db.database_type == "postgres":
+        source = PostgresSource({"connection": config})
+    elif db.database_type == "mssql":
+        source = MssqlSource({"connection": config})
+    elif db.database_type == "oracle":
+        source = OracleSource({"connection": config})
+    else:
+        return JsonResponse({"error": "Unsupported DB"}, status=400)
+
+    tables = source.get_all_tables()
+
+    return JsonResponse({"tables": tables})

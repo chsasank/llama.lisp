@@ -7,7 +7,7 @@
             $ List Databases
         </h2>
         <a href="{% url 'database_create' %}"
-           class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
+           class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
                     hover:bg-consoleAccent hover:text-black transition hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]">
             + Add Database
         </a>
@@ -26,11 +26,12 @@
             <table class="w-full text-sm table-fixed">
 
                 <colgroup>
-                    <col class="w-20">  
-                    <col class="w-56">   
-                    <col class="w-[28rem]">  
-                    <col class="w-28">      
-                    <col class="w-44">   
+                    <col class="w-16">
+                    <col class="w-36">
+                    <col class="w-72">
+                    <col class="w-72">
+                    <col class="w-24">
+                    <col class="w-44">
                 </colgroup>
 
                 <!-- HEADER -->
@@ -38,9 +39,10 @@
                     <tr>
                         <th class="py-3 text-left px-3">ID</th>
                         <th class="py-3 text-left px-3">Type</th>
+                        <th class="py-3 text-left px-3">NAME</th>
                         <th class="py-3 text-left px-3">Host</th>
                         <th class="py-3 text-left px-3">Port</th>
-                        <th class="py-3 text-left px-3 font-medium tracking-wide">Actions</th>
+                        <th class="py-3 text-left px-3">Actions</th>
                     </tr>
                 </thead>
 
@@ -63,6 +65,11 @@
                                     </span>
                                 </td>
 
+                                <!-- NAME -->
+                                <td class="py-3 px-3 text-slate-400 group-hover:text-white transition">
+                                    {{ db.connection_config.database|default:db.connection_config.user }}
+                                </td>
+
                                 <!-- HOST -->
                                 <td class="py-3 px-3 text-slate-300 truncate group-hover:text-slate-100 transition">
                                     {{ db.connection_config.host }}
@@ -78,7 +85,7 @@
                                     <div class="flex items-center gap-3">
 
                                         <a href="{% url 'database_edit' db.id %}"
-                                        class="text-sm px-3 py-1.5 rounded-md border border-consoleBorder
+                                        class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
                                                 hover:border-consoleAccent hover:text-consoleAccent
                                                 hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
                                                 transition-all duration-200">
@@ -86,7 +93,7 @@
                                         </a>
 
                                         <a onclick="openDeleteModel('{{ db.id }}', 'database')"
-                                        class="text-sm px-3 py-1.5 rounded-md border border-red-500 text-red-400
+                                        class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
                                                 hover:bg-red-500 hover:text-black
                                                 hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
                                                 transition-all duration-200 cursor-pointer">
@@ -124,11 +131,12 @@
             <table class="w-full text-sm table-fixed">
 
                 <colgroup>
-                    <col class="w-20">  
-                    <col class="w-56">   
-                    <col class="w-[28rem]">  
-                    <col class="w-28">      
-                    <col class="w-44">   
+                    <col class="w-16">
+                    <col class="w-36">
+                    <col class="w-72">
+                    <col class="w-72">
+                    <col class="w-24">
+                    <col class="w-44">
                 </colgroup>
 
                 <!-- HEADER -->
@@ -136,9 +144,10 @@
                     <tr>
                         <th class="py-3 text-left px-3">ID</th>
                         <th class="py-3 text-left px-3">Type</th>
+                        <th class="py-3 text-left px-3">NAME</th>
                         <th class="py-3 text-left px-3">Host</th>
                         <th class="py-3 text-left px-3">Port</th>
-                        <th class="py-3 text-left px-3 font-medium tracking-wide">Actions</th>
+                        <th class="py-3 text-left px-3">Actions</th>
                     </tr>
                 </thead>
 
@@ -161,6 +170,13 @@
                                     </span>
                                 </td>
 
+                                <!-- NAME -->
+                                <td class="py-3 px-3 text-slate-400 group-hover:text-white transition">
+                                    <span>
+                                        {{ db.connection_config.database|default:db.connection_config.user }}
+                                    </span>
+                                </td>
+
                                 <!-- HOST -->
                                 <td class="py-3 px-3 text-slate-300 truncate group-hover:text-slate-100 transition">
                                     {{ db.connection_config.host }}
@@ -176,7 +192,7 @@
                                     <div class="flex items-center gap-3">
 
                                         <a href="{% url 'database_edit' db.id %}"
-                                        class="text-sm px-3 py-1.5 rounded-md border border-consoleBorder
+                                        class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
                                                 hover:border-consoleAccent hover:text-consoleAccent
                                                 hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
                                                 transition-all duration-200">
@@ -184,7 +200,7 @@
                                         </a>
 
                                         <a onclick="openDeleteModel('{{ db.id }}', 'database')"
-                                        class="text-sm px-3 py-1.5 rounded-md border border-red-500 text-red-400
+                                        class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
                                                 hover:bg-red-500 hover:text-black
                                                 hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
                                                 transition-all duration-200 cursor-pointer">
@@ -223,7 +239,7 @@
 
         <div class="flex justify-end space-x-3">
             <button onclick="closeDeleteModel()"
-               class="text-sm px-3 py-1.5 rounded-md border border-consoleBorder
+               class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
                     hover:border-consoleAccent hover:text-consoleAccent
                     hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
                     transition-all duration-200">
@@ -232,7 +248,7 @@
 
             <a id="deleteConfirmBtn"
                href="#"
-               class="text-sm px-3 py-1.5 rounded-md border border-red-500 text-red-400
+               class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
                     hover:bg-red-500 hover:text-black
                     hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
                     transition-all duration-200 cursor-pointer">

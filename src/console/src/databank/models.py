@@ -21,13 +21,22 @@ class DatabaseConfiguration(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        id = self.connection_config.get("id")
         host = self.connection_config.get("host")
         port = self.connection_config.get("port")
-        return f"#{self.id} | {self.etl_type.upper()} | {self.database_type.upper()} | {host}:{port}"
+
+        name = self.connection_config.get("database") or self.connection_config.get(
+            "user"
+        )
+
+        return f"#{self.id} • {name} ({self.database_type.upper()}) • [{host}:{port}]"
 
 
 class ETLConfiguration(models.Model):
+
+    class Status(models.TextChoices):
+        ACTIVE = "active"
+        PAUSED = "paused"
+
     source_database = models.ForeignKey(
         DatabaseConfiguration, on_delete=models.CASCADE, related_name="source"
     )
@@ -42,5 +51,9 @@ class ETLConfiguration(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.ACTIVE
+    )
 
     run_interval = models.FloatField(null=True, blank=True)

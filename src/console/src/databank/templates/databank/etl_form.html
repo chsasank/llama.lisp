@@ -1,32 +1,107 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+<div class="max-w-4xl mx-auto bg-black/40 border border-consoleBorder rounded-xl p-8 shadow-2xl space-y-8">
 
-    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
-        $ {% if form.instance.pk %}Edit ETL{% else %}Add ETL{% endif %}
-    </h2>
+    <!-- HEADER -->
+    <div class="text-center">
+        <h2 class="text-2xl font-bold text-consoleAccent tracking-widest">
+            $ {% if form.instance.pk %}Edit ETL Job{% else %}Create ETL Job{% endif %}
+        </h2>
+        <p class="text-sm text-slate-500 mt-2">Configure your ETL pipeline</p>
+    </div>
 
-    <form method="POST" class="space-y-6">
+    <form method="POST" class="space-y-8">
         {% csrf_token %}
 
-        {% for field in form %}
-        <div class="space-y-1">
-            <label class="block text-xs uppercase tracking-wide text-slate-400">
-                {{ field.label }}
-            </label>
+        <!-- SOURCE CONFIG -->
+        <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
+            <h3 class="text-sm text-consoleAccent font-semibold">SOURCE</h3>
 
-            {{ field }}
+            <div>
+                <label class="text-xs text-slate-400">Database</label>
+                {{ form.source_database }}
+            </div>
 
-            {% if field.errors %}
-            <p class="text-xs text-red-400">{{ field.errors }}</p>
-            {% endif %}
+            <div>
+                <label class="text-xs text-slate-400">Table</label>
+                {{ form.source_table }}
+            </div>
         </div>
-        {% endfor %}
 
-        <div class="flex justify-between pt-6">
+        <!-- TARGET CONFIG -->
+        <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
+            <h3 class="text-sm text-consoleAccent font-semibold">TARGET</h3>
+
+            <div>
+                <label class="text-xs text-slate-400">Database</label>
+                {{ form.target_database }}
+            </div>
+
+            <div>
+                <label class="text-xs text-slate-400">Target Table</label>
+                {{ form.target_table }}
+            </div>
+        </div>
+
+        <!-- ADVANCED -->
+        <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
+            <h3 class="text-sm text-consoleAccent font-semibold">ADVANCED</h3>
+
+            <div>
+                <label class="text-xs text-slate-400">Run Interval (sec)</label>
+                {{ form.run_interval }}
+            </div>
+
+            <div>
+                <label class="text-xs text-slate-400">Replication Key</label>
+                {{ form.replication_key }}
+
+                <!-- Warning message -->
+                <p id="replication_warning" 
+                class="text-xs text-red-400 mt-1 hidden">
+                Replication key is required to enable backfill.
+                </p>
+            </div>
+
+            <div>
+                <!-- Label and Toggle -->
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs text-slate-400">Replication State</label>
+
+                    <div class="flex items-center gap-2">
+                        <!-- Toggle ONLY clickable -->
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="backfill_toggle" class="sr-only peer">
+
+                            <!-- Track -->
+                            <div class="w-11 h-6 bg-gray-700 rounded-full 
+                                        peer-checked:bg-consoleAccent 
+                                        transition-colors duration-300">
+                            </div>
+
+                            <!-- Thumb -->
+                            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full 
+                                        transition-transform duration-300
+                                        peer-checked:translate-x-5">
+                            </div>
+                        </label>
+
+                        <!-- No Toggle Trigger) -->
+                        <span class="text-xs text-slate-400 select-none">
+                            Replication Value
+                        </span>
+                    </div>
+                </div>
+
+                {{ form.replication_state }}
+            </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="flex justify-between pt-4">
             <a href="{% url 'etl_list' %}"
-               class="text-sm px-3 py-1.5 rounded-md border border-consoleBorder
+               class="text-sm px-4 py-2 font-semibold rounded-md border border-consoleBorder
                     hover:border-consoleAccent hover:text-consoleAccent
                     hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
                     transition-all duration-200">
@@ -34,12 +109,158 @@
             </a>
 
             <button type="submit"
-                class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded 
-                    hover:bg-consoleAccent hover:text-black transition hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]">
-                Save
+                class="px-5 py-2 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
+                    hover:bg-consoleAccent hover:text-black transition 
+                    hover:shadow-[0_0_12px_rgba(34,197,94,0.5)]">
+                Save ETL
             </button>
         </div>
 
     </form>
 </div>
+
+<!-- EXISTING SCRIPT -->
+<script>
+let isFetching = false;
+
+function fetchTables(dbId, selectedTable = null) {
+    if (isFetching) return;  // prevent multiple calls
+    isFetching = true;
+
+    const dropdown = document.getElementById("id_source_table");
+
+    if (!dbId) {
+        dropdown.innerHTML = '<option value="">Select table</option>';
+        isFetching = false;
+        return;
+    }
+
+    dropdown.innerHTML = '<option>Loading...</option>';
+
+    fetch(`/etl/get-tables/${dbId}/`)
+        .then(res => res.json())
+        .then(data => {
+            dropdown.innerHTML = '<option value="">Select table</option>';
+
+            data.tables.forEach(table => {
+                const opt = document.createElement("option");
+                opt.value = table;
+                opt.text = table;
+
+                if (selectedTable && selectedTable === table) {
+                    opt.selected = true;
+                }
+
+                dropdown.appendChild(opt);
+            });
+
+            isFetching = false;
+        })
+        .catch(err => {
+            console.error(err);
+            dropdown.innerHTML = '<option>Error loading tables</option>';
+            isFetching = false;
+        });
+}
+
+// Only trigger when user changes DB
+document.getElementById("id_source_database")
+    .addEventListener("change", function () {
+        fetchTables(this.value);
+    });
+
+// Load once ONLY if editing
+window.addEventListener("DOMContentLoaded", function () {
+    const dbId = document.getElementById("id_source_database").value;
+    const selectedTable = document.getElementById("id_source_table").value;
+
+    if (dbId && selectedTable) {
+        fetchTables(dbId, selectedTable);
+    }
+});
+</script>
+
+<script>
+const toggle = document.getElementById("backfill_toggle");
+const textarea = document.getElementById("id_replication_state");
+const replicationKey = document.getElementById("id_replication_key");
+const warning = document.getElementById("replication_warning");
+
+let previousValue = null;
+let warningTimeout = null;
+
+
+// INIT (edit mode)
+window.addEventListener("DOMContentLoaded", function () {
+    try {
+        const value = JSON.parse(textarea.value || "{}");
+
+        if (value.backfill !== undefined) {
+            toggle.checked = true;
+            previousValue = textarea.value;
+        }
+    } catch (e) {
+        console.warn("Invalid JSON in replication_state");
+    }
+});
+
+
+// Helper: show warning (with auto-hide)
+function showWarning() {
+    warning.classList.remove("hidden");
+
+    // clear previous timer
+    if (warningTimeout) {
+        clearTimeout(warningTimeout);
+    }
+
+    // auto hide after 3s
+    warningTimeout = setTimeout(() => {
+        warning.classList.add("hidden");
+    }, 3000);
+}
+
+
+// Toggle behavior with validation
+toggle.addEventListener("change", function () {
+
+    // Prevent enabling without replication key
+    if (this.checked && !replicationKey.value) {
+        showWarning();
+
+        // revert toggle
+        this.checked = false;
+        return;
+    }
+
+    // hide warning if valid
+    warning.classList.add("hidden");
+
+    if (this.checked) {
+        // ON → restore previous or set default
+        if (previousValue) {
+            textarea.value = previousValue;
+        } else {
+            textarea.value = JSON.stringify({
+                backfill: 3600,
+                replication_value: ""
+            }, null, 2);
+        }
+
+    } else {
+        // OFF → store current before clearing
+        previousValue = textarea.value;
+        textarea.value = "{}";
+    }
+});
+
+
+// Remove warning when user selects replication key
+replicationKey.addEventListener("input", function () {
+    if (this.value) {
+        warning.classList.add("hidden");
+    }
+});
+</script>
+
 {% endblock %}

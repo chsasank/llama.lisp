@@ -1,4 +1,5 @@
 from django.urls import path
+
 from . import views
 
 urlpatterns = [
@@ -15,9 +16,12 @@ urlpatterns = [
     path("etls/add/", views.etl_create, name="etl_create"),
     path("etls/<int:pk>/edit/", views.etl_edit, name="etl_edit"),
     path("etls/<int:pk>/delete/", views.etl_delete, name="etl_delete"),
-    # File Downloads
-    path("download/databases/", views.download_databases, name="download_databases"),
+    # File Download
     path("download/etls/", views.download_etls, name="download_etls"),
-    path("download/sources/", views.download_sources, name="download_sources"),
-    path("download/targets/", views.download_targets, name="download_targets"),
+    # Test Connection
+    path("test-connection/", views.test_connection, name="test_connection"),
+    # Toggle ETL
+    path("etl/<int:pk>/toggle/", views.toggle_etl_status, name="toggle_etl_status"),
+    # Get all tables
+    path("etl/get-tables/<int:db_id>/", views.get_tables, name="get_tables"),
 ]
