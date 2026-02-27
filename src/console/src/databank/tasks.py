@@ -11,6 +11,7 @@ from opentelemetry._logs import LoggerProvider, get_logger
 from opentelemetry.sdk.resources import Resource
 
 from task_manager.models import Graph, Task
+from databank.utils.logging import log_with_etl
 
 from .models import DatabaseConfiguration, ETLConfiguration
 
@@ -166,21 +167,9 @@ def delete_etl_graph(etl_id):
     graph_name = f"etl_{etl_id}"
     try:
         graph = Graph.objects.get(name=graph_name)
+        graph.tasks.all().delete()  # ensure tasks removed
         graph.delete()
         etl_config = ETLConfiguration.objects.get(id=etl_id)
         log_with_etl(logger, "ETL graph deleted", etl_config)
     except Graph.DoesNotExist:
         pass
-
-
-def log_with_etl(logger, message, etl_config, level="info", extra=None):
-    attributes = {
-        "etl_id": str(etl_config.id),
-        "source_table": etl_config.source_table,
-        "target_table": etl_config.target_table,
-    }
-
-    if extra:
-        attributes.update(extra)
-
-    getattr(logger, level)(message, extra=attributes)

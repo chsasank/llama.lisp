@@ -6,6 +6,9 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from databank.models import ETLConfiguration
+from databank.utils.logging import log_with_etl
+
 from task_manager.models import Task
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -36,7 +39,24 @@ class Command(BaseCommand):
                 now = time.time()
                 task_to_run.run()
                 run_time = time.time() - now
-                logger.info(f"Ran {task_to_run.fn} task in {run_time} seconds")
+
+                # SAFE CHECK
+                etl_id = task_to_run.args.get("etl_config_id")
+
+                if etl_id:
+                    try:
+                        etl_config = ETLConfiguration.objects.get(id=etl_id)
+
+                        log_with_etl(
+                            logger,
+                            f"Ran {task_to_run.fn} task in {run_time} seconds",
+                            etl_config,
+                            extra={"run_time": run_time}
+                        )
+                    except ETLConfiguration.DoesNotExist:
+                        logger.error(f"ETL config not found for id {etl_id}")
+                else:
+                    logger.info(f"Ran {task_to_run.fn} task in {run_time} seconds")
             except AttributeError:
                 polling_time = options["polling_time"]
                 logger.info(f"No queued tasks. Waiting {polling_time} seconds.")
