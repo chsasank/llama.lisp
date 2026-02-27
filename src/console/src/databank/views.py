@@ -1,11 +1,13 @@
 import csv
 import json
 import logging
+from urllib.parse import urlencode
 
 import clickhouse_connect
 import oracledb
 import psycopg
 import pyodbc
+from django.conf import settings
 from django.contrib.auth.decorators import login_not_required
 from django.http import HttpResponse, JsonResponse
 
@@ -97,6 +99,19 @@ def database_delete(request, pk):
 def etl_list(request):
     # Show all ETL pipelines configured in the system
     etls = ETLConfiguration.objects.all()
+    for e in etls:
+        query = f"LogAttributes['source_table'] IN ('{e.source_table}')"
+
+        params = {
+            "source": settings.LOGS_SOURCE_ID,
+            "filters": f'[{{"type":"sql","condition":"{query}"}}]',
+            "from": "now-15m",
+            "to": "now",
+            "isLive": "true",
+        }
+
+        e.logs_url = f"{settings.LOGS_BASE_URL}/search?{urlencode(params)}"
+
     return render(request, "databank/etl_list.html", {"etls": etls})
 
 
