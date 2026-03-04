@@ -72,6 +72,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "databank.context_processors.hyperdx",
             ],
         },
     },
@@ -143,9 +144,13 @@ LOGS_BASE_URL = os.getenv("LOGS_BASE_URL")
 LOGS_SOURCE_ID = os.getenv("LOGS_SOURCE_ID")
 
 otel_endpoint = os.getenv("OTEL_EXPORTER_ENDPOINT")
-otel_token = os.getenv("OTEL_AUTH_TOKEN")
+otel_token = os.getenv("HYPERDX_BROWSER_API_KEY")
 
-resource = Resource.create({"service.name": "Johnaic Data-console"})
+ETL_API_HOST = os.getenv("ETL_API_HOST")
+HYPERDX_OTEL_URL = os.getenv("HYPERDX_OTEL_URL")
+HYPERDX_BROWSER_API_KEY = os.getenv("HYPERDX_BROWSER_API_KEY")
+
+resource = Resource.create({"service.name": "Johnaic Data Console"})
 
 provider = LoggerProvider(resource=resource)
 

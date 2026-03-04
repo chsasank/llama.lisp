@@ -9,7 +9,6 @@
 </style>
 
 <div class="max-w-4xl mx-auto bg-black/40 border border-consoleBorder rounded-xl p-8 shadow-2xl space-y-8">
-
     <!-- HEADER -->
     <div class="text-center">
         <h2 class="text-2xl font-bold text-consoleAccent tracking-widest">
@@ -20,7 +19,6 @@
 
     <form method="POST" class="space-y-8">
         {% csrf_token %}
-
         <!-- SOURCE CONFIG -->
         <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
             <h3 class="text-sm text-consoleAccent font-semibold">SOURCE</h3>
@@ -39,7 +37,6 @@
         <!-- TARGET CONFIG -->
         <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
             <h3 class="text-sm text-consoleAccent font-semibold">TARGET</h3>
-
             <div>
                 <label class="text-xs text-slate-400">Database</label>
                 {{ form.target_database }}
@@ -110,7 +107,6 @@
                                             transition peer-checked:translate-x-5">
                                 </div>
                             </label>
-
                             <span class="text-xs text-slate-400">Backfill</span>
                         </div>
                     </div>
@@ -150,7 +146,6 @@
                 Save ETL
             </button>
         </div>
-
     </form>
 </div>
 
@@ -399,6 +394,38 @@ unitSelect.addEventListener("change", updateRunInterval);
 // Init (for edit page)
 window.addEventListener("DOMContentLoaded", () => {
     loadExistingValue();
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+        if (!window.HyperDX) return;
+        e.preventDefault();   // stop immediate submit
+
+        const sourceDB = document.getElementById("id_source_database")?.value;
+        const sourceTable = document.getElementById("id_source_table")?.value;
+        const targetDB = document.getElementById("id_target_database")?.value;
+        const targetTable = document.getElementById("id_target_table")?.value;
+        const mode = document.getElementById("id_replication_mode")?.value;
+
+        HyperDX.addAction("etl_saved", {
+            source_database: sourceDB,
+            source_table: sourceTable,
+            target_database: targetDB,
+            target_table: targetTable,
+            replication_mode: mode,
+            page: window.location.pathname
+        });
+
+        // allow HyperDX to send event
+        setTimeout(function () {
+            form.submit();
+        }, 150);
+    });
+
 });
 </script>
 

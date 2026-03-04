@@ -26,7 +26,6 @@
 
             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 
                         bg-gradient-to-r from-green-500/10 to-purple-500/10 blur-xl transition"></div>
-
             <div class="flex justify-between items-center">
                 <h3 class="text-lg text-slate-200 font-semibold group-hover:text-consoleAccent transition">
                     Databases
@@ -67,47 +66,134 @@
                 </p>
             </div>
         </a>
+    </div>
 
+    <!-- ETL SYSTEM METRICS -->
+    <div class="space-y-4">
+        <h3 class="text-consoleAccent text-lg font-semibold tracking-widest mb-2">
+            ETL Pipeline Status
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- SUCCESS -->
+            <a href="{% url 'etl_list' %}?status=success"
+            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+                        transition-all duration-300 hover:border-green-400/70 
+                        hover:scale-[1.03] overflow-hidden">
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100
+                            bg-green-500/10 blur-xl transition"></div>
+                <p class="text-xs text-slate-500 uppercase tracking-widest">Success</p>
+                <p class="text-2xl font-bold text-green-400 mt-1">
+                    {{ success_tasks }}
+                </p>
+            </a>
+
+            <!-- RUNNING -->
+            <a href="{% url 'etl_list' %}?status=running"
+            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+                        transition-all duration-300 hover:border-blue-400/70 
+                        hover:scale-[1.03] overflow-hidden">
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100
+                            bg-blue-500/10 blur-xl transition"></div>
+                <p class="text-xs text-slate-500 uppercase tracking-widest">Running</p>
+                <p class="text-2xl font-bold text-blue-400 mt-1">
+                    {{ running_tasks }}
+                </p>
+            </a>
+
+            <!-- QUEUED -->
+            <a href="{% url 'etl_list' %}?status=queued"
+            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+                        transition-all duration-300 hover:border-yellow-400/70 
+                        hover:scale-[1.03] overflow-hidden">
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100
+                            bg-yellow-500/10 blur-xl transition"></div>
+                <p class="text-xs text-slate-500 uppercase tracking-widest">Queued</p>
+                <p class="text-2xl font-bold text-yellow-400 mt-1">
+                    {{ queued_tasks }}
+                </p>
+            </a>
+
+            <!-- FAILED -->
+            <a href="{% url 'etl_list' %}?status=failed"
+            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+                        transition-all duration-300 hover:border-red-400/70 
+                        hover:scale-[1.03] overflow-hidden">
+
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100
+                            bg-red-500/10 blur-xl transition"></div>
+
+                <p class="text-xs text-slate-500 uppercase tracking-widest">Failed</p>
+                <p class="text-2xl font-bold text-red-400 mt-1">
+                    {{ failed_tasks }}
+                </p>
+            </a>
+        </div>
     </div>
 
     <!-- RECENT ETLs -->
     <div class="border border-consoleBorder rounded-xl p-5 bg-black/40">
-
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-consoleAccent text-lg font-semibold tracking-widest">
                 Recent ETLs
             </h3>
         </div>
-
         {% if recent_etls %}
             <div class="space-y-2">
-
                 {% for e in recent_etls %}
                 <div class="flex justify-between items-center text-sm 
                             border-b border-consoleBorder pb-2 
                             hover:bg-black/60 px-2 rounded transition">
-
                     <div class="truncate">
                         <span class="text-consoleAccent">{{ e.source_table }}</span>
                         <span class="text-slate-500"> → </span>
                         <span class="text-slate-300">{{ e.target_table }}</span>
                     </div>
-
                     <span class="text-xs text-slate-500">
                         #{{ e.id }}
                     </span>
-
                 </div>
                 {% endfor %}
-
             </div>
         {% else %}
             <p class="text-sm text-slate-500">
                 No recent ETLs available.
             </p>
         {% endif %}
-
     </div>
-
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function trackAndNavigate(eventName, url) {
+        if (window.HyperDX) {
+            HyperDX.addAction(eventName, {
+                page: window.location.pathname
+            });
+        }
+        setTimeout(function () {
+            window.location.href = url;
+        }, 120); // give HyperDX time to send event
+    }
+    /* Databases */
+    const dbCard = document.querySelector("a[href*='database_list']");
+    if (dbCard) {
+        const url = dbCard.href;
+
+        dbCard.addEventListener("click", function (e) {
+            e.preventDefault();
+            trackAndNavigate("dashboard_databases_clicked", url);
+        });
+    }
+    /* ETLs */
+    const etlCard = document.querySelector("a[href*='etl_list']");
+    if (etlCard) {
+        const url = etlCard.href;
+
+        etlCard.addEventListener("click", function (e) {
+            e.preventDefault();
+            trackAndNavigate("dashboard_etls_clicked", url);
+        });
+    }
+});
+</script>
 {% endblock %}

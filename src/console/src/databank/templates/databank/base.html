@@ -171,5 +171,66 @@
         </div>
     </footer>
 
+    <!-- ClickStack / HyperDX Browser SDK -->
+    <script src="//www.unpkg.com/@hyperdx/browser@0.21.0/build/index.js"></script>
+
+    <script>
+    (function () {
+        const apiKey = "{{ HYPERDX_BROWSER_API_KEY }}";
+        const otelUrl = "{{ HYPERDX_OTEL_URL }}";
+        const apiHost = "{{ ETL_API_HOST }}";
+
+        if (!apiKey || !otelUrl) return;
+        // Initialize HyperDX
+        window.HyperDX.init({
+            url: otelUrl,
+            apiKey: apiKey,
+            service: "Johnaic ETL UI",
+
+            tracePropagationTargets: [
+                new RegExp(apiHost, "i")
+            ],
+            consoleCapture: true,
+            advancedNetworkCapture: true,
+            maskAllInputs: true,
+            disableReplay: false
+        });
+        // Track page navigation
+        HyperDX.addAction("page_view", {
+            path: window.location.pathname,
+            title: document.title
+        });
+        // Capture frontend JS errors
+        window.addEventListener("error", function(e){
+            HyperDX.addAction("frontend_error", {
+                message: e.message,
+                file: e.filename,
+                line: e.lineno,
+                column: e.colno
+            });
+        });
+        // Capture unhandled promise errors
+        window.addEventListener("unhandledrejection", function(e){
+            HyperDX.addAction("promise_error", {
+                reason: e.reason
+            });
+        });
+    })();
+    </script>
+
+    {% if request.user.is_authenticated %}
+    <script>
+    if (window.HyperDX) {
+        // Attach logged-in user to session
+        HyperDX.setGlobalAttributes({
+            userId: "{{ request.user.id }}",
+            userEmail: "{{ request.user.email|default:'' }}",
+            userName: "{{ request.user.username }}",
+            environment: "production",
+            service: "Johnaic ETL UI"
+        });
+    }
+    </script>
+    {% endif %}
 </body>
 </html>

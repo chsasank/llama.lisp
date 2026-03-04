@@ -68,6 +68,7 @@
                         class="etl-row border border-consoleBorder rounded-md px-3 py-2
                                 flex flex-col md:flex-row md:items-center md:justify-between
                                 gap-3 hover:border-consoleAccent/70 hover:scale-[1.01] transition-transform"
+                        data-etl-id="{{ e.id }}"
                         data-search="
                             {{ e.source_table }}
                             {{ e.target_table }}
@@ -93,7 +94,7 @@
                             <div class="text-xs mt-2 flex flex-wrap gap-4 items-center">
 
                                 <!-- STATUS -->
-                                <div>
+                                <div class="etl-status">
                                     {% if e.current_status == "running" %}
                                         <span class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 font-semibold">
                                             RUNNING
@@ -334,6 +335,25 @@
 </script>
 
 <script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+
+    if (!status) return;
+
+    const searchInput = document.getElementById("etlSearch");
+
+    if (!searchInput) return;
+
+    searchInput.value = status;
+    searchInput.dispatchEvent(new Event("input"));
+
+});
+
+</script>
+
+<script>
     const scrollBtn = document.getElementById("scrollToTopBtn");
 
     window.addEventListener("scroll", () => {
@@ -357,4 +377,103 @@
         });
     });
 </script>
+
+<script>
+function initETLTracking() {
+
+    if (!window.HyperDX) {
+        setTimeout(initETLTracking, 400);
+        return;
+    }
+    /* Track Add ETL */
+    const addBtn = document.querySelector("a[href*='etl_create']");
+    if (addBtn) {
+        const url = addBtn.href;
+        addBtn.addEventListener("click", function(e) {
+
+            e.preventDefault();
+
+            HyperDX.addAction("etl_add_clicked", {
+                page: window.location.pathname
+            });
+
+            setTimeout(() => {
+                window.location.href = url;
+            }, 120);
+
+        });
+    }
+
+    /* Track Edit */
+    document.querySelectorAll("a[href*='etl_edit']").forEach(btn => {
+
+        const url = btn.href;
+
+        btn.addEventListener("click", function(e) {
+
+            e.preventDefault();
+
+            const row = this.closest(".etl-row");
+            const etlName = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            HyperDX.addAction("etl_edit_clicked", {
+                source_table: etlName
+            });
+
+            setTimeout(() => {
+                window.location.href = url;
+            }, 120);
+        });
+    });
+
+    /* Pause / Resume */
+    document.querySelectorAll("a[href*='toggle_etl_status']").forEach(btn => {
+
+        btn.addEventListener("click", function() {
+
+            const row = this.closest(".etl-row");
+            const sourceTable = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            const action = this.innerText.trim() === "Pause"
+                ? "etl_pause_clicked"
+                : "etl_resume_clicked";
+
+            HyperDX.addAction(action, {
+                source_table: sourceTable
+            });
+        });
+    });
+
+    /* Logs */
+    document.querySelectorAll("a[href*='search?']").forEach(btn => {
+        btn.addEventListener("click", function() {
+
+            const row = this.closest(".etl-row");
+            const sourceTable = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            HyperDX.addAction("etl_logs_opened", {
+                source_table: sourceTable
+            });
+        });
+    });
+
+    /* Delete */
+    document.querySelectorAll("a[onclick*='openDeleteModel']").forEach(btn => {
+        btn.addEventListener("click", function() {
+
+            const row = this.closest(".etl-row");
+            const sourceTable = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            HyperDX.addAction("etl_delete_clicked", {
+                source_table: sourceTable
+            });
+        });
+    });
+
+}
+
+document.addEventListener("DOMContentLoaded", initETLTracking);
+
+</script>
+
 {% endblock %}

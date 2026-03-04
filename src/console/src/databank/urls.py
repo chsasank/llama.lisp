@@ -24,4 +24,6 @@ urlpatterns = [
     path("etl/<int:pk>/toggle/", views.toggle_etl_status, name="toggle_etl_status"),
     # Get all tables
     path("etl/get-tables/<int:db_id>/", views.get_tables, name="get_tables"),
+    # ETL status api url
+    path("etl/status/", views.etl_status_api, name="etl_status_api"),
 ]

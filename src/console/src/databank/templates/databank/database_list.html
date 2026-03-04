@@ -22,9 +22,7 @@
         </div>
 
         <div class="overflow-x-auto rounded-xl border border-consoleBorder bg-black/30 backdrop-blur">
-
             <table class="w-full text-sm table-fixed">
-
                 <colgroup>
                     <col class="w-16">
                     <col class="w-36">
@@ -52,34 +50,28 @@
                     {% for db in databases %}
                         {% if db.etl_type == "source" %}
                             <tr class="group hover:bg-white/5 transition-all duration-200">
-
                                 <!-- ID -->
                                 <td class="py-3 px-3 text-slate-400 group-hover:text-white transition">
                                     #{{ db.id }}
                                 </td>
-
                                 <!-- TYPE -->
                                 <td class="py-3 px-3">
                                     <span class="px-2 py-1 text-sm rounded-md bg-consoleAccent/10 text-consoleAccent border border-consoleAccent/20">
                                         {{ db.database_type|upper }}
                                     </span>
                                 </td>
-
                                 <!-- NAME -->
                                 <td class="py-3 px-3 text-slate-400 group-hover:text-white transition">
                                     {{ db.connection_config.database|default:db.connection_config.user }}
                                 </td>
-
                                 <!-- HOST -->
                                 <td class="py-3 px-3 text-slate-300 truncate group-hover:text-slate-100 transition">
                                     {{ db.connection_config.host }}
                                 </td>
-
                                 <!-- PORT -->
                                 <td class="py-3 px-3 text-slate-400">
                                     {{ db.connection_config.port }}
                                 </td>
-
                                 <!-- ACTIONS -->
                                 <td class="py-3 px-3">
                                     <div class="flex items-center gap-3">
@@ -99,10 +91,8 @@
                                                 transition-all duration-200 cursor-pointer">
                                             Delete
                                         </a>
-
                                     </div>
                                 </td>
-
                             </tr>
                         {% endif %}
                     {% empty %}
@@ -112,7 +102,6 @@
                             </td>
                         </tr>
                     {% endfor %}
-
                 </tbody>
             </table>
         </div>
@@ -125,11 +114,8 @@
                 target databases
             </h3>
         </div>
-
         <div class="overflow-x-auto rounded-xl border border-consoleBorder bg-black/30 backdrop-blur">
-
             <table class="w-full text-sm table-fixed">
-
                 <colgroup>
                     <col class="w-16">
                     <col class="w-36">
@@ -138,7 +124,6 @@
                     <col class="w-24">
                     <col class="w-44">
                 </colgroup>
-
                 <!-- HEADER -->
                 <thead class="text-base uppercase text-slate-400 border-b border-consoleBorder bg-black/40 backdrop-blur">
                     <tr>
@@ -150,47 +135,38 @@
                         <th class="py-3 text-left px-3">Actions</th>
                     </tr>
                 </thead>
-
                 <!-- BODY -->
                 <tbody class="divide-y divide-consoleBorder">
-
                     {% for db in databases %}
                         {% if db.etl_type == "target" %}
                             <tr class="group hover:bg-white/5 transition-all duration-200">
-
                                 <!-- ID -->
                                 <td class="py-3 px-3 text-slate-400 group-hover:text-white transition">
                                     #{{ db.id }}
                                 </td>
-
                                 <!-- TYPE -->
                                 <td class="py-3 px-3">
                                     <span class="px-2 py-1 text-sm rounded-md bg-consoleAccent/10 text-consoleAccent border border-consoleAccent/20">
                                         {{ db.database_type|upper }}
                                     </span>
                                 </td>
-
                                 <!-- NAME -->
                                 <td class="py-3 px-3 text-slate-400 group-hover:text-white transition">
                                     <span>
                                         {{ db.connection_config.database|default:db.connection_config.user }}
                                     </span>
                                 </td>
-
                                 <!-- HOST -->
                                 <td class="py-3 px-3 text-slate-300 truncate group-hover:text-slate-100 transition">
                                     {{ db.connection_config.host }}
                                 </td>
-
                                 <!-- PORT -->
                                 <td class="py-3 px-3 text-slate-400">
                                     {{ db.connection_config.port }}
                                 </td>
-
                                 <!-- ACTIONS -->
                                 <td class="py-3 px-3">
                                     <div class="flex items-center gap-3">
-
                                         <a href="{% url 'database_edit' db.id %}"
                                         class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
                                                 hover:border-text-consoleAccent hover:text-consoleAccent
@@ -206,10 +182,8 @@
                                                 transition-all duration-200 cursor-pointer">
                                             Delete
                                         </a>
-
                                     </div>
                                 </td>
-
                             </tr>
                         {% endif %}
                     {% empty %}
@@ -229,14 +203,11 @@
 <!-- Delete model this model is reused for both source and target database deletion -->
 <div id="deleteModel"
      class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
     <div class="bg-consolePanel border border-consoleBorder rounded-lg p-6 w-80 shadow-xl">
         <h3 class="text-lg font-semibold text-red-400 mb-3">$ Confirm Delete</h3>
-
         <p id="deleteMessage" class="text-slate-300 text-sm mb-5">
             Are you sure you want to delete this item?
         </p>
-
         <div class="flex justify-end space-x-3">
             <button onclick="closeDeleteModel()"
                class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
@@ -276,5 +247,79 @@
     }
 </script>
 
+<script>
+
+function initDatabaseTracking() {
+    if (!window.HyperDX) {
+        setTimeout(initDatabaseTracking, 400);
+        return;
+    }
+
+    /* Track Add Database button */
+    const addBtn = document.querySelector("a[href*='database_create']");
+    if (addBtn) {
+
+        const url = addBtn.href;
+
+        addBtn.addEventListener("click", function (e) {
+
+            e.preventDefault();
+
+            HyperDX.addAction("database_add_clicked", {
+                page: window.location.pathname
+            });
+
+            setTimeout(() => {
+                window.location.href = url;
+            }, 120);
+
+        });
+    }
+
+    /* Track Edit buttons */
+    document.querySelectorAll("a[href*='database_edit']").forEach(btn => {
+
+        const url = btn.href;
+
+        btn.addEventListener("click", function (e) {
+
+            e.preventDefault();
+
+            const row = this.closest("tr");
+            const dbId = row?.querySelector("td")?.innerText.replace("#","");
+
+            HyperDX.addAction("database_edit_clicked", {
+                database_id: dbId
+            });
+
+            setTimeout(() => {
+                window.location.href = url;
+            }, 120);
+
+        });
+
+    });
+
+    /* Track Delete modal open */
+    document.querySelectorAll("a[onclick*='openDeleteModel']").forEach(btn => {
+
+        btn.addEventListener("click", function () {
+
+            const row = this.closest("tr");
+            const dbId = row?.querySelector("td")?.innerText.replace("#","");
+
+            HyperDX.addAction("database_delete_clicked", {
+                database_id: dbId
+            });
+
+        });
+
+    });
+
+}
+
+document.addEventListener("DOMContentLoaded", initDatabaseTracking);
+
+</script>
 
 {% endblock %}

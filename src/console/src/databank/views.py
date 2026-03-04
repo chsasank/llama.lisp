@@ -16,7 +16,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 
-from task_manager.models import Graph
+from task_manager.models import Graph, Task
 
 from .forms import DatabaseConfigurationForm, ETLConfigurationForm
 from .models import DatabaseConfiguration, ETLConfiguration
@@ -42,9 +42,64 @@ def dashboard(request):
     source_count = databases.filter(etl_type="source").count()
     target_count = databases.filter(etl_type="target").count()
 
-    recent_etls = ETLConfiguration.objects.select_related(
-        "source_database", "target_database"
-    ).order_by("-id")[:5]
+    running_tasks = 0
+    failed_tasks = 0
+    success_tasks = 0
+    queued_tasks = 0
+
+    for etl in ETLConfiguration.objects.all():
+
+        graph_name = f"etl_{etl.id}"
+
+        try:
+            graph = Graph.objects.get(name=graph_name)
+            latest_task = graph.tasks.order_by("-updated_at").first()
+
+            if not latest_task:
+                continue
+
+            if latest_task.state == Task.TaskState.RUNNING:
+                running_tasks += 1
+
+            elif latest_task.state == Task.TaskState.FAILED:
+                failed_tasks += 1
+
+            elif latest_task.state == Task.TaskState.SUCCESS:
+                success_tasks += 1
+
+            elif latest_task.state == Task.TaskState.QUEUED:
+                queued_tasks += 1
+
+        except Graph.DoesNotExist:
+            continue
+
+    # Recently executed ETLs
+    recent_tasks = Task.objects.filter(args__has_key="etl_config_id").order_by(
+        "-updated_at"
+    )[:5]
+
+    recent_etls = []
+
+    for task in recent_tasks:
+        etl_id = task.args.get("etl_config_id")
+
+        try:
+            etl = ETLConfiguration.objects.select_related(
+                "source_database", "target_database"
+            ).get(id=etl_id)
+
+            etl.last_state = task.state
+            etl.last_run = task.updated_at
+
+            recent_etls.append(etl)
+
+        except ETLConfiguration.DoesNotExist:
+            continue
+
+    # Active scheduled ETLs
+    scheduled_tasks = Task.objects.filter(periodic_interval__isnull=False).order_by(
+        "next_run_at"
+    )[:5]
 
     return render(
         request,
@@ -54,7 +109,12 @@ def dashboard(request):
             "etl_count": etl_count,
             "source_count": source_count,
             "target_count": target_count,
+            "running_tasks": running_tasks,
+            "failed_tasks": failed_tasks,
+            "success_tasks": success_tasks,
+            "queued_tasks": queued_tasks,
             "recent_etls": recent_etls,
+            "scheduled_tasks": scheduled_tasks,
         },
     )
 
@@ -181,6 +241,28 @@ def etl_delete(request, pk):
     etl = get_object_or_404(ETLConfiguration, pk=pk)
     etl.delete()
     return redirect("etl_list")
+
+
+def etl_status_api(request):
+
+    data = []
+
+    for etl in ETLConfiguration.objects.all():
+
+        graph_name = f"etl_{etl.id}"
+
+        try:
+            graph = Graph.objects.get(name=graph_name)
+            latest_task = graph.tasks.order_by("-updated_at").first()
+
+            state = latest_task.state if latest_task else "idle"
+
+        except Graph.DoesNotExist:
+            state = "not_scheduled"
+
+        data.append({"id": etl.id, "state": state})
+
+    return JsonResponse(data, safe=False)
 
 
 # DOWNLOAD ETLS

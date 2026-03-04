@@ -23,20 +23,17 @@
             </label>
 
             <div class="grid grid-cols-2 gap-4">
-
                 <!-- SOURCE -->
                 <label class="cursor-pointer">
                     <input type="radio" name="etl_type" value="source"
                            id="id_etl_type"
                            {% if form.etl_type.value == "source" %}checked{% endif %}
                            class="hidden peer">
-
                     <div class="p-5 rounded-xl border border-consoleBorder bg-black/50
                                 hover:border-consoleAccent
                                 peer-checked:border-consoleAccent
                                 peer-checked:bg-consoleAccent/10
                                 transition-all duration-200">
-
                         <p class="text-sm font-semibold text-slate-200">SOURCE</p>
                         <p class="text-xs text-slate-500 mt-1">Read from database</p>
                     </div>
@@ -47,18 +44,15 @@
                     <input type="radio" name="etl_type" value="target"
                            {% if form.etl_type.value == "target" %}checked{% endif %}
                            class="hidden peer">
-
                     <div class="p-5 rounded-xl border border-consoleBorder bg-black/50
                                 hover:border-consoleAccent
                                 peer-checked:border-consoleAccent
                                 peer-checked:bg-consoleAccent/10
                                 transition-all duration-200">
-
                         <p class="text-sm font-semibold text-slate-200">TARGET</p>
                         <p class="text-xs text-slate-500 mt-1">Write to database</p>
                     </div>
                 </label>
-
             </div>
         </div>
 
@@ -67,9 +61,7 @@
             <label class="text-xs uppercase tracking-widest text-slate-400 mb-3 block">
                 Database Type
             </label>
-
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-
                 {% for value, label in form.fields.database_type.choices %}
                     {% if value %}
                     <label class="cursor-pointer">
@@ -79,7 +71,6 @@
                             id="id_database_type"
                             {% if form.database_type.value == value %}checked{% endif %}
                             class="hidden peer">
-
                         <div class="p-4 text-center rounded-lg border border-consoleBorder bg-black/50
                                     hover:border-consoleAccent
                                     peer-checked:border-consoleAccent
@@ -93,7 +84,6 @@
                     </label>
                     {% endif %}
                 {% endfor %}
-
             </div>
         </div>
 
@@ -101,13 +91,11 @@
         <div id="db_warning"
             class="hidden text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded-md p-2">
         </div>
-
         <!-- CONFIG -->
         <div>
             <label class="text-xs uppercase tracking-widest text-slate-400 mb-2 block">
                 Connection Configuration
             </label>
-
             <textarea id="id_connection_config"
                     name="connection_config"
                     rows="10"
@@ -121,7 +109,6 @@
 
         <!-- ACTIONS -->
         <div class="flex justify-between pt-4">
-
             <a href="{% url 'database_list' %}"
                class="text-sm px-4 py-2 font-semibold rounded-md border border-consoleBorder
                     hover:border-consoleAccent hover:text-consoleAccent
@@ -131,7 +118,6 @@
             </a>
 
             <div class="flex justify-end gap-3">
-
                 <!-- TEST BUTTON -->
                 <button type="button"
                         id="testBtn"
@@ -141,9 +127,7 @@
                             hover:shadow-[0_0_10px_rgba(234,179,8,0.5)]
                             transition-all duration-200
                             flex items-center justify-center gap-2">
-
                     <span id="btnText">Test Connection</span>
-
                     <!-- Spinner -->
                     <span id="btnLoader"
                         class="hidden w-4 h-4 border-2 border-yellow-400 border-t-transparent 
@@ -159,11 +143,8 @@
                         transition-all duration-200">
                     Save Configuration
                 </button>
-
             </div>
-
         </div>
-
     </form>
 </div>
 
@@ -238,7 +219,6 @@ function handleAddMode() {
             configTextarea.value = "{}";
         }
     }
-
     document.addEventListener("DOMContentLoaded", applyTemplate);
     document.querySelectorAll('input[name="etl_type"]').forEach(el => {
         el.addEventListener("change", () => {
@@ -246,7 +226,6 @@ function handleAddMode() {
             validateSelection();
         });
     });
-
     document.querySelectorAll('input[name="database_type"]').forEach(el => {
         el.addEventListener("change", () => {
             applyTemplate();
@@ -259,7 +238,6 @@ function handleEditMode() {
     if (configTextarea.value.trim() === "") {
         const etl = getSelectedETLType();
         const db = getSelectedDBType();
-
         if (defaultConfigs[etl] && defaultConfigs[etl][db]) {
             configTextarea.value = defaultConfigs[etl][db];
         } else {
@@ -284,11 +262,9 @@ function validateSelection() {
     if (etl === "source" && db === "clickhouse") {
         message = "ClickHouse is not supported as a SOURCE. Use Postgres, MSSQL, or Oracle.";
     }
-
     if (etl === "target" && (db === "mssql" || db === "oracle")) {
         message = "MSSQL and Oracle are not supported as TARGET. Use Postgres or ClickHouse.";
     }
-
     if (message) {
         warningBox.innerText = message;
         warningBox.classList.remove("hidden");
@@ -321,7 +297,6 @@ function formatJSON() {
         // Convert string → JSON → pretty format
         const parsed = JSON.parse(raw);
         textarea.value = JSON.stringify(parsed, null, 4);
-
     } catch (e) {
         console.log("Invalid JSON, skipping format");
     }
@@ -335,7 +310,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script>
 function testConnection() {
-
     const etl = document.querySelector('input[name="etl_type"]:checked')?.value;
     const db = document.querySelector('input[name="database_type"]:checked')?.value;
     const config = document.getElementById("id_connection_config").value;
@@ -357,7 +331,6 @@ function testConnection() {
                 resultBox.style.opacity = "1";
             }, 300);
         }, 3000);
-
         return;
     }
 
@@ -372,7 +345,6 @@ function testConnection() {
     if (config.includes("HOST") || config.includes("PORT") || config.includes("USER_NAME")) {
         resultBox.innerText = "Please replace placeholder values before testing";
         resultBox.className = "text-yellow-400 text-sm mt-2";
-
         setTimeout(() => {
             resultBox.style.opacity = "0";
             setTimeout(() => {
@@ -421,7 +393,6 @@ function testConnection() {
     .catch(err => {
         resultBox.innerText = "Error testing connection";
         resultBox.className = "text-red-400 text-sm mt-2";
-
         setTimeout(() => {
             resultBox.style.opacity = "0";
             setTimeout(() => {
@@ -438,6 +409,35 @@ function testConnection() {
         btn.classList.remove("opacity-50", "cursor-not-allowed");
     });
 }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    if (!form) return;
+
+    form.addEventListener("submit", function (e) {
+        if (!window.HyperDX) return;
+        e.preventDefault(); // stop immediate submit
+
+        const dbType = document.getElementById("id_database_type")?.value;
+        const host = document.getElementById("id_host")?.value;
+        const port = document.getElementById("id_port")?.value;
+        const database = document.getElementById("id_database")?.value;
+
+        HyperDX.addAction("database_saved", {
+            database_type: dbType,
+            host: host,
+            port: port,
+            database: database,
+            page: window.location.pathname
+        });
+        // allow HyperDX to send the event
+        setTimeout(() => {
+            form.submit();
+        }, 150);
+    });
+});
 </script>
 
 {% endblock %}
