@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import pickle
@@ -5,8 +6,8 @@ import sys
 
 import clickhouse_connect
 import psycopg
-import datetime
 from common import testing_database_host
+
 from etl.common import ETLDataTypes
 from etl.targets import ClickhouseTarget, PostgresTarget
 
@@ -93,6 +94,7 @@ def test_ch_load_batch():
     rows = pickle.load(open(os.path.join(here, "data/testing_batch.pkl"), "rb"))
     tgt.load_batch(rows, test_etl_schema)
 
+
 def test_ch_date_normalization():
     tgt = ClickhouseTarget(test_ch_config)
 
@@ -108,6 +110,7 @@ def test_ch_date_normalization():
     assert normalized_date.second == 0
 
     assert normalized_dt == dt
+
 
 def test_ch_load_batch_with_date_values():
     tgt = ClickhouseTarget(test_ch_config)
@@ -139,6 +142,7 @@ def test_ch_load_batch_with_date_values():
     # Should NOT raise
     tgt.load_batch(rows, test_etl_schema)
 
+
 def test_ch_load_batch_with_null_date():
     tgt = ClickhouseTarget(test_ch_config)
     tgt.ensure_schema(test_etl_schema)
@@ -152,7 +156,7 @@ def test_ch_load_batch_with_null_date():
             "https://api.github.com",
             "sha-2",
             "https://github.com",
-            None,               # NULL date
+            None,  # NULL date
             {},
             {},
             {},
@@ -168,7 +172,8 @@ def test_ch_load_batch_with_null_date():
 
     # Should NOT raise
     tgt.load_batch(rows, test_etl_schema)
-    
+
+
 def test_ch_normalize_utf_string_datetime():
     tgt = ClickhouseTarget(test_ch_config)
 
@@ -176,6 +181,33 @@ def test_ch_normalize_utf_string_datetime():
     normalized = tgt._normalize_value(value, ETLDataTypes.DATE_TIME)
 
     assert normalized == value
+
+
+def test_psql_drop_table():
+    tgt = PostgresTarget(test_psql_config)
+
+    # Ensure table exists first
+    tgt.ensure_schema(test_etl_schema)
+
+    # Drop it
+    tgt.drop_table()
+
+    # Recreate to confirm drop worked
+    tgt.ensure_schema(test_etl_schema)
+
+
+def test_ch_drop_table():
+    tgt = ClickhouseTarget(test_ch_config)
+
+    # Ensure table exists first
+    tgt.ensure_schema(test_etl_schema)
+
+    # Drop it
+    tgt.drop_table()
+
+    # Recreate to confirm drop worked
+    tgt.ensure_schema(test_etl_schema)
+
 
 if __name__ == "__main__":
     test_psql_conn()
@@ -188,3 +220,5 @@ if __name__ == "__main__":
     test_ch_load_batch_with_date_values()
     test_ch_load_batch_with_null_date()
     test_ch_normalize_utf_string_datetime()
+    test_psql_drop_table()
+    test_ch_drop_table()

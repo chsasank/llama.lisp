@@ -21,3 +21,6 @@ class TargetDriver:
 
     def load_batch(self, columns, rows):
         raise NotImplementedError
+
+    def drop_table(self):
+        raise NotImplementedError

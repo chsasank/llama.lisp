@@ -1,6 +1,13 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
+
+<style>
+    #id_run_interval {
+        display: none;
+    }
+</style>
+
 <div class="max-w-4xl mx-auto bg-black/40 border border-consoleBorder rounded-xl p-8 shadow-2xl space-y-8">
 
     <!-- HEADER -->
@@ -49,52 +56,80 @@
             <h3 class="text-sm text-consoleAccent font-semibold">ADVANCED</h3>
 
             <div>
-                <label class="text-xs text-slate-400">Run Interval (sec)</label>
+                <label class="text-xs text-slate-400">Replication Mode</label>
+                {{ form.replication_mode }}
+            </div>
+
+            <div id="run_interval_field" class="space-y-2">
+                <label class="text-xs text-slate-400">Run Interval</label>
+
+                <div class="flex gap-2">
+                    <!-- VALUE INPUT -->
+                    <input type="number" id="run_interval_value"
+                        class="w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm text-slate-100"
+                        placeholder="Enter value" />
+
+                    <!-- UNIT DROPDOWN -->
+                    <select id="run_interval_unit"
+                        class="bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm text-slate-100">
+                        <option value="seconds">Seconds</option>
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                    </select>
+                </div>
+
+                <!-- HIDDEN ACTUAL FIELD (this goes to backend) -->
                 {{ form.run_interval }}
             </div>
 
-            <div>
-                <label class="text-xs text-slate-400">Replication Key</label>
-                {{ form.replication_key }}
+            <!-- INCREMENTAL -->
+            <div id="incremental_fields" class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400">Replication Key</label>
+                    {{ form.replication_key }}
 
-                <!-- Warning message -->
-                <p id="replication_warning" 
-                class="text-xs text-red-400 mt-1 hidden">
-                Replication key is required to enable backfill.
-                </p>
-            </div>
-
-            <div>
-                <!-- Label and Toggle -->
-                <div class="flex items-center justify-between mb-2">
-                    <label class="text-xs text-slate-400">Replication State</label>
-
-                    <div class="flex items-center gap-2">
-                        <!-- Toggle ONLY clickable -->
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="backfill_toggle" class="sr-only peer">
-
-                            <!-- Track -->
-                            <div class="w-11 h-6 bg-gray-700 rounded-full 
-                                        peer-checked:bg-consoleAccent 
-                                        transition-colors duration-300">
-                            </div>
-
-                            <!-- Thumb -->
-                            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full 
-                                        transition-transform duration-300
-                                        peer-checked:translate-x-5">
-                            </div>
-                        </label>
-
-                        <!-- No Toggle Trigger) -->
-                        <span class="text-xs text-slate-400 select-none">
-                            Replication Value
-                        </span>
-                    </div>
+                    <p id="replication_warning" 
+                    class="text-xs text-red-400 mt-1 hidden">
+                    Replication key is required to enable backfill.
+                    </p>
                 </div>
 
-                {{ form.replication_state }}
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs text-slate-400">Replication State</label>
+
+                        <div class="flex items-center gap-2">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="backfill_toggle" class="sr-only peer">
+
+                                <div class="w-11 h-6 bg-gray-700 rounded-full 
+                                            peer-checked:bg-consoleAccent transition">
+                                </div>
+
+                                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full 
+                                            transition peer-checked:translate-x-5">
+                                </div>
+                            </label>
+
+                            <span class="text-xs text-slate-400">Backfill</span>
+                        </div>
+                    </div>
+
+                    {{ form.replication_state }}
+                </div>
+
+            </div>
+
+            <!-- FULL REFRESH -->
+            <div id="full_refresh_fields" class="hidden space-y-4">
+                <div class="text-xs text-red-400">
+                    ⚠️ Table will be DROPPED and RECREATED on every run
+                </div>
+            </div>
+
+            <!-- ONE TIME -->
+            <div id="one_time_fields" class="hidden space-y-4 text-xs text-purple-400">
+                Runs only once. No replication or scheduling needed.
             </div>
         </div>
 
@@ -205,7 +240,7 @@ window.addEventListener("DOMContentLoaded", function () {
 });
 
 
-// Helper: show warning (with auto-hide)
+// Helper: show warning
 function showWarning() {
     warning.classList.remove("hidden");
 
@@ -260,6 +295,110 @@ replicationKey.addEventListener("input", function () {
     if (this.value) {
         warning.classList.add("hidden");
     }
+});
+</script>
+
+<script>
+const modeSelect = document.getElementById("id_replication_mode");
+
+const incremental = document.getElementById("incremental_fields");
+const fullRefresh = document.getElementById("full_refresh_fields");
+const oneTime = document.getElementById("one_time_fields");
+const runIntervalField = document.getElementById("run_interval_field");
+
+function updateModeUI() {
+    const mode = modeSelect.value;
+
+    const replicationKey = document.getElementById("id_replication_key");
+    const replicationState = document.getElementById("id_replication_state");
+    const runInterval = document.getElementById("id_run_interval");
+
+    // hide all first
+    incremental.classList.add("hidden");
+    fullRefresh.classList.add("hidden");
+    oneTime.classList.add("hidden");
+    runIntervalField.classList.remove("hidden");
+
+    if (mode === "incremental") {
+        incremental.classList.remove("hidden");
+
+        replicationKey.disabled = false;
+        replicationState.disabled = false;
+        runInterval.disabled = false;
+    }
+    else if (mode === "full_refresh") {
+        fullRefresh.classList.remove("hidden");
+
+        replicationKey.disabled = true;
+        replicationState.disabled = true;
+        runInterval.disabled = false;
+    }
+    else if (mode === "one_time") {
+        runIntervalField.classList.add("hidden");
+        oneTime.classList.remove("hidden");
+
+        replicationKey.disabled = true;
+        replicationState.disabled = true;
+        runInterval.disabled = true;
+    }
+}
+
+// initial load
+window.addEventListener("DOMContentLoaded", updateModeUI);
+
+// on change
+modeSelect.addEventListener("change", updateModeUI);
+</script>
+
+<script>
+const valueInput = document.getElementById("run_interval_value");
+const unitSelect = document.getElementById("run_interval_unit");
+const hiddenInput = document.getElementById("id_run_interval");
+
+// Convert to seconds
+function updateRunInterval() {
+    let value = parseFloat(valueInput.value || 0);
+    let unit = unitSelect.value;
+
+    let seconds = value;
+
+    if (unit === "minutes") {
+        seconds = value * 60;
+    }
+    else if (unit === "hours") {
+        seconds = value * 3600;
+    }
+
+    hiddenInput.value = seconds || "";
+}
+
+// Reverse conversion (for EDIT mode)
+function loadExistingValue() {
+    let seconds = parseFloat(hiddenInput.value);
+
+    if (!seconds) return;
+
+    if (seconds % 3600 === 0) {
+        valueInput.value = seconds / 3600;
+        unitSelect.value = "hours";
+    }
+    else if (seconds % 60 === 0) {
+        valueInput.value = seconds / 60;
+        unitSelect.value = "minutes";
+    }
+    else {
+        valueInput.value = seconds;
+        unitSelect.value = "seconds";
+    }
+}
+
+// Events
+valueInput.addEventListener("input", updateRunInterval);
+unitSelect.addEventListener("change", updateRunInterval);
+
+// Init (for edit page)
+window.addEventListener("DOMContentLoaded", () => {
+    loadExistingValue();
 });
 </script>
 

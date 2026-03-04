@@ -57,3 +57,14 @@ class ETLConfiguration(models.Model):
     )
 
     run_interval = models.FloatField(null=True, blank=True)
+
+    class ReplicationMode(models.TextChoices):
+        INCREMENTAL = "incremental"
+        FULL_REFRESH = "full_refresh"
+        ONE_TIME = "one_time"
+
+    replication_mode = models.CharField(
+        max_length=20,
+        choices=ReplicationMode.choices,
+        default=ReplicationMode.INCREMENTAL,
+    )

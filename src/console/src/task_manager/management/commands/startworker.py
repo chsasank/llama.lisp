@@ -8,7 +8,6 @@ from django.utils import timezone
 
 from databank.models import ETLConfiguration
 from databank.utils.logging import log_with_etl
-
 from task_manager.models import Task
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -51,7 +50,7 @@ class Command(BaseCommand):
                             logger,
                             f"Ran {task_to_run.fn} task in {run_time} seconds",
                             etl_config,
-                            extra={"run_time": run_time}
+                            extra={"run_time": run_time},
                         )
                     except ETLConfiguration.DoesNotExist:
                         logger.error(f"ETL config not found for id {etl_id}")

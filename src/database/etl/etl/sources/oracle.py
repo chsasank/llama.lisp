@@ -6,9 +6,8 @@ from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
 
-oracledb.init_oracle_client(
-    lib_dir="/opt/oracle/instantclient_21_20"
-)
+oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_21_20")
+
 
 class OracleSource(SourceDriver):
     def __init__(self, config, state_manager=None, batch_size=10000):
@@ -175,9 +174,9 @@ class OracleSource(SourceDriver):
         full_table = f'{schema}."{table_name}"'
 
         if self.state_manager:
-            assert self.state_manager.replication_key in col_names, (
-                f"{self.state_manager.replication_key} is not in cols {col_names}"
-            )
+            assert (
+                self.state_manager.replication_key in col_names
+            ), f"{self.state_manager.replication_key} is not in cols {col_names}"
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")

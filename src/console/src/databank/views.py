@@ -16,6 +16,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 
+from task_manager.models import Graph
+
 from .forms import DatabaseConfigurationForm, ETLConfigurationForm
 from .models import DatabaseConfiguration, ETLConfiguration
 from .tasks import delete_etl_graph, recreate_etl_task
@@ -100,18 +102,32 @@ def etl_list(request):
     # Show all ETL pipelines configured in the system
     etls = ETLConfiguration.objects.all()
     for e in etls:
+        # Logs URL
         query = f"LogAttributes['source_table'] IN ('{e.source_table}')"
 
         params = {
             "source": settings.LOGS_SOURCE_ID,
             "filters": f'[{{"type":"sql","condition":"{query}"}}]',
-            "from": "now-15m",
+            "from": "now-60m",
             "to": "now",
             "isLive": "true",
         }
 
         e.logs_url = f"{settings.LOGS_BASE_URL}/search?{urlencode(params)}"
 
+        graph_name = f"etl_{e.id}"
+        try:
+            graph = Graph.objects.get(name=graph_name)
+            latest_task = graph.tasks.order_by("-updated_at").first()
+
+            if latest_task:
+                e.current_status = latest_task.state
+                e.last_run = latest_task.updated_at
+                e.next_run = latest_task.next_run_at
+            else:
+                e.current_status = "no_task"
+        except Graph.DoesNotExist:
+            e.current_status = "not_scheduled"
     return render(request, "databank/etl_list.html", {"etls": etls})
 
 
@@ -119,7 +135,16 @@ def etl_create(request):
     if request.method == "POST":
         form = ETLConfigurationForm(request.POST)
         if form.is_valid():
-            etl = form.save()
+            etl = form.save(commit=False)
+            mode = form.cleaned_data.get("replication_mode")
+            if mode == "full_refresh":
+                etl.replication_key = None
+                etl.replication_state = None
+            elif mode == "one_time":
+                etl.replication_key = None
+                etl.replication_state = None
+                etl.run_interval = None
+            etl.save()
             recreate_etl_task(etl_id=etl.id)
             return redirect("etl_list")
     else:
@@ -133,7 +158,16 @@ def etl_edit(request, pk):
     if request.method == "POST":
         form = ETLConfigurationForm(request.POST, instance=etl)
         if form.is_valid():
-            etl = form.save()
+            etl = form.save(commit=False)
+            mode = form.cleaned_data.get("replication_mode")
+            if mode == "full_refresh":
+                etl.replication_key = None
+                etl.replication_state = None
+            elif mode == "one_time":
+                etl.replication_key = None
+                etl.replication_state = None
+                etl.run_interval = None
+            etl.save()
             recreate_etl_task(etl_id=etl.id)
             return redirect("etl_list")
     else:

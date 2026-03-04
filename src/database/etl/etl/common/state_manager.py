@@ -41,9 +41,9 @@ class JSONStateManager(StateManagerDriver):
     def get_state(self):
         State = Query()
         states = self.db.search(State.state_id == self.state_id)
-        assert len(states) < 2, (
-            f"Unexpected number of states for state_id={self.state_id}"
-        )
+        assert (
+            len(states) < 2
+        ), f"Unexpected number of states for state_id={self.state_id}"
         if len(states) == 0:
             return None
         else:

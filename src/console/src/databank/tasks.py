@@ -6,12 +6,10 @@ from django.utils.dateparse import parse_datetime
 from etl.common.state_manager import StateManagerDriver
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
-from opentelemetry import trace
-from opentelemetry._logs import LoggerProvider, get_logger
-from opentelemetry.sdk.resources import Resource
+from opentelemetry._logs import get_logger
 
-from task_manager.models import Graph, Task
 from databank.utils.logging import log_with_etl
+from task_manager.models import Graph, Task
 
 from .models import DatabaseConfiguration, ETLConfiguration
 
@@ -56,7 +54,7 @@ class DBStateManager(StateManagerDriver):
 def _get_etl_src(etl_config):
     source_db_type = etl_config.source_database.database_type
     source_conn = etl_config.source_database.connection_config
-    if etl_config.replication_key:
+    if etl_config.replication_mode == "incremental":
         state_manager = DBStateManager(etl_config)
     else:
         state_manager = None
@@ -99,9 +97,21 @@ def run_etl(etl_config_id):
         return
 
     log_with_etl(logger, "ETL started", etl_config)
+    log_with_etl(logger, f"Source DB: {etl_config.source_database}", etl_config)
+    log_with_etl(logger, f"Target DB: {etl_config.target_database}", etl_config)
+    log_with_etl(logger, f"Source Table: {etl_config.source_table}", etl_config)
+    log_with_etl(logger, f"Target Table: {etl_config.target_table}", etl_config)
 
     src = _get_etl_src(etl_config)
     tgt = _get_etl_tgt(etl_config)
+
+    # FULL REFRESH LOGIC
+    if etl_config.replication_mode == "full_refresh":
+        log_with_etl(logger, "Dropping target table before run", etl_config)
+        try:
+            tgt.drop_table()
+        except Exception as e:
+            log_with_etl(logger, f"Drop failed (ignored): {str(e)}", etl_config)
 
     etl_schema = src.get_etl_schema()
     log_with_etl(logger, f"Schema detected: {etl_schema}", etl_config)
@@ -153,12 +163,21 @@ def recreate_etl_task(etl_id):
 
     etl_config = ETLConfiguration.objects.get(id=etl_id)
     # again it will create a new task
-    Task.create_task(
-        fn=run_etl,
-        args={"etl_config_id": etl_id},
-        graph=graph,
-        periodic_interval=etl_config.run_interval,
-    )
+    if etl_config.replication_mode == "one_time":
+        Task.create_task(
+            fn=run_etl,
+            args={"etl_config_id": etl_id},
+            graph=graph,
+            periodic_interval=None,
+        )
+
+    elif etl_config.run_interval:
+        Task.create_task(
+            fn=run_etl,
+            args={"etl_config_id": etl_id},
+            graph=graph,
+            periodic_interval=etl_config.run_interval,
+        )
 
     log_with_etl(logger, "Task graph recreated", etl_config)
 

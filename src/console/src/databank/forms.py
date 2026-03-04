@@ -38,6 +38,7 @@ class ETLConfigurationForm(forms.ModelForm):
             "source_table",
             "target_table",
             "run_interval",
+            "replication_mode",
             "replication_key",
             "replication_state",
         ]

@@ -6,6 +6,9 @@ import logging
 from django.db import models
 from django.utils import timezone
 
+from databank.models import ETLConfiguration
+from databank.utils.logging import log_with_etl
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,21 +67,31 @@ class Task(models.Model):
         self.state = self.TaskState.RUNNING
         self.save()
 
+        etl_config = None
+        etl_id = self.args.get("etl_config_id")
+
+        if etl_id:
+            try:
+                etl_config = ETLConfiguration.objects.get(id=etl_id)
+            except ETLConfiguration.DoesNotExist:
+                pass
         try:
             fn = string_to_fn(self.fn)
             self.ret_val = fn(**self.args)
             self.state = self.TaskState.SUCCESS
-            logger.info(f"Task {self.fn} ran successfully")
+            log_with_etl(logger, f"Task {self.fn} ran successfully", etl_config)
         except:
             self.state = self.TaskState.FAILED
-            logger.exception(f"Task {self.fn} failed to run")
-
+            log_with_etl(
+                logger, f"Task {self.fn} failed to run", etl_config, level="error"
+            )
         if self.periodic_interval is not None:
             self.state = self.TaskState.QUEUED
             self.next_run_at = timezone.now() + datetime.timedelta(
                 seconds=self.periodic_interval
             )
-            logger.info(f"Task {self.fn} scheduled to run again at {self.next_run_at}")
-
+            log_with_etl(
+                logger, f"Next run scheduled at {self.next_run_at}", etl_config
+            )
         self.save()
         return self.ret_val

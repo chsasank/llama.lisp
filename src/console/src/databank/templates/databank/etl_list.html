@@ -75,6 +75,10 @@
                             {{ e.source_database.id }}
                             {{ e.target_database.database_type }}
                             {{ e.target_database.id }}
+                            {{ e.current_status }}
+                            {% if e.replication_mode == 'one_time' %}
+                                not scheduled
+                            {% endif %}
                         ">
                         <div>
                             <div class="text-base text-slate-100 truncate max-w-xl">
@@ -85,6 +89,60 @@
                             <div class="text-sm text-slate-500 mt-1">
                                 src: {{ e.source_database.database_type }} (#{{ e.source_database.id }}) &nbsp;|
                                 tgt: {{ e.target_database.database_type }} (#{{ e.target_database.id }})
+                            </div>
+                            <div class="text-xs mt-2 flex flex-wrap gap-4 items-center">
+
+                                <!-- STATUS -->
+                                <div>
+                                    {% if e.current_status == "running" %}
+                                        <span class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 font-semibold">
+                                            RUNNING
+                                        </span>
+                                    {% elif e.current_status == "queued" %}
+                                        <span class="px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 font-semibold">
+                                            QUEUED
+                                        </span>
+                                    {% elif e.current_status == "success" %}
+                                        <span class="px-2 py-1 rounded bg-green-500/20 text-green-400 font-semibold">
+                                            SUCCESS
+                                        </span>
+                                    {% elif e.current_status == "failed" %}
+                                        <span class="px-2 py-1 rounded bg-red-500/20 text-red-400 font-semibold">
+                                            FAILED
+                                        </span>
+                                    {% elif e.current_status == "not_scheduled" %}
+                                        <span class="px-2 py-1 rounded bg-gray-500/20 text-gray-400 font-semibold">
+                                            Not Scheduled
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 py-1 rounded bg-gray-500/20 text-gray-400 font-semibold">
+                                            Idle
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- LAST RUN -->
+                                <div class="text-slate-400">
+                                    <span class="text-slate-500">Last Run:</span>
+                                    {% if e.last_run %}
+                                        {{ e.last_run|date:"Y-m-d H:i:s" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+
+                                <!-- NEXT RUN -->
+                                <div class="text-slate-400">
+                                    <span class="text-slate-500">Next Run:</span>
+                                    {% if e.replication_mode == "one_time" %}
+                                        Not Scheduled
+                                    {% elif e.next_run %}
+                                        {{ e.next_run|date:"Y-m-d H:i:s" }}
+                                    {% else %}
+                                        Not Scheduled
+                                    {% endif %}
+                                </div>
+
                             </div>
                         </div>
                         <div class="flex items-center gap-3 text-sm">

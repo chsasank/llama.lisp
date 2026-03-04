@@ -145,7 +145,7 @@ LOGS_SOURCE_ID = os.getenv("LOGS_SOURCE_ID")
 otel_endpoint = os.getenv("OTEL_EXPORTER_ENDPOINT")
 otel_token = os.getenv("OTEL_AUTH_TOKEN")
 
-resource = Resource.create({"service.name": "django-console"})
+resource = Resource.create({"service.name": "Johnaic Data-console"})
 
 provider = LoggerProvider(resource=resource)
 

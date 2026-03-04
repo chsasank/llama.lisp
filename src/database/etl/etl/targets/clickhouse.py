@@ -1,8 +1,9 @@
+import datetime
 import logging
 
 import clickhouse_connect
+
 from etl.common import ETLDataTypes, TargetDriver
-import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +22,17 @@ class ClickhouseTarget(TargetDriver):
             password=cfg["password"],
             database=cfg["database"],
         )
-        
+
     def _normalize_value(self, value, etl_dtype):
         if value is None:
             return None
-        
+
         # MSSQL DATE values arrive as datetime.date ClickHouse DateTime64 requires a datetime.datetime object.
         # Convert date → datetime at midnight to avoid driver serialization errors.
         if etl_dtype in (ETLDataTypes.DATE, ETLDataTypes.DATE_TIME):
-            if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+            if isinstance(value, datetime.date) and not isinstance(
+                value, datetime.datetime
+            ):
                 return datetime.datetime.combine(value, datetime.time.min)
 
         return value
@@ -128,3 +131,14 @@ class ClickhouseTarget(TargetDriver):
         ]
 
         self.client.insert(full_table, normalized_rows, column_names=columns)
+
+    def drop_table(self):
+        database = self.config["connection"]["database"]
+        table = self.config["table"]
+        full_table = f"{database}.`{table}`"
+
+        logger.warning(f"Dropping ClickHouse table {full_table}")
+
+        self.client.command(f"DROP TABLE IF EXISTS {full_table}")
+
+        logger.info("DROP EXECUTED")
