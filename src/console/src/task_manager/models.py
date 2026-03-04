@@ -90,8 +90,7 @@ class Task(models.Model):
             self.next_run_at = timezone.now() + datetime.timedelta(
                 seconds=self.periodic_interval
             )
-            log_with_etl(
-                logger, f"Next run scheduled at {self.next_run_at}", etl_config
-            )
+            local_next_run = timezone.localtime(self.next_run_at)
+            log_with_etl(logger, f"Next run scheduled at {local_next_run}", etl_config)
         self.save()
         return self.ret_val

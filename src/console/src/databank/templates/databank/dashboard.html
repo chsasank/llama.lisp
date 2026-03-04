@@ -73,10 +73,10 @@
         <h3 class="text-consoleAccent text-lg font-semibold tracking-widest mb-2">
             ETL Pipeline Status
         </h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <!-- SUCCESS -->
             <a href="{% url 'etl_list' %}?status=success"
-            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+            class="group relative border border-consoleBorder rounded-xl p-3 bg-black/40
                         transition-all duration-300 hover:border-green-400/70 
                         hover:scale-[1.03] overflow-hidden">
                 <div class="absolute inset-0 opacity-0 group-hover:opacity-100
@@ -89,7 +89,7 @@
 
             <!-- RUNNING -->
             <a href="{% url 'etl_list' %}?status=running"
-            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+            class="group relative border border-consoleBorder rounded-xl p-3 bg-black/40
                         transition-all duration-300 hover:border-blue-400/70 
                         hover:scale-[1.03] overflow-hidden">
                 <div class="absolute inset-0 opacity-0 group-hover:opacity-100
@@ -102,7 +102,7 @@
 
             <!-- QUEUED -->
             <a href="{% url 'etl_list' %}?status=queued"
-            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+            class="group relative border border-consoleBorder rounded-xl p-3 bg-black/40
                         transition-all duration-300 hover:border-yellow-400/70 
                         hover:scale-[1.03] overflow-hidden">
                 <div class="absolute inset-0 opacity-0 group-hover:opacity-100
@@ -115,7 +115,7 @@
 
             <!-- FAILED -->
             <a href="{% url 'etl_list' %}?status=failed"
-            class="group relative border border-consoleBorder rounded-xl p-4 bg-black/40
+            class="group relative border border-consoleBorder rounded-xl p-3 bg-black/40
                         transition-all duration-300 hover:border-red-400/70 
                         hover:scale-[1.03] overflow-hidden">
 
@@ -125,6 +125,18 @@
                 <p class="text-xs text-slate-500 uppercase tracking-widest">Failed</p>
                 <p class="text-2xl font-bold text-red-400 mt-1">
                     {{ failed_tasks }}
+                </p>
+            </a>
+            <a href="{% url 'etl_list' %}?status=not_scheduled"
+            class="group relative border border-consoleBorder rounded-xl p-3 bg-black/40
+                        transition-all duration-300 hover:border-gray-400/70 hover:scale-[1.03] overflow-hidden">
+
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100
+                    bg-gray-500/10 blur-xl transition"></div>
+
+                <p class="text-xs text-slate-500 uppercase tracking-widest">Not Scheduled</p>
+                <p class="text-2xl font-bold text-gray-400 mt-1">
+                    {{ not_scheduled_tasks }}
                 </p>
             </a>
         </div>
@@ -148,7 +160,13 @@
                         <span class="text-slate-500"> → </span>
                         <span class="text-slate-300">{{ e.target_table }}</span>
                     </div>
-                    <span class="text-xs text-slate-500">
+                    <span class="text-xs text-slate-500 flex items-center gap-3">
+                        {% if e.last_run %}
+                            <span class="text-slate-400">
+                                Last run: {{ e.last_run|date:"Y-m-d H:i:s" }}
+                            </span>
+                        {% endif %}
+
                         #{{ e.id }}
                     </span>
                 </div>

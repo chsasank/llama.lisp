@@ -46,6 +46,7 @@ def dashboard(request):
     failed_tasks = 0
     success_tasks = 0
     queued_tasks = 0
+    not_scheduled_tasks = 0
 
     for etl in ETLConfiguration.objects.all():
 
@@ -56,6 +57,7 @@ def dashboard(request):
             latest_task = graph.tasks.order_by("-updated_at").first()
 
             if not latest_task:
+                not_scheduled_tasks += 1
                 continue
 
             if latest_task.state == Task.TaskState.RUNNING:
@@ -115,6 +117,7 @@ def dashboard(request):
             "queued_tasks": queued_tasks,
             "recent_etls": recent_etls,
             "scheduled_tasks": scheduled_tasks,
+            "not_scheduled_tasks": not_scheduled_tasks,
         },
     )
 

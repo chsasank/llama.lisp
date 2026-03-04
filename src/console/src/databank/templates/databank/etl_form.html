@@ -77,6 +77,11 @@
 
                 <!-- HIDDEN ACTUAL FIELD (this goes to backend) -->
                 {{ form.run_interval }}
+
+                <p id="run_interval_warning"
+                    class="text-xs text-red-400 mt-1 hidden">
+                    Run Interval is required for scheduled pipelines.
+                </p>
             </div>
 
             <!-- INCREMENTAL -->
@@ -118,13 +123,13 @@
 
             <!-- FULL REFRESH -->
             <div id="full_refresh_fields" class="hidden space-y-4">
-                <div class="text-xs text-red-400">
+                <div class="text-base text-red-400">
                     ⚠️ Table will be DROPPED and RECREATED on every run
                 </div>
             </div>
 
             <!-- ONE TIME -->
-            <div id="one_time_fields" class="hidden space-y-4 text-xs text-purple-400">
+            <div id="one_time_fields" class="hidden space-y-4 text-base text-purple-400">
                 Runs only once. No replication or scheduling needed.
             </div>
         </div>
@@ -139,7 +144,7 @@
                ← Back
             </a>
 
-            <button type="submit"
+            <button id="saveEtlBtn" type="submit"
                 class="px-5 py-2 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
                     hover:bg-consoleAccent hover:text-black transition 
                     hover:shadow-[0_0_12px_rgba(34,197,94,0.5)]">
@@ -147,6 +152,42 @@
             </button>
         </div>
     </form>
+</div>
+
+<!-- Full Refresh Confirmation Modal -->
+<div id="fullRefreshModal"
+     class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+    <div class="bg-consolePanel border border-consoleBorder rounded-lg p-6 w-100 shadow-xl">
+        <h3 class="text-lg font-semibold text-red-400 mb-3">$ Confirm Full Refresh</h3>
+
+        <p class="text-slate-300 text-sm leading-relaxed mb-6">
+        A <span class="text-red-400 font-semibold">Full Refresh</span> will
+        drop and recreate the target table before reloading all data.
+        <br><br>
+        This will permanently remove any existing data in the table.
+        <br><br>
+        Do you want to continue?
+        </p>
+
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeFullRefreshModal()"
+                class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
+                hover:border-consoleAccent hover:text-consoleAccent
+                hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                transition-all duration-200">
+                Cancel
+            </button>
+
+            <button onclick="confirmFullRefresh()"
+                class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
+                hover:bg-red-500 hover:text-black
+                hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
+                transition-all duration-200">
+                Continue
+            </button>
+        </div>
+    </div>
 </div>
 
 <!-- EXISTING SCRIPT -->
@@ -427,6 +468,83 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 });
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const saveBtn = document.getElementById("saveEtlBtn");
+    const modeSelect = document.getElementById("id_replication_mode");
+    const intervalInput = document.getElementById("run_interval_value");
+    const warning = document.getElementById("run_interval_warning");
+
+    let warningTimeout = null;
+
+    saveBtn.addEventListener("click", function(e){
+        const mode = modeSelect.value;
+        const interval = intervalInput.value;
+
+        if((mode === "incremental" || mode === "full_refresh") && !interval){
+
+            e.preventDefault();
+
+            warning.classList.remove("hidden");
+            intervalInput.classList.add("border-red-500");
+
+            // clear previous timeout
+            if(warningTimeout){
+                clearTimeout(warningTimeout);
+            }
+            // auto hide after 3 seconds
+            warningTimeout = setTimeout(function(){
+                warning.classList.add("hidden");
+                intervalInput.classList.remove("border-red-500");
+            },3000);
+            return;
+        }
+    });
+});
+</script>
+
+<script>
+let allowSubmit = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const saveBtn = document.getElementById("saveEtlBtn");
+    const modeSelect = document.getElementById("id_replication_mode");
+    const intervalInput = document.getElementById("run_interval_value");
+
+    saveBtn.addEventListener("click", function(e) {
+        if (allowSubmit) return;
+
+        const mode = modeSelect.value;
+        const interval = intervalInput.value;
+
+        // If interval missing, let first script handle warning
+        if((mode === "incremental" || mode === "full_refresh") && !interval){
+            return;
+        }
+
+        if (mode === "full_refresh") {
+            e.preventDefault();
+            openFullRefreshModal();
+        }
+    });
+});
+
+function openFullRefreshModal() {
+    document.getElementById("fullRefreshModal").classList.remove("hidden");
+}
+
+function closeFullRefreshModal() {
+    document.getElementById("fullRefreshModal").classList.add("hidden");
+}
+
+function confirmFullRefresh() {
+    allowSubmit = true;
+
+    closeFullRefreshModal();
+
+    document.getElementById("saveEtlBtn").click();
+}
 </script>
 
 {% endblock %}
