@@ -90,7 +90,7 @@
     </div>
 
     <!-- Header section -->
-    <header class="bg-black/30 backdrop-blur">
+    <header class="bg-black/30 backdrop-blur relative z-50">
         <div class="max-w-7xl mx-auto mt-4 px-4 py-2 flex items-center justify-between">
             <a href="{% url 'home' %}"
                 class="flex items-center gap-1">
@@ -116,14 +116,51 @@
             </a>
             <!-- Auth Button -->
             {% if user.is_authenticated %}
-                <form action="{% url 'logout' %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit"
-                        class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
-                            hover:bg-consoleAccent hover:text-black transition">
-                        Logout
-                    </button>
-                </form>
+                <div class="flex items-center gap-3">
+                    <div class="relative inline-block text-left">
+
+                        <!-- Docs Button -->
+                        <button id="docsMenuBtn"
+                            class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
+                                hover:border-text-violet-400 hover:text-violet-400
+                                hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                                transition-all duration-200">
+                            Docs ▾
+                        </button>
+
+                        <!-- Dropdown -->
+                        <div id="docsDropdown"
+                            class="hidden absolute right-0 mt-2 w-40 bg-consolePanel border border-consoleBorder rounded shadow-lg z-[60]">
+
+                            <a href="https://outline.von-neumann.ai/s/704edfa2-3e1f-45c4-b5b8-d8cdee752157"
+                            target="_blank" rel="noopener noreferrer"
+                            class="block px-4 py-2 text-sm text-slate-300 hover:bg-consoleAccent/10 hover:text-consoleAccent hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]">
+                            Dashboard
+                            </a>
+
+                            <a href="https://outline.von-neumann.ai/s/9965bb8f-334f-4de4-820e-718f0ff89594"
+                            target="_blank" rel="noopener noreferrer"
+                            class="block px-4 py-2 text-sm text-slate-300 hover:bg-consoleAccent/10 hover:text-consoleAccent hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]">
+                            Databases
+                            </a>
+
+                            <a href="https://outline.von-neumann.ai/s/ba7da3da-18ed-462e-a795-82b13db61904"
+                            target="_blank" rel="noopener noreferrer"
+                            class="block px-4 py-2 text-sm text-slate-300 hover:bg-consoleAccent/10 hover:text-consoleAccent hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]">
+                            ETLs
+                            </a>
+                        </div>
+
+                    </div>
+                    <form action="{% url 'logout' %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit"
+                            class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
+                                hover:bg-consoleAccent hover:text-black transition">
+                            Logout
+                        </button>
+                    </form>
+                </div>
             {% else %}
                 <a href="{% url 'login' %}"
                 class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
@@ -136,7 +173,7 @@
 
     {% if user.is_authenticated %}
     <!-- Navigation bar -->
-    <nav class="bg-black/40 backdrop-blur">
+    <nav class="bg-black/40 backdrop-blur relative z-10">
         <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap gap-6 justify-center text-base">
             <a href="{% url 'dashboard_view' %}" 
             class="px-3 py-1 rounded border border-consoleBorder hover:border-consoleAccent hover:shadow-[0_0_10px_rgba(34,197,94,0.2)] hover:scale-[1.03] transition-transform hover:text-consoleAccent transition">
@@ -216,6 +253,36 @@
             });
         });
     })();
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const btn = document.getElementById("docsMenuBtn");
+        const menu = document.getElementById("docsDropdown");
+        const links = menu.querySelectorAll("a");
+
+        // Toggle dropdown
+        btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            menu.classList.toggle("hidden");
+        });
+
+        // Hide menu when clicking any item
+        links.forEach(link => {
+            link.addEventListener("click", function () {
+                menu.classList.add("hidden");
+            });
+        });
+
+        // Hide when clicking outside
+        document.addEventListener("click", function(e){
+            if(!btn.contains(e.target) && !menu.contains(e.target)){
+                menu.classList.add("hidden");
+            }
+        });
+
+    });
     </script>
 
     {% if request.user.is_authenticated %}

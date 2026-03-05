@@ -107,7 +107,9 @@ def run_etl(etl_config_id):
 
     # FULL REFRESH LOGIC
     if etl_config.replication_mode == "full_refresh":
-        log_with_etl(logger, "Dropping target table before run", etl_config)
+        log_with_etl(
+            logger, "Dropping target table before run", etl_config, level="warn"
+        )
         try:
             tgt.drop_table()
         except Exception as e:

@@ -55,6 +55,8 @@
             <div>
                 <label class="text-xs text-slate-400">Replication Mode</label>
                 {{ form.replication_mode }}
+
+                <p id="replication_mode_doc"></p>
             </div>
 
             <div id="run_interval_field" class="space-y-2">
@@ -123,7 +125,7 @@
 
             <!-- FULL REFRESH -->
             <div id="full_refresh_fields" class="hidden space-y-4">
-                <div class="text-base text-red-400">
+                <div class="text-sm text-red-400">
                     ⚠️ Table will be DROPPED and RECREATED on every run
                 </div>
             </div>
@@ -545,6 +547,64 @@ function confirmFullRefresh() {
 
     document.getElementById("saveEtlBtn").click();
 }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modeSelect = document.getElementById("id_replication_mode");
+    const doc = document.getElementById("replication_mode_doc");
+
+    function updateModeDocumentation() {
+        const mode = modeSelect.value;
+
+        if (mode === "incremental") {
+            doc.innerHTML = `
+                <div class="my-5 text-sm text-slate-400 leading-relaxed">
+                    <span class="text-consoleAccent font-semibold">Incremental Replication</span>
+                    <p class="mt-1">
+                        Only new or updated records are copied from the source table
+                        using the configured <span class="text-slate-300">replication key</span>.
+                        This mode is recommended for continuously syncing data efficiently.
+                    </p>
+                </div>
+            `;
+        }
+
+        else if (mode === "full_refresh") {
+            doc.innerHTML = `
+                <div class="my-5 text-sm text-slate-400 leading-relaxed">
+                    <span class="text-red-400 font-semibold">Full Refresh</span>
+                    <p class="mt-1">
+                        The target table will be 
+                        <span class="text-red-400 font-semibold">dropped and recreated</span>
+                        on every run, and the entire dataset will be copied again from
+                        the source table.
+                    </p>
+                    <p class="mt-1 text-slate-500">
+                        This operation may take longer for large tables.
+                    </p>
+                </div>
+            `;
+        }
+
+        else if (mode === "one_time") {
+            doc.innerHTML = `
+                <div class="my-5 text-sm text-slate-400 leading-relaxed">
+                    <span class="text-purple-400 font-semibold">One Time Copy</span>
+                    <p class="mt-1">
+                        The pipeline runs once and copies the full dataset from
+                        the source table to the target table.
+                    </p>
+                    <p class="mt-1 text-slate-500">
+                        No scheduling or incremental updates will occur afterward.
+                    </p>
+                </div>
+            `;
+        }
+    }
+    updateModeDocumentation();
+    modeSelect.addEventListener("change", updateModeDocumentation);
+});
 </script>
 
 {% endblock %}
