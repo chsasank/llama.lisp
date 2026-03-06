@@ -40,11 +40,13 @@ class OracleSource(SourceDriver):
             SELECT OWNER, TABLE_NAME
             FROM ALL_TABLES
             WHERE OWNER IN (
-                SELECT USERNAME FROM ALL_USERS WHERE NOT ORACLE_MAINTAINED
+                SELECT USERNAME FROM ALL_USERS WHERE ORACLE_MAINTAINED = 'N'
             )
             ORDER BY OWNER, TABLE_NAME
             """
         )
+        # Oracle SQL does not support boolean columns in WHERE clauses the way some other databases (like PostgreSQL) do.
+        # ORACLE_MAINTAINED is not a BOOLEAN column; it is a VARCHAR2 column containing 'Y' or 'N'.
         cols_raw = cur.fetchall()
         tables = [f"{r[0]}.{r[1]}" for r in cols_raw]
         return tables
