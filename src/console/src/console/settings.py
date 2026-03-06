@@ -10,8 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
+
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,6 +72,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "databank.context_processors.hyperdx",
             ],
         },
     },
@@ -112,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Kolkata"
 
 USE_I18N = True
 
@@ -129,5 +136,31 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = "/dashboard"
+LOGOUT_REDIRECT_URL = "/"
+
+# CLICKSTACK LOGGING SETUP
+LOGS_BASE_URL = os.getenv("LOGS_BASE_URL")
+LOGS_SOURCE_ID = os.getenv("LOGS_SOURCE_ID")
+
+otel_endpoint = os.getenv("OTEL_EXPORTER_ENDPOINT")
+otel_token = os.getenv("HYPERDX_BROWSER_API_KEY")
+
+ETL_API_HOST = os.getenv("ETL_API_HOST")
+HYPERDX_OTEL_URL = os.getenv("HYPERDX_OTEL_URL")
+HYPERDX_BROWSER_API_KEY = os.getenv("HYPERDX_BROWSER_API_KEY")
+
+resource = Resource.create({"service.name": "Johnaic Data Console"})
+
+provider = LoggerProvider(resource=resource)
+
+exporter = OTLPLogExporter(
+    endpoint=otel_endpoint, headers={"Authorization": otel_token} if otel_token else {}
+)
+
+provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
+
+otel_handler = LoggingHandler(level=logging.INFO, logger_provider=provider)
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger().addHandler(otel_handler)

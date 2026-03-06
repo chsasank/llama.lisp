@@ -2,6 +2,7 @@ import logging
 import random
 
 import psycopg
+
 from etl.common import ETLDataTypes, TargetDriver
 
 logger = logging.getLogger(__name__)
@@ -188,12 +189,14 @@ class PostgresTarget(TargetDriver):
             ]
         )
 
-        merge = psycopg.sql.SQL("""
+        merge = psycopg.sql.SQL(
+            """
             INSERT INTO {table_name} ({column_names})
             SELECT {column_names} FROM {temp_table_name}
             ON CONFLICT ({primary_keys})
             DO UPDATE SET {conflict_cols}
-        """).format(
+        """
+        ).format(
             table_name=psycopg.sql.Identifier(schema, table),
             column_names=column_names,
             temp_table_name=psycopg.sql.Identifier(temp_table_name),
@@ -209,3 +212,16 @@ class PostgresTarget(TargetDriver):
         )
         conn.commit()
         logger.info(f"Loaded {len(rows)} rows into {schema}.{table}")
+
+    def drop_table(self):
+        table = self.config["table"]
+        schema = self.config["connection"].get("schema", "public")
+
+        logger.warning(f"Dropping Postgres table {schema}.{table}")
+
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'DROP TABLE IF EXISTS "{schema}"."{table}" CASCADE;')
+                conn.commit()
+
+        logger.info("DROP EXECUTED")

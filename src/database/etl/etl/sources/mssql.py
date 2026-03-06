@@ -137,9 +137,9 @@ class MssqlSource(SourceDriver):
         format_cols = ", ".join(f"[{c}]" for c in col_names)
 
         if self.state_manager:
-            assert self.state_manager.replication_key in col_names, (
-                f"{self.state_manager.replication_key} is not in cols {col_names}"
-            )
+            assert (
+                self.state_manager.replication_key in col_names
+            ), f"{self.state_manager.replication_key} is not in cols {col_names}"
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")

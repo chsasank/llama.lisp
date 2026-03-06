@@ -5,15 +5,14 @@ import oracledb
 import psycopg
 import pyodbc
 from common import testing_database_host
+
 from etl.common import ETLDataTypes, JSONStateManager
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-oracledb.init_oracle_client(
-    lib_dir="/opt/oracle/instantclient_21_20"
-)
+oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_21_20")
 
 # psql source configuration
 test_psql_config = {
@@ -194,9 +193,9 @@ def test_psql_schema():
         src = PostgresSource(
             {"connection": test_psql_config["connection"], "table": table_name}
         )
-        assert src.get_etl_schema() == expected_schema, (
-            f"{table_name} schema didn't match"
-        )
+        assert (
+            src.get_etl_schema() == expected_schema
+        ), f"{table_name} schema didn't match"
         logger.info(f"schema matched for {table_name}")
 
 
@@ -372,9 +371,9 @@ def test_mssql_schema():
         src = MssqlSource(
             {"connection": test_mssql_config["connection"], "table": table_name}
         )
-        assert src.get_etl_schema() == expected_schema, (
-            f"{table_name} schema didn't match"
-        )
+        assert (
+            src.get_etl_schema() == expected_schema
+        ), f"{table_name} schema didn't match"
         logger.info(f"schema matched for {table_name}")
 
 
@@ -467,9 +466,9 @@ def test_oracle_schema():
         src = OracleSource(
             {"connection": test_oracle_config["connection"], "table": table_name}
         )
-        assert src.get_etl_schema() == expected_schema, (
-            f"{table_name} schema didn't match"
-        )
+        assert (
+            src.get_etl_schema() == expected_schema
+        ), f"{table_name} schema didn't match"
         logger.info(f"schema matched for {table_name}")
 
 
@@ -503,6 +502,7 @@ def test_oracle_stream_batches_replication():
 
     assert src.state_manager.get_state() is not None
 
+
 def test_oracle_thick_mode_enabled():
     # This call only works in thick mode
     version = oracledb.clientversion()
@@ -512,6 +512,7 @@ def test_oracle_thick_mode_enabled():
     assert len(version) >= 2
 
     print(f"Oracle THICK mode confirmed, client version = {version}")
+
 
 if __name__ == "__main__":
     test_psql_init()

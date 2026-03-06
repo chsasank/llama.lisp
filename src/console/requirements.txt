@@ -1,2 +1,4 @@
 django<6
 jupyter
+opentelemetry-sdk
+opentelemetry-exporter-otlp

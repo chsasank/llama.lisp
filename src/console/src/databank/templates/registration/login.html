@@ -1,99 +1,162 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<div class="max-w-md mx-auto mt-20 bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+<div class="max-w-md mx-auto mt-24 relative">
 
-    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
-        $ Login
-    </h2>
+    <!-- Glow background -->
+    <div class="absolute inset-0 blur-2xl opacity-25 bg-consoleAccent rounded-xl"></div>
 
-    <!-- Error Messages -->
-    {% if form.errors %}
-        <div id="login-error" class="text-red-400 text-sm mb-4">
-            {% if form.username.errors %}
-                <p>{{ form.username.errors.0 }}</p>
-            {% endif %}
-            {% if form.password.errors %}
-                <p>{{ form.password.errors.0 }}</p>
-            {% endif %}
+    <!-- Card -->
+    <div class="relative bg-black/60 border border-consoleBorder 
+                rounded-2xl p-7 shadow-2xl backdrop-blur">
 
-            <!-- Authentication failure -->
-            {% if form.non_field_errors %}
-                <p>Your username or password is incorrect. Please try again.</p>
-            {% endif %}
-        </div>
-    {% endif %}
-
-    {% if next and not form.errors %}
-        <p class="text-slate-300 text-sm mb-4">
-            Please log in to continue.
-        </p>
-    {% endif %}
-
-    <!-- LOGIN FORM -->
-    <form method="post" action="{% url 'login' %}" class="space-y-5">
-        {% csrf_token %}
-
-        <!-- Username -->
-        <div class="space-y-1">
-            <label class="block text-xs uppercase tracking-wide text-slate-400">
-                Username
-            </label>
-            <input 
-                type="text" 
-                name="username"
-                value="{{ form.username.value|default:'' }}"
-                placeholder="Enter your username"
-                class="w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm 
-                       text-slate-100 focus:outline-none focus:border-consoleAccent"
-                required
-            >
+        <!-- Header -->
+        <div class="mb-8 text-center">
+            <h2 class="text-2xl font-bold tracking-wide text-consoleAccent">
+                Login
+            </h2>
+            <p class="text-xs text-slate-500 mt-2 tracking-widest">
+                ACCESS CONTROL SYSTEM
+            </p>
         </div>
 
-        <!-- Password -->
-        <div class="space-y-1">
-            <label class="block text-xs uppercase tracking-wide text-slate-400">
-                Password
-            </label>
-            <input 
-                type="password" 
-                name="password"
-                placeholder="Enter your password"
-                class="w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm 
-                       text-slate-100 focus:outline-none focus:border-consoleAccent"
-                required
-            >
-        </div>
+        <!-- Error Messages -->
+        {% if form.errors %}
+            <div id="login-error"
+                 class="text-red-400 text-sm mb-5 px-3 py-2 
+                        border border-red-500/40 rounded-md 
+                        bg-red-500/10">
+                {% if form.non_field_errors %}
+                    <p>Your username or password is incorrect.</p>
+                {% endif %}
+            </div>
+        {% endif %}
 
-        <input type="hidden" name="next" value="{{ next }}">
+        {% if next and not form.errors %}
+            <p class="text-slate-400 text-sm mb-4 text-center">
+                Please log in to continue
+            </p>
+        {% endif %}
 
-        <!-- Submit Button -->
-        <button type="submit"
-            class="w-full py-2 border border-consoleAccent text-consoleAccent rounded 
+        <!-- FORM -->
+        <form method="post" action="{% url 'login' %}" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Username -->
+            <div>
+                <label class="block text-xs text-slate-100 mb-1 tracking-wide">
+                    USERNAME
+                </label>
+                <input 
+                    type="text" 
+                    name="username"
+                    value="{{ form.username.value|default:'' }}"
+                    placeholder="Enter your username"
+                    class="w-full bg-transparent border-b border-consoleBorder
+                           px-1 py-2 text-sm text-slate-500
+                           focus:outline-none focus:border-consoleAccent
+                           transition-all"
+                    required
+                >
+            </div>
+
+            <!-- Password -->
+            <div class="relative">
+                <label class="block text-xs text-slate-100 mb-1 tracking-wide">
+                    PASSWORD
+                </label>
+
+                <input 
+                    id="passwordInput"
+                    type="password" 
+                    name="password"
+                    placeholder="Enter your password"
+                    class="w-full bg-transparent border-b border-consoleBorder
+                           px-1 py-2 text-sm text-slate-500 pr-10
+                           focus:outline-none focus:border-consoleAccent
+                           transition-all"
+                    required
+                >
+
+                <!-- Show/Hide -->
+                <button type="button"
+                        id="togglePassword"
+                        class="absolute right-0 top-6 text-slate-400 hover:text-consoleAccent transition">
+
+                    <!-- Eye Open -->
+                    <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" 
+                        class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M2.25 12s3.75-7.5 9.75-7.5 9.75 7.5 9.75 7.5-3.75 7.5-9.75 7.5S2.25 12 2.25 12z" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
+
+                    <!-- Eye Closed -->
+                    <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" 
+                        fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" 
+                        class="w-5 h-5 hidden">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 3l18 18" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M10.5 6.75A9.77 9.77 0 0112 6c6 0 9.75 6 9.75 6a18.22 18.22 0 01-3.06 3.97M6.53 6.53A18.14 18.14 0 002.25 12s3.75 6 9.75 6c1.64 0 3.14-.33 4.47-.92" />
+                    </svg>
+
+                </button>
+            </div>
+
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <!-- Button -->
+            <button type="submit"
+                class="w-full py-2 border border-consoleAccent text-consoleAccent rounded 
                    hover:bg-consoleAccent hover:text-black transition font-semibold">
-            Login
-        </button>
+                Login →
+            </button>
+        </form>
 
-    </form>
+        <!-- Footer -->
+        <div class="mt-6 text-xs text-slate-500 text-right">
+            <a href="{% url 'password_reset' %}" 
+               class="hover:text-consoleAccent transition">
+                Forgot password?
+            </a>
+        </div>
 
-    <!-- Password Reset -->
-    <p class="mt-4 text-sm text-slate-400 text-right">
-        <a href="{% url 'password_reset' %}" class="hover:text-consoleAccent transition">
-            Lost your password?
-        </a>
-    </p>
-
+    </div>
 </div>
 
+<!-- JS -->
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+
+    // Fade error
     const errorBox = document.getElementById("login-error");
     if (errorBox) {
         setTimeout(() => {
-            errorBox.style.transition = "opacity 0.8s ease";
+            errorBox.style.transition = "opacity 0.6s ease";
             errorBox.style.opacity = "0";
-            setTimeout(() => errorBox.remove(), 800);
-        }, 3000);
+            setTimeout(() => errorBox.remove(), 600);
+        }, 2500);
+    }
+
+    // Toggle password
+    const toggleBtn = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("passwordInput");
+
+    if (toggleBtn) {
+        const eyeOpen = document.getElementById("eyeOpen");
+        const eyeClosed = document.getElementById("eyeClosed");
+
+        toggleBtn.addEventListener("click", () => {
+            const isHidden = passwordInput.type === "password";
+
+            passwordInput.type = isHidden ? "text" : "password";
+
+            eyeOpen.classList.toggle("hidden");
+            eyeClosed.classList.toggle("hidden");
+        });
     }
 });
 </script>

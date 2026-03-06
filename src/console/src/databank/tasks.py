@@ -1,16 +1,20 @@
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.utils.dateparse import parse_datetime
 from etl.common.state_manager import StateManagerDriver
 from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
+from opentelemetry._logs import get_logger
+
+from databank.utils.logging import log_with_etl
 from task_manager.models import Graph, Task
 
 from .models import DatabaseConfiguration, ETLConfiguration
 
 logger = logging.getLogger(__name__)
+otel_logger = get_logger(__name__)
 
 
 class DBStateManager(StateManagerDriver):
@@ -37,9 +41,9 @@ class DBStateManager(StateManagerDriver):
             if "backfill" in state:
                 backfill = state["backfill"]
                 ts = parse_datetime(value)
-                assert ts is not None, (
-                    "{value} not in time format. backfill assumes time"
-                )
+                assert (
+                    ts is not None
+                ), "{value} not in time format. backfill assumes time"
                 ts = ts - timedelta(seconds=backfill)
                 ts = ts.replace(microsecond=0)
                 return str(ts)
@@ -50,7 +54,7 @@ class DBStateManager(StateManagerDriver):
 def _get_etl_src(etl_config):
     source_db_type = etl_config.source_database.database_type
     source_conn = etl_config.source_database.connection_config
-    if etl_config.replication_key:
+    if etl_config.replication_mode == "incremental":
         state_manager = DBStateManager(etl_config)
     else:
         state_manager = None
@@ -88,30 +92,65 @@ def _get_etl_tgt(etl_config):
 def run_etl(etl_config_id):
     etl_config = ETLConfiguration.objects.get(id=etl_config_id)
 
-    logger.info("=== START ETL ===")
-    logger.info(f"Source DB: {etl_config.source_database}")
-    logger.info(f"Target DB: {etl_config.target_database}")
-    logger.info(f"Source Table: {etl_config.source_table}")
-    logger.info(f"Target Table: {etl_config.target_table}")
+    if etl_config.status == "paused":
+        log_with_etl(logger, "ETL is paused. Skipping...", etl_config)
+        return
+
+    log_with_etl(logger, "ETL started", etl_config)
+    log_with_etl(logger, f"Source DB: {etl_config.source_database}", etl_config)
+    log_with_etl(logger, f"Target DB: {etl_config.target_database}", etl_config)
+    log_with_etl(logger, f"Source Table: {etl_config.source_table}", etl_config)
+    log_with_etl(logger, f"Target Table: {etl_config.target_table}", etl_config)
 
     src = _get_etl_src(etl_config)
     tgt = _get_etl_tgt(etl_config)
 
+    # FULL REFRESH LOGIC
+    if etl_config.replication_mode == "full_refresh":
+        log_with_etl(
+            logger, "Dropping target table before run", etl_config, level="warn"
+        )
+        try:
+            tgt.drop_table()
+        except Exception as e:
+            log_with_etl(logger, f"Drop failed (ignored): {str(e)}", etl_config)
+
     etl_schema = src.get_etl_schema()
-    logger.info(f"Source schema: {etl_schema}")
+    log_with_etl(logger, f"Schema detected: {etl_schema}", etl_config)
 
     tgt.ensure_schema(etl_schema)
-    logger.info("Schema ensured on target.")
+    log_with_etl(logger, "Schema ensured on target", etl_config)
 
     batch_count = 0
 
-    for batch in src.stream_batches():
-        batch_count += 1
-        logger.info(f"Loading batch {batch_count} with {len(batch)} rows...")
-        tgt.load_batch(batch, etl_schema)
+    try:
+        for batch in src.stream_batches():
+            batch_count += 1
 
-    logger.info("=== END ETL ===")
-    logger.info(f"Total batches: {batch_count}")
+            log_with_etl(
+                logger,
+                f"Processing batch {batch_count}",
+                etl_config,
+                extra={"rows": len(batch)},
+            )
+
+            tgt.load_batch(batch, etl_schema)
+
+        log_with_etl(
+            logger,
+            "ETL completed successfully",
+            etl_config,
+            extra={"total_batches": batch_count},
+        )
+
+    except Exception as e:
+        log_with_etl(
+            logger,
+            f"ETL failed: {str(e)}",
+            etl_config,
+            level="error",
+        )
+        raise
 
 
 def recreate_etl_task(etl_id):
@@ -126,21 +165,32 @@ def recreate_etl_task(etl_id):
 
     etl_config = ETLConfiguration.objects.get(id=etl_id)
     # again it will create a new task
-    Task.create_task(
-        fn=run_etl,
-        args={"etl_config_id": etl_id},
-        graph=graph,
-        periodic_interval=etl_config.run_interval,
-    )
+    if etl_config.replication_mode == "one_time":
+        Task.create_task(
+            fn=run_etl,
+            args={"etl_config_id": etl_id},
+            graph=graph,
+            periodic_interval=None,
+        )
 
-    logger.info(f"[ETL] Task graph recreated for ETL {etl_id}")
+    elif etl_config.run_interval:
+        Task.create_task(
+            fn=run_etl,
+            args={"etl_config_id": etl_id},
+            graph=graph,
+            periodic_interval=etl_config.run_interval,
+        )
+
+    log_with_etl(logger, "Task graph recreated", etl_config)
 
 
 def delete_etl_graph(etl_id):
     graph_name = f"etl_{etl_id}"
     try:
         graph = Graph.objects.get(name=graph_name)
+        graph.tasks.all().delete()  # ensure tasks removed
         graph.delete()
-        logger.info(f"[ETL] Deleted task graph for ETL {etl_id}")
+        etl_config = ETLConfiguration.objects.get(id=etl_id)
+        log_with_etl(logger, "ETL graph deleted", etl_config)
     except Graph.DoesNotExist:
         pass

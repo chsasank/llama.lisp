@@ -1,4 +1,5 @@
 from django import forms
+
 from .models import DatabaseConfiguration, ETLConfiguration
 
 
@@ -14,13 +15,21 @@ class DatabaseConfigurationForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.update(
                 {
-                    "class": "w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm "
-                    "text-slate-100 focus:outline-none focus:border-consoleAccent"
+                    "class": (
+                        "w-full rounded-md px-3 py-2 text-sm font-mono "
+                        "bg-black/70 border border-consoleBorder text-slate-100 "
+                        "hover:border-consoleAccent/60 "
+                        "focus:outline-none focus:ring-1 focus:ring-consoleAccent "
+                        "focus:border-consoleAccent "
+                        "transition duration-150 ease-in-out"
+                    )
                 }
             )
 
 
 class ETLConfigurationForm(forms.ModelForm):
+    source_table = forms.ChoiceField(choices=[], required=True)
+
     class Meta:
         model = ETLConfiguration
         fields = [
@@ -29,6 +38,7 @@ class ETLConfigurationForm(forms.ModelForm):
             "source_table",
             "target_table",
             "run_interval",
+            "replication_mode",
             "replication_key",
             "replication_state",
         ]
@@ -36,12 +46,42 @@ class ETLConfigurationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.fields["source_database"].queryset = DatabaseConfiguration.objects.filter(
+            etl_type="source"
+        ).order_by(
+            "-id"
+        )  # newest first
+        self.fields["source_database"].empty_label = "Select Source Database"
+
+        self.fields["target_database"].queryset = DatabaseConfiguration.objects.filter(
+            etl_type="target"
+        ).order_by("-id")
+        self.fields["target_database"].empty_label = "Select Target Database"
+
+        # allow dynamic values
+        if self.data.get("source_table"):
+            self.fields["source_table"].choices = [
+                (self.data.get("source_table"), self.data.get("source_table"))
+            ]
+        elif self.instance.pk:
+            self.fields["source_table"].choices = [
+                (self.instance.source_table, self.instance.source_table)
+            ]
+        else:
+            self.fields["source_table"].choices = [("", "Select Table")]
+
         # Styling
         for field in self.fields.values():
             field.widget.attrs.update(
                 {
-                    "class": "w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm "
-                    "text-slate-100 focus:outline-none focus:border-consoleAccent"
+                    "class": (
+                        "w-full rounded-md px-3 py-2 text-sm font-mono "
+                        "bg-black/70 border border-consoleBorder text-slate-100 "
+                        "hover:border-consoleAccent/60 "
+                        "focus:outline-none focus:ring-1 focus:ring-consoleAccent "
+                        "focus:border-consoleAccent "
+                        "transition duration-150 ease-in-out"
+                    )
                 }
             )
 

@@ -1,41 +1,610 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
 
-    <h2 class="text-consoleAccent text-xl font-semibold mb-6">
-        $ {% if form.instance.pk %}Edit ETL{% else %}Add ETL{% endif %}
-    </h2>
+<style>
+    #id_run_interval {
+        display: none;
+    }
+</style>
 
-    <form method="POST" class="space-y-6">
+<div class="max-w-4xl mx-auto bg-black/40 border border-consoleBorder rounded-xl p-8 shadow-2xl space-y-8">
+    <!-- HEADER -->
+    <div class="text-center">
+        <h2 class="text-2xl font-bold text-consoleAccent tracking-widest">
+            $ {% if form.instance.pk %}Edit ETL Job{% else %}Create ETL Job{% endif %}
+        </h2>
+        <p class="text-sm text-slate-500 mt-2">Configure your ETL pipeline</p>
+    </div>
+
+    <form method="POST" class="space-y-8">
         {% csrf_token %}
+        <!-- SOURCE CONFIG -->
+        <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
+            <h3 class="text-sm text-consoleAccent font-semibold">SOURCE</h3>
 
-        {% for field in form %}
-        <div class="space-y-1">
-            <label class="block text-xs uppercase tracking-wide text-slate-400">
-                {{ field.label }}
-            </label>
+            <div>
+                <label class="text-xs text-slate-400">Database</label>
+                {{ form.source_database }}
+            </div>
 
-            {{ field }}
-
-            {% if field.errors %}
-            <p class="text-xs text-red-400">{{ field.errors }}</p>
-            {% endif %}
+            <div>
+                <label class="text-xs text-slate-400">Table</label>
+                {{ form.source_table }}
+            </div>
         </div>
-        {% endfor %}
 
-        <div class="flex justify-between pt-6">
+        <!-- TARGET CONFIG -->
+        <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
+            <h3 class="text-sm text-consoleAccent font-semibold">TARGET</h3>
+            <div>
+                <label class="text-xs text-slate-400">Database</label>
+                {{ form.target_database }}
+            </div>
+
+            <div>
+                <label class="text-xs text-slate-400">Target Table</label>
+                {{ form.target_table }}
+            </div>
+        </div>
+
+        <!-- ADVANCED -->
+        <div class="border border-consoleBorder rounded-lg p-5 space-y-4">
+            <h3 class="text-sm text-consoleAccent font-semibold">ADVANCED</h3>
+
+            <div>
+                <label class="text-xs text-slate-400">Replication Mode</label>
+                {{ form.replication_mode }}
+
+                <p id="replication_mode_doc"></p>
+            </div>
+
+            <div id="run_interval_field" class="space-y-2">
+                <label class="text-xs text-slate-400">Run Interval</label>
+
+                <div class="flex gap-2">
+                    <!-- VALUE INPUT -->
+                    <input type="number" id="run_interval_value"
+                        class="w-full bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm text-slate-100"
+                        placeholder="Enter value" />
+
+                    <!-- UNIT DROPDOWN -->
+                    <select id="run_interval_unit"
+                        class="bg-black/60 border border-consoleBorder rounded px-3 py-2 text-sm text-slate-100">
+                        <option value="seconds">Seconds</option>
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                    </select>
+                </div>
+
+                <!-- HIDDEN ACTUAL FIELD (this goes to backend) -->
+                {{ form.run_interval }}
+
+                <p id="run_interval_warning"
+                    class="text-xs text-red-400 mt-1 hidden">
+                    Run Interval is required for scheduled pipelines.
+                </p>
+            </div>
+
+            <!-- INCREMENTAL -->
+            <div id="incremental_fields" class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400">Replication Key</label>
+                    {{ form.replication_key }}
+
+                    <p id="replication_warning" 
+                    class="text-xs text-red-400 mt-1 hidden">
+                    Replication key is required to enable backfill.
+                    </p>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs text-slate-400">Replication State</label>
+
+                        <div class="flex items-center gap-2">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="backfill_toggle" class="sr-only peer">
+
+                                <div class="w-11 h-6 bg-gray-700 rounded-full 
+                                            peer-checked:bg-consoleAccent transition">
+                                </div>
+
+                                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full 
+                                            transition peer-checked:translate-x-5">
+                                </div>
+                            </label>
+                            <span class="text-xs text-slate-400">Backfill</span>
+                        </div>
+                    </div>
+
+                    {{ form.replication_state }}
+                </div>
+
+            </div>
+
+            <!-- FULL REFRESH -->
+            <div id="full_refresh_fields" class="hidden space-y-4">
+                <div class="text-sm text-red-400">
+                    ⚠️ Table will be DROPPED and RECREATED on every run
+                </div>
+            </div>
+
+            <!-- ONE TIME -->
+            <div id="one_time_fields" class="hidden space-y-4 text-base text-purple-400">
+                Runs only once. No replication or scheduling needed.
+            </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="flex justify-between pt-4">
             <a href="{% url 'etl_list' %}"
-               class="px-4 py-2 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent transition">
+               class="text-sm px-4 py-2 font-semibold rounded-md border border-consoleBorder
+                    hover:border-consoleAccent hover:text-consoleAccent
+                    hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                    transition-all duration-200">
                ← Back
             </a>
 
-            <button type="submit"
-                class="px-6 py-2 border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
-                Save
+            <button id="saveEtlBtn" type="submit"
+                class="px-5 py-2 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
+                    hover:bg-consoleAccent hover:text-black transition 
+                    hover:shadow-[0_0_12px_rgba(34,197,94,0.5)]">
+                Save ETL
             </button>
         </div>
-
     </form>
 </div>
+
+<!-- Full Refresh Confirmation Modal -->
+<div id="fullRefreshModal"
+     class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+    <div class="bg-consolePanel border border-consoleBorder rounded-lg p-6 w-100 shadow-xl">
+        <h3 class="text-lg font-semibold text-red-400 mb-3">$ Confirm Full Refresh</h3>
+
+        <p class="text-slate-300 text-sm leading-relaxed mb-6">
+        A <span class="text-red-400 font-semibold">Full Refresh</span> will
+        drop and recreate the target table before reloading all data.
+        <br><br>
+        This will permanently remove any existing data in the table.
+        <br><br>
+        Do you want to continue?
+        </p>
+
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeFullRefreshModal()"
+                class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
+                hover:border-consoleAccent hover:text-consoleAccent
+                hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                transition-all duration-200">
+                Cancel
+            </button>
+
+            <button onclick="confirmFullRefresh()"
+                class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
+                hover:bg-red-500 hover:text-black
+                hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
+                transition-all duration-200">
+                Continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- EXISTING SCRIPT -->
+<script>
+let isFetching = false;
+
+function fetchTables(dbId, selectedTable = null) {
+    if (isFetching) return;  // prevent multiple calls
+    isFetching = true;
+
+    const dropdown = document.getElementById("id_source_table");
+
+    if (!dbId) {
+        dropdown.innerHTML = '<option value="">Select table</option>';
+        isFetching = false;
+        return;
+    }
+
+    dropdown.innerHTML = '<option>Loading...</option>';
+
+    fetch(`/etl/get-tables/${dbId}/`)
+        .then(res => res.json())
+        .then(data => {
+            dropdown.innerHTML = '<option value="">Select table</option>';
+
+            data.tables.forEach(table => {
+                const opt = document.createElement("option");
+                opt.value = table;
+                opt.text = table;
+
+                if (selectedTable && selectedTable === table) {
+                    opt.selected = true;
+                }
+
+                dropdown.appendChild(opt);
+            });
+
+            isFetching = false;
+        })
+        .catch(err => {
+            console.error(err);
+            dropdown.innerHTML = '<option>Error loading tables</option>';
+            isFetching = false;
+        });
+}
+
+// Only trigger when user changes DB
+document.getElementById("id_source_database")
+    .addEventListener("change", function () {
+        fetchTables(this.value);
+    });
+
+// Load once ONLY if editing
+window.addEventListener("DOMContentLoaded", function () {
+    const dbId = document.getElementById("id_source_database").value;
+    const selectedTable = document.getElementById("id_source_table").value;
+
+    if (dbId && selectedTable) {
+        fetchTables(dbId, selectedTable);
+    }
+});
+</script>
+
+<script>
+const toggle = document.getElementById("backfill_toggle");
+const textarea = document.getElementById("id_replication_state");
+const replicationKey = document.getElementById("id_replication_key");
+const warning = document.getElementById("replication_warning");
+
+let previousValue = null;
+let warningTimeout = null;
+
+
+// INIT (edit mode)
+window.addEventListener("DOMContentLoaded", function () {
+    try {
+        const value = JSON.parse(textarea.value || "{}");
+
+        if (value.backfill !== undefined) {
+            toggle.checked = true;
+            previousValue = textarea.value;
+        }
+    } catch (e) {
+        console.warn("Invalid JSON in replication_state");
+    }
+});
+
+
+// Helper: show warning
+function showWarning() {
+    warning.classList.remove("hidden");
+
+    // clear previous timer
+    if (warningTimeout) {
+        clearTimeout(warningTimeout);
+    }
+
+    // auto hide after 3s
+    warningTimeout = setTimeout(() => {
+        warning.classList.add("hidden");
+    }, 3000);
+}
+
+
+// Toggle behavior with validation
+toggle.addEventListener("change", function () {
+
+    // Prevent enabling without replication key
+    if (this.checked && !replicationKey.value) {
+        showWarning();
+
+        // revert toggle
+        this.checked = false;
+        return;
+    }
+
+    // hide warning if valid
+    warning.classList.add("hidden");
+
+    if (this.checked) {
+        // ON → restore previous or set default
+        if (previousValue) {
+            textarea.value = previousValue;
+        } else {
+            textarea.value = JSON.stringify({
+                backfill: 3600,
+                replication_value: ""
+            }, null, 2);
+        }
+
+    } else {
+        // OFF → store current before clearing
+        previousValue = textarea.value;
+        textarea.value = "{}";
+    }
+});
+
+
+// Remove warning when user selects replication key
+replicationKey.addEventListener("input", function () {
+    if (this.value) {
+        warning.classList.add("hidden");
+    }
+});
+</script>
+
+<script>
+const modeSelect = document.getElementById("id_replication_mode");
+
+const incremental = document.getElementById("incremental_fields");
+const fullRefresh = document.getElementById("full_refresh_fields");
+const oneTime = document.getElementById("one_time_fields");
+const runIntervalField = document.getElementById("run_interval_field");
+
+function updateModeUI() {
+    const mode = modeSelect.value;
+
+    const replicationKey = document.getElementById("id_replication_key");
+    const replicationState = document.getElementById("id_replication_state");
+    const runInterval = document.getElementById("id_run_interval");
+
+    // hide all first
+    incremental.classList.add("hidden");
+    fullRefresh.classList.add("hidden");
+    oneTime.classList.add("hidden");
+    runIntervalField.classList.remove("hidden");
+
+    if (mode === "incremental") {
+        incremental.classList.remove("hidden");
+
+        replicationKey.disabled = false;
+        replicationState.disabled = false;
+        runInterval.disabled = false;
+    }
+    else if (mode === "full_refresh") {
+        fullRefresh.classList.remove("hidden");
+
+        replicationKey.disabled = true;
+        replicationState.disabled = true;
+        runInterval.disabled = false;
+    }
+    else if (mode === "one_time") {
+        runIntervalField.classList.add("hidden");
+        oneTime.classList.remove("hidden");
+
+        replicationKey.disabled = true;
+        replicationState.disabled = true;
+        runInterval.disabled = true;
+    }
+}
+
+// initial load
+window.addEventListener("DOMContentLoaded", updateModeUI);
+
+// on change
+modeSelect.addEventListener("change", updateModeUI);
+</script>
+
+<script>
+const valueInput = document.getElementById("run_interval_value");
+const unitSelect = document.getElementById("run_interval_unit");
+const hiddenInput = document.getElementById("id_run_interval");
+
+// Convert to seconds
+function updateRunInterval() {
+    let value = parseFloat(valueInput.value || 0);
+    let unit = unitSelect.value;
+
+    let seconds = value;
+
+    if (unit === "minutes") {
+        seconds = value * 60;
+    }
+    else if (unit === "hours") {
+        seconds = value * 3600;
+    }
+
+    hiddenInput.value = seconds || "";
+}
+
+// Reverse conversion (for EDIT mode)
+function loadExistingValue() {
+    let seconds = parseFloat(hiddenInput.value);
+
+    if (!seconds) return;
+
+    if (seconds % 3600 === 0) {
+        valueInput.value = seconds / 3600;
+        unitSelect.value = "hours";
+    }
+    else if (seconds % 60 === 0) {
+        valueInput.value = seconds / 60;
+        unitSelect.value = "minutes";
+    }
+    else {
+        valueInput.value = seconds;
+        unitSelect.value = "seconds";
+    }
+}
+
+// Events
+valueInput.addEventListener("input", updateRunInterval);
+unitSelect.addEventListener("change", updateRunInterval);
+
+// Init (for edit page)
+window.addEventListener("DOMContentLoaded", () => {
+    loadExistingValue();
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+        if (!window.HyperDX) return;
+        e.preventDefault();   // stop immediate submit
+
+        const sourceDB = document.getElementById("id_source_database")?.value;
+        const sourceTable = document.getElementById("id_source_table")?.value;
+        const targetDB = document.getElementById("id_target_database")?.value;
+        const targetTable = document.getElementById("id_target_table")?.value;
+        const mode = document.getElementById("id_replication_mode")?.value;
+
+        HyperDX.addAction("etl_saved", {
+            source_database: sourceDB,
+            source_table: sourceTable,
+            target_database: targetDB,
+            target_table: targetTable,
+            replication_mode: mode,
+            page: window.location.pathname
+        });
+
+        // allow HyperDX to send event
+        setTimeout(function () {
+            form.submit();
+        }, 150);
+    });
+
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const saveBtn = document.getElementById("saveEtlBtn");
+    const modeSelect = document.getElementById("id_replication_mode");
+    const intervalInput = document.getElementById("run_interval_value");
+    const warning = document.getElementById("run_interval_warning");
+
+    let warningTimeout = null;
+
+    saveBtn.addEventListener("click", function(e){
+        const mode = modeSelect.value;
+        const interval = intervalInput.value;
+
+        if((mode === "incremental" || mode === "full_refresh") && !interval){
+
+            e.preventDefault();
+
+            warning.classList.remove("hidden");
+            intervalInput.classList.add("border-red-500");
+
+            // clear previous timeout
+            if(warningTimeout){
+                clearTimeout(warningTimeout);
+            }
+            // auto hide after 3 seconds
+            warningTimeout = setTimeout(function(){
+                warning.classList.add("hidden");
+                intervalInput.classList.remove("border-red-500");
+            },3000);
+            return;
+        }
+    });
+});
+</script>
+
+<script>
+let allowSubmit = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const saveBtn = document.getElementById("saveEtlBtn");
+    const modeSelect = document.getElementById("id_replication_mode");
+    const intervalInput = document.getElementById("run_interval_value");
+
+    saveBtn.addEventListener("click", function(e) {
+        if (allowSubmit) return;
+
+        const mode = modeSelect.value;
+        const interval = intervalInput.value;
+
+        // If interval missing, let first script handle warning
+        if((mode === "incremental" || mode === "full_refresh") && !interval){
+            return;
+        }
+
+        if (mode === "full_refresh") {
+            e.preventDefault();
+            openFullRefreshModal();
+        }
+    });
+});
+
+function openFullRefreshModal() {
+    document.getElementById("fullRefreshModal").classList.remove("hidden");
+}
+
+function closeFullRefreshModal() {
+    document.getElementById("fullRefreshModal").classList.add("hidden");
+}
+
+function confirmFullRefresh() {
+    allowSubmit = true;
+
+    closeFullRefreshModal();
+
+    document.getElementById("saveEtlBtn").click();
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modeSelect = document.getElementById("id_replication_mode");
+    const doc = document.getElementById("replication_mode_doc");
+
+    function updateModeDocumentation() {
+        const mode = modeSelect.value;
+
+        if (mode === "incremental") {
+            doc.innerHTML = `
+                <div class="my-5 text-sm text-slate-400 leading-relaxed">
+                    <span class="text-consoleAccent font-semibold">Incremental Replication</span>
+                    <p class="mt-1">
+                        Only new or updated records are copied from the source table
+                        using the configured <span class="text-slate-300">replication key</span>.
+                        This mode is recommended for continuously syncing data efficiently.
+                    </p>
+                </div>
+            `;
+        }
+
+        else if (mode === "full_refresh") {
+            doc.innerHTML = `
+                <div class="my-5 text-sm text-slate-400 leading-relaxed">
+                    <span class="text-red-400 font-semibold">Full Refresh</span>
+                    <p class="mt-1">
+                        The target table will be 
+                        <span class="text-red-400 font-semibold">dropped and recreated</span>
+                        on every run, and the entire dataset will be copied again from
+                        the source table.
+                    </p>
+                    <p class="mt-1 text-slate-500">
+                        This operation may take longer for large tables.
+                    </p>
+                </div>
+            `;
+        }
+
+        else if (mode === "one_time") {
+            doc.innerHTML = `
+                <div class="my-5 text-sm text-slate-400 leading-relaxed">
+                    <span class="text-purple-400 font-semibold">One Time Copy</span>
+                    <p class="mt-1">
+                        The pipeline runs once and copies the full dataset from
+                        the source table to the target table.
+                    </p>
+                    <p class="mt-1 text-slate-500">
+                        No scheduling or incremental updates will occur afterward.
+                    </p>
+                </div>
+            `;
+        }
+    }
+    updateModeDocumentation();
+    modeSelect.addEventListener("change", updateModeDocumentation);
+});
+</script>
+
 {% endblock %}

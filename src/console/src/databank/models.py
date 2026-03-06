@@ -23,10 +23,20 @@ class DatabaseConfiguration(models.Model):
     def __str__(self):
         host = self.connection_config.get("host")
         port = self.connection_config.get("port")
-        return f"{self.etl_type.upper()} | {self.database_type} | {host}:{port}"
+
+        name = self.connection_config.get("database") or self.connection_config.get(
+            "user"
+        )
+
+        return f"#{self.id} • {name} ({self.database_type.upper()}) • [{host}:{port}]"
 
 
 class ETLConfiguration(models.Model):
+
+    class Status(models.TextChoices):
+        ACTIVE = "active"
+        PAUSED = "paused"
+
     source_database = models.ForeignKey(
         DatabaseConfiguration, on_delete=models.CASCADE, related_name="source"
     )
@@ -42,4 +52,19 @@ class ETLConfiguration(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.ACTIVE
+    )
+
     run_interval = models.FloatField(null=True, blank=True)
+
+    class ReplicationMode(models.TextChoices):
+        INCREMENTAL = "incremental"
+        FULL_REFRESH = "full_refresh"
+        ONE_TIME = "one_time"
+
+    replication_mode = models.CharField(
+        max_length=20,
+        choices=ReplicationMode.choices,
+        default=ReplicationMode.INCREMENTAL,
+    )

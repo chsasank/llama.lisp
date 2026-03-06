@@ -60,7 +60,7 @@ class PostgresSource(SourceDriver):
             return ETLDataTypes.TIME_INTERVAL
         elif "json" in dtype:
             return ETLDataTypes.JSON
-        elif dtype in ("varchar", "text"):
+        elif dtype in ("varchar", "text", "character varying", "character"):
             return ETLDataTypes.STRING
         elif dtype in ("bytea"):
             return ETLDataTypes.BYTES
@@ -130,9 +130,9 @@ class PostgresSource(SourceDriver):
         )
 
         if self.state_manager:
-            assert self.state_manager.replication_key in col_names, (
-                f"{self.state_manager.replication_key} is not in cols {col_names}"
-            )
+            assert (
+                self.state_manager.replication_key in col_names
+            ), f"{self.state_manager.replication_key} is not in cols {col_names}"
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
             logger.info(f"Replication key found: {replication_key}")

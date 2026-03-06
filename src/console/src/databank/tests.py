@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from . import tasks
 from .models import DatabaseConfiguration, ETLConfiguration
-from .tasks import DBStateManager
+from .tasks import DBStateManager, run_etl
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -61,9 +61,6 @@ class ETLConfigurationModelTests(TestCase):
     @patch("databank.tasks.PostgresSource")
     @patch("databank.tasks.PostgresTarget")
     def test_run_etl(self, mock_target_cls, mock_source_cls):
-        mock_source = mock_source_cls.return_value
-        mock_target = mock_target_cls.return_value
-
         source_db_config = DatabaseConfiguration.objects.create(
             etl_type="source",
             database_type="postgres",
@@ -98,9 +95,6 @@ class ETLConfigurationModelTests(TestCase):
     @patch("databank.tasks.PostgresSource")
     @patch("databank.tasks.PostgresTarget")
     def test_run_etl_replication_key(self, mock_target_cls, mock_source_cls):
-        mock_source = mock_source_cls.return_value
-        mock_target = mock_target_cls.return_value
-
         source_db_config = DatabaseConfiguration.objects.create(
             etl_type="source",
             database_type="postgres",
@@ -487,3 +481,55 @@ class DBStateManagerTests(TestCase):
         # microseconds should be removed AND backfill applied
         assert state == "2025-12-15 16:33:30"
 
+
+class ETLPauseResumeTest(TestCase):
+
+    def setUp(self):
+        # Create dummy source DB
+        self.source_db = DatabaseConfiguration.objects.create(
+            etl_type="source",
+            database_type="postgres",
+            connection_config={"host": "localhost"},
+        )
+
+        # Create dummy target DB
+        self.target_db = DatabaseConfiguration.objects.create(
+            etl_type="target",
+            database_type="postgres",
+            connection_config={"host": "localhost"},
+        )
+
+        # Create ETL
+        self.etl = ETLConfiguration.objects.create(
+            source_database=self.source_db,
+            target_database=self.target_db,
+            source_table="table1",
+            target_table="table2",
+            run_interval=10,
+            status="active",
+        )
+
+    # Default status
+    def test_default_status_active(self):
+        self.assertEqual(self.etl.status, "active")
+
+    # Multiple toggles
+    def test_multiple_toggle(self):
+        url = reverse("toggle_etl_status", args=[self.etl.id])
+
+        self.client.get(url)  # pause
+        self.client.get(url)  # resume
+
+        self.etl.refresh_from_db()
+        self.assertEqual(self.etl.status, "active")
+
+    # run_etl skips when paused
+    def test_run_etl_skips_when_paused(self):
+
+        self.etl.status = "paused"
+        self.etl.save()
+
+        result = run_etl(self.etl.id)
+
+        # since paused → function returns early
+        self.assertIsNone(result)

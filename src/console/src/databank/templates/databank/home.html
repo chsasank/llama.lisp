@@ -1,23 +1,225 @@
 {% extends "databank/base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto bg-black/40 border border-consoleBorder rounded-lg p-6 shadow-xl">
+<div class="max-w-5xl mx-auto mt-14 space-y-12 relative">
 
-    <h2 class="text-consoleAccent text-xl font-semibold mb-4">
-        $ Welcome
-    </h2>
+    <!-- BACKGROUND GLOW -->
+    <div class="absolute inset-0 -z-10 blur-3xl opacity-10 
+            bg-consoleAccent rounded-full max-w-xl mx-auto"></div>
 
-    <p class="text-slate-300 text-sm leading-relaxed">
-        This is the ETL Management Console.  
-        Use the navigation above to manage:
-    </p>
+    <!-- TITLE -->
+    <div class="text-center space-y-5">
 
-    <ul class="mt-4 space-y-2 text-sm text-slate-200">
-        <li>→ <a href="{% url 'database_list' %}" class="text-consoleAccent hover:underline">Database configurations</a></li>
-        <li>→ <a href="{% url 'etl_list' %}" class="text-consoleAccent hover:underline">ETL configurations</a></li>
-        <li>→ Create ETL pipelines, manage databases, and trigger syncs.</li>
-    </ul>
+        <!-- Animated Heading -->
+        <h1 class="text-4xl md:text-6xl font-extrabold tracking-widest
+            bg-gradient-to-r from-green-400 via-cyan-400 to-purple-500
+            bg-[length:200%_200%] animate-gradient-x
+            bg-clip-text text-transparent
+            drop-shadow-[0_0_25px_rgba(34,197,94,0.4)]
+            hover:drop-shadow-[0_0_35px_rgba(168,85,247,0.6)]
+            transition-all duration-300">
+            JOHNAIC
+        </h1>
 
+        <!-- Subtitle -->
+        <p class="text-slate-400 text-sm tracking-[0.35em] uppercase">
+            Data Console Engine
+        </p>
+
+        <!-- Animated Divider -->
+        <div class="relative w-28 h-[2px] mx-auto overflow-hidden">
+            <div class="absolute inset-0 bg-consoleAccent opacity-30"></div>
+            <div class="absolute inset-0 bg-consoleAccent animate-pulse"></div>
+        </div>
+
+        <!-- Tagline -->
+        <p class="text-slate-500 text-sm max-w-xl mx-auto leading-relaxed">
+            Built to move data with precision, transparency, 
+            and zero unnecessary complexity.
+        </p>
+
+    </div>
+
+    <!-- CORE ENGINE EXPLANATION -->
+    <div class="border border-consoleBorder rounded-xl p-6 bg-black/40 relative overflow-hidden">
+
+        <!-- Accent line -->
+        <div class="absolute left-0 top-0 h-full w-[2px] bg-consoleAccent"></div>
+
+        <div class="pl-4 space-y-4">
+
+            <h3 class="text-consoleAccent text-sm tracking-widest uppercase">
+                Execution Model
+            </h3>
+
+            <p class="text-slate-300 text-sm leading-relaxed">
+                Johnaic ETL is designed around a direct execution model where the system behaves exactly as defined —
+                no hidden transformations, no unnecessary abstraction layers. Once a source and target are configured,
+                pipelines simply define how data should move between them.
+            </p>
+
+            <p class="text-slate-400 text-sm leading-relaxed">
+                During execution, the engine dynamically reads the schema from the source and verifies its existence
+                in the target system. If the structure does not exist, it is created automatically. If it already exists,
+                the system proceeds with data movement without interruption.
+            </p>
+
+            <p class="text-slate-400 text-sm leading-relaxed">
+                Data transfer is handled in controlled batches, ensuring stability even under failure conditions.
+                Each batch is temporarily staged and only committed once integrity is guaranteed, eliminating the risk
+                of partial writes or data loss.
+            </p>
+
+            <p class="text-green-400 text-xs tracking-wide">
+                Predictable behavior. Transparent execution. Zero data loss.
+            </p>
+
+        </div>
+    </div>
+
+    <!-- PRINCIPLES -->
+    <div class="grid md:grid-cols-3 gap-6">
+
+        <div class="border border-consoleBorder rounded-lg p-5 bg-black/40
+                    hover:border-consoleAccent hover:scale-[1.03]
+                    transition-all duration-200">
+            <h3 class="text-consoleAccent font-semibold mb-2">
+                Minimal Configuration
+            </h3>
+            <p class="text-slate-400 text-sm">
+                Just source, target, and pipeline. Nothing extra.
+            </p>
+        </div>
+
+        <div class="border border-consoleBorder rounded-lg p-5 bg-black/40
+                    hover:border-consoleAccent hover:scale-[1.03]
+                    transition-all duration-200">
+            <h3 class="text-consoleAccent font-semibold mb-2">
+                Explicit Pipelines
+            </h3>
+            <p class="text-slate-400 text-sm">
+                Every step is visible. No hidden automation.
+            </p>
+        </div>
+
+        <div class="border border-consoleBorder rounded-lg p-5 bg-black/40
+                    hover:border-consoleAccent hover:scale-[1.03]
+                    transition-all duration-200">
+            <h3 class="text-consoleAccent font-semibold mb-2">
+                Full Control
+            </h3>
+            <p class="text-slate-400 text-sm">
+                You decide how data flows — not the framework.
+            </p>
+        </div>
+
+    </div>
+
+    <!-- FLOW COMPARISON -->
+    <div class="border border-consoleBorder rounded-xl p-6 bg-black/60 space-y-6 relative">
+
+        <div class="absolute inset-0 blur-2xl opacity-10 bg-consoleAccent rounded-xl"></div>
+
+        <h2 class="text-consoleAccent text-xl font-semibold tracking-widest text-center uppercase">
+            Data Flow Evolution
+        </h2>
+
+        <div class="grid md:grid-cols-2 gap-6">
+
+            <!-- OLD -->
+            <div class="border border-red-500/30 rounded-lg p-4 bg-black/40">
+                <p class="text-red-400 text-xs mb-3 tracking-widest uppercase">
+                    Traditional ETL
+                </p>
+
+                <div class="space-y-2 text-xs text-slate-400">
+                    <p>Source → Staging → Transform → Temp → Load → Validate</p>
+                    <p class="text-red-300">Too many steps</p>
+                    <p class="text-red-300">Hard to debug</p>
+                    <p class="text-red-300">Hidden complexity</p>
+                </div>
+
+                <img src="{% static 'images/traditional_etl.png' %}" 
+                     class="mt-4 rounded border border-consoleBorder opacity-70 hover:opacity-100 transition">
+            </div>
+
+            <!-- NEW -->
+            <div class="border border-consoleAccent/40 rounded-lg p-4 bg-black/40">
+                <p class="text-consoleAccent text-xs mb-3 tracking-widest uppercase">
+                    Johnaic ETL
+                </p>
+
+                <div class="space-y-2 text-xs text-slate-400">
+                    <p>Source → Pipeline → Target</p>
+                    <p class="text-green-400">Minimal steps</p>
+                    <p class="text-green-400">Fully visible</p>
+                    <p class="text-green-400">Direct execution</p>
+                </div>
+
+                <img src="{% static 'images/johnaic_etl.png' %}" 
+                     class="mt-4 rounded border border-consoleBorder opacity-80 hover:opacity-100 transition">
+            </div>
+
+        </div>
+
+        <div class="text-center text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
+            Johnaic eliminates unnecessary layers and focuses on direct, transparent execution.
+        </div>
+
+    </div>
+
+    <!-- WHY JOHNAIC (TRUST SECTION) -->
+    <div class="border border-consoleBorder rounded-xl p-6 bg-black/40 relative overflow-hidden">
+
+        <!-- subtle glow -->
+        <div class="absolute inset-0 bg-gradient-to-r from-green-500/5 via-purple-500/5 to-green-500/5 blur-xl"></div>
+
+        <h2 class="text-consoleAccent text-sm tracking-widest uppercase mb-4">
+            Why Johnaic
+        </h2>
+
+        <p class="text-slate-300 text-sm leading-relaxed max-w-2xl">
+            Most ETL systems focus on features. Johnaic focuses on reliability.
+            Every design decision is made to ensure predictable execution, 
+            transparency, and control over data movement — even under failure conditions.
+        </p>
+
+        <div class="mt-6 space-y-3 text-sm text-slate-300">
+
+            <div class="flex items-start gap-3">
+                <span class="text-consoleAccent">●</span>
+                <p>No hidden transformations or implicit logic</p>
+            </div>
+
+            <div class="flex items-start gap-3">
+                <span class="text-consoleAccent">●</span>
+                <p>Deterministic execution — same input, same output</p>
+            </div>
+
+            <div class="flex items-start gap-3">
+                <span class="text-consoleAccent">●</span>
+                <p>Failure-resistant architecture with zero data loss guarantees</p>
+            </div>
+
+            <div class="flex items-start gap-3">
+                <span class="text-consoleAccent">●</span>
+                <p>Designed for engineers who need control, not abstraction</p>
+            </div>
+
+        </div>
+
+        <!-- signature line -->
+        <div class="mt-6 text-xs text-slate-500 tracking-wide">
+            Not built to impress. Built to work.
+        </div>
+
+    </div>
+
+    <!-- FINAL STATEMENT -->
+    <div class="text-center text-xs text-slate-500 pt-6 border-t border-consoleBorder tracking-widest">
+        ENGINEERED FOR CONTROL • DESIGNED FOR CLARITY • BUILT TO SCALE
+    </div>
 
 </div>
 {% endblock %}

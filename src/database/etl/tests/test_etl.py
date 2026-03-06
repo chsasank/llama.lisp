@@ -2,7 +2,8 @@ import logging
 import sys
 
 from common import testing_database_host
-from etl.sources import MssqlSource, PostgresSource, OracleSource
+
+from etl.sources import MssqlSource, OracleSource, PostgresSource
 from etl.targets import ClickhouseTarget, PostgresTarget
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)

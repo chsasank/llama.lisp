@@ -1,42 +1,186 @@
 {% extends "databank/base.html" %}
 
 {% block content %}
-<div class="space-y-4">
+<div class="max-w-6xl mx-auto mt-8 space-y-8">
     <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-consoleAccent">
-            $ List ETLs
-        </h2>
-        <div class="flex gap-2">
-            <a href="{% url 'etl_create' %}"
-               class="px-3 py-1.5 text-sm border border-consoleAccent text-consoleAccent rounded hover:bg-consoleAccent hover:text-black transition">
-                + Add ETL
+        <div class="flex gap-2 items-center">
+            <h2 class="text-2xl md:text-3xl font-bold text-consoleAccent">
+                $ List ETLs
+            </h2>
+            <a href="{% url 'download_etls' %}"
+            class="z-20
+                    text-slate-400 hover:text-consoleAccent
+                    transition"
+            title="Download CSV File">
+                <!-- Download Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor"
+                    class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
             </a>
         </div>
-    </div>
 
-    <section class="border border-consoleBorder rounded-lg bg-black/40 p-4">
+        <div class="relative w-full md:w-96">
+            <input
+                id="etlSearch"
+                type="text"
+                placeholder="Search ETLs (table, db id, type...)"
+                class="w-full bg-black/60 border border-consoleBorder rounded
+                    px-3 py-2 pr-10 text-sm text-slate-100
+                    focus:outline-none focus:border-consoleAccent focus:ring-1 focus:ring-consoleAccent/40"
+            />
+
+            <button
+                id="clearSearch"
+                type="button"
+                class="absolute right-3 top-1/2 -translate-y-1/2
+                    z-10 text-slate-400 hover:text-white
+                    text-lg cursor-pointer opacity-0 pointer-events-none
+                    transition-opacity duration-150"
+                aria-label="Clear search"
+            >
+                ✕
+            </button>
+        </div>
+
+        <a href="{% url 'etl_create' %}"
+            class="px-3 py-1.5 text-sm font-semibold border border-consoleAccent text-consoleAccent rounded 
+                hover:bg-consoleAccent hover:text-black transition hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]">
+            + Add ETL
+        </a>
+    </div>
+    <p class="text-xs text-slate-500">
+        Press <span class="text-consoleAccent">/</span> to search • 
+        <span class="text-consoleAccent">ESC</span> to clear
+    </p>
+
+    <section class="border border-consoleBorder rounded-lg bg-black/40 p-4 ">
+        <p id="etlNotFound"
+        class="hidden text-sm text-slate-400 text-center py-6">
+        </p>
         {% if etls %}
             <div class="space-y-3">
                 {% for e in etls %}
-                    <div class="border border-consoleBorder rounded-md px-3 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:border-consoleAccent/70">
+                    <div
+                        class="etl-row border border-consoleBorder rounded-md px-3 py-2
+                                flex flex-col md:flex-row md:items-center md:justify-between
+                                gap-3 hover:border-consoleAccent/70 hover:scale-[1.01] transition-transform"
+                        data-etl-id="{{ e.id }}"
+                        data-search="
+                            {{ e.source_table }}
+                            {{ e.target_table }}
+                            {{ e.source_database.database_type }}
+                            {{ e.source_database.id }}
+                            {{ e.target_database.database_type }}
+                            {{ e.target_database.id }}
+                            {{ e.current_status }}
+                            {% if e.replication_mode == 'one_time' %}
+                                not scheduled
+                            {% endif %}
+                        ">
                         <div>
-                            <div class="text-sm text-slate-100">
+                            <div class="text-base text-slate-100 truncate max-w-xl">
                                 <span class="text-consoleAccent">{{ e.source_table }}</span>
                                 <span class="text-slate-500"> → </span>
                                 <span class="text-slate-200">{{ e.target_table }}</span>
                             </div>
-                            <div class="text-xs text-slate-500 mt-1">
+                            <div class="text-sm text-slate-500 mt-1">
                                 src: {{ e.source_database.database_type }} (#{{ e.source_database.id }}) &nbsp;|
                                 tgt: {{ e.target_database.database_type }} (#{{ e.target_database.id }})
                             </div>
+                            <div class="text-xs mt-2 flex flex-wrap gap-4 items-center">
+
+                                <!-- STATUS -->
+                                <div class="etl-status">
+                                    {% if e.current_status == "running" %}
+                                        <span class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 font-semibold">
+                                            RUNNING
+                                        </span>
+                                    {% elif e.current_status == "queued" %}
+                                        <span class="px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 font-semibold">
+                                            QUEUED
+                                        </span>
+                                    {% elif e.current_status == "success" %}
+                                        <span class="px-2 py-1 rounded bg-green-500/20 text-green-400 font-semibold">
+                                            SUCCESS
+                                        </span>
+                                    {% elif e.current_status == "failed" %}
+                                        <span class="px-2 py-1 rounded bg-red-500/20 text-red-400 font-semibold">
+                                            FAILED
+                                        </span>
+                                    {% elif e.current_status == "not_scheduled" %}
+                                        <span class="px-2 py-1 rounded bg-gray-500/20 text-gray-400 font-semibold">
+                                            Not Scheduled
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 py-1 rounded bg-gray-500/20 text-gray-400 font-semibold">
+                                            Idle
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- LAST RUN -->
+                                <div class="text-slate-400">
+                                    <span class="text-slate-500">Last Run:</span>
+                                    {% if e.last_run %}
+                                        {{ e.last_run|date:"Y-m-d H:i:s" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+
+                                <!-- NEXT RUN -->
+                                <div class="text-slate-400">
+                                    <span class="text-slate-500">Next Run:</span>
+                                    {% if e.replication_mode == "one_time" %}
+                                        Not Scheduled
+                                    {% elif e.next_run %}
+                                        {{ e.next_run|date:"Y-m-d H:i:s" }}
+                                    {% else %}
+                                        Not Scheduled
+                                    {% endif %}
+                                </div>
+
+                            </div>
                         </div>
-                        <div class="flex gap-2 text-xs">
+                        <div class="flex items-center gap-3 text-sm">
+                            <a href="{{ e.logs_url }}"
+                                target="_blank" class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
+                                hover:border-text-violet-400 hover:text-violet-400
+                                hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                                transition-all duration-200">
+                            Logs
+                            </a>
+                            <a href="{% url 'toggle_etl_status' e.id %}"
+                            class="text-sm font-semibold px-3 py-1.5 rounded-md
+                            {% if e.status == 'active' %}
+                                border border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-black hover:shadow-[0_0_10px_rgba(234,179,8,0.5)]
+                            {% else %}
+                                border border-consoleAccent text-consoleAccent hover:bg-consoleAccent hover:text-black hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]
+                            {% endif %}
+                            transition">
+
+                                {% if e.status == 'active' %}
+                                    Active
+                                {% else %}
+                                    In-Active
+                                {% endif %}
+                            </a>
                             <a href="{% url 'etl_edit' e.id %}"
-                               class="px-2 py-1 border border-consoleBorder rounded hover:border-consoleAccent hover:text-consoleAccent">
+                            class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
+                                hover:border-text-consoleAccent hover:text-consoleAccent
+                                hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                                transition-all duration-200">
                                 Edit
                             </a>
                             <a onclick="openDeleteModel('{{ e.id }}', 'ETL config')"
-                            class="text-xs mx-2 px-2 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition cursor-pointer">
+                            class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
+                                hover:bg-red-500 hover:text-black
+                                hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
+                                transition-all duration-200 cursor-pointer">
                                 Delete
                             </a>
                         </div>
@@ -64,19 +208,41 @@
 
         <div class="flex justify-end space-x-3">
             <button onclick="closeDeleteModel()"
-               class="px-3 py-1 border border-consoleBorder rounded 
-                      hover:border-consoleAccent hover:text-consoleAccent transition">
+               class="text-sm px-3 py-1.5 font-semibold rounded-md border border-consoleBorder
+                    hover:border-consoleAccent hover:text-consoleAccent
+                    hover:shadow-[0_0_8px_rgba(34,197,94,0.4)]
+                    transition-all duration-200">
                 Cancel
             </button>
 
             <a id="deleteConfirmBtn"
                href="#"
-               class="px-3 py-1 border border-red-500 text-red-400 rounded hover:bg-red-500 hover:text-black transition">
+               class="text-sm px-3 py-1.5 font-semibold rounded-md border border-red-500 text-red-400
+                    hover:bg-red-500 hover:text-black
+                    hover:shadow-[0_0_8px_rgba(239,68,68,0.4)]
+                    transition-all duration-200 cursor-pointer">
                 Delete
             </a>
         </div>
     </div>
 </div>
+
+<!-- Scroll to Top Button -->
+<button
+    id="scrollToTopBtn"
+    class="fixed bottom-6 right-[calc(max(1.5rem,(100vw-72rem)/2-4rem))] z-50
+           hidden opacity-0
+           bg-black/70 border border-4 border-consoleBorder
+           text-consoleAccent text-3xl font-extrabold
+           rounded-full w-12 h-12
+           flex items-center justify-center
+           hover:border-consoleAccent hover:bg-black
+           transition-all duration-200
+           shadow-lg"
+    aria-label="Scroll to top"
+>
+    ↑
+</button>
 
 <!-- JS to handle the delete model -->
 <script>
@@ -98,4 +264,216 @@
         document.getElementById("deleteModel").classList.add("hidden");
     }
 </script>
+
+<script>
+    // Auto focus search on load
+    document.addEventListener("DOMContentLoaded", () => {
+        const searchInput = document.getElementById("etlSearch");
+        const notFoundMsg = document.getElementById("etlNotFound");
+        const clearBtn = document.getElementById("clearSearch");
+        const rows = document.querySelectorAll(".etl-row");
+
+        if (!searchInput) return;
+
+        // Autofocus
+        if (window.innerWidth > 768) {
+            setTimeout(() => searchInput.focus(), 150);
+        }
+
+        let debounceTimer;
+
+        searchInput.addEventListener("input", function () {
+            clearTimeout(debounceTimer);
+
+            debounceTimer = setTimeout(() => {
+                const query = this.value.toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const text = row.dataset.search.toLowerCase();
+                    const match = text.includes(query);
+                    row.style.display = match ? "" : "none";
+                    if (match) visibleCount++;
+                });
+
+                if (query && visibleCount === 0) {
+                    notFoundMsg.textContent = `"${this.value}" is not found!!`;
+                    notFoundMsg.classList.remove("hidden");
+                } else {
+                    notFoundMsg.classList.add("hidden");
+                }
+
+                clearBtn.style.opacity = query ? "1" : "0";
+                clearBtn.style.pointerEvents = query ? "auto" : "none";
+
+            }, 120);
+        });
+
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            searchInput.dispatchEvent(new Event("input"));
+            searchInput.focus();
+        });
+
+        // "/" key → focus search
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "/" && document.activeElement !== searchInput) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        // ESC → clear search
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && document.activeElement === searchInput) {
+                e.preventDefault();
+                searchInput.value = "";
+                searchInput.dispatchEvent(new Event("input"));
+            }
+        });
+    });
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+
+    if (!status) return;
+
+    const searchInput = document.getElementById("etlSearch");
+
+    if (!searchInput) return;
+
+    searchInput.value = status;
+    searchInput.dispatchEvent(new Event("input"));
+
+});
+
+</script>
+
+<script>
+    const scrollBtn = document.getElementById("scrollToTopBtn");
+
+    window.addEventListener("scroll", () => {
+        if (window.scrollY > 200) {
+            scrollBtn.classList.remove("hidden");
+            requestAnimationFrame(() => {
+                scrollBtn.style.opacity = "1";
+            });
+        } else {
+            scrollBtn.style.opacity = "0";
+            setTimeout(() => {
+                scrollBtn.classList.add("hidden");
+            }, 200);
+        }
+    });
+
+    scrollBtn.addEventListener("click", () => {
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    });
+</script>
+
+<script>
+function initETLTracking() {
+
+    if (!window.HyperDX) {
+        setTimeout(initETLTracking, 400);
+        return;
+    }
+    /* Track Add ETL */
+    const addBtn = document.querySelector("a[href*='etl_create']");
+    if (addBtn) {
+        const url = addBtn.href;
+        addBtn.addEventListener("click", function(e) {
+
+            e.preventDefault();
+
+            HyperDX.addAction("etl_add_clicked", {
+                page: window.location.pathname
+            });
+
+            setTimeout(() => {
+                window.location.href = url;
+            }, 120);
+
+        });
+    }
+
+    /* Track Edit */
+    document.querySelectorAll("a[href*='etl_edit']").forEach(btn => {
+
+        const url = btn.href;
+
+        btn.addEventListener("click", function(e) {
+
+            e.preventDefault();
+
+            const row = this.closest(".etl-row");
+            const etlName = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            HyperDX.addAction("etl_edit_clicked", {
+                source_table: etlName
+            });
+
+            setTimeout(() => {
+                window.location.href = url;
+            }, 120);
+        });
+    });
+
+    /* Pause / Resume */
+    document.querySelectorAll("a[href*='toggle_etl_status']").forEach(btn => {
+
+        btn.addEventListener("click", function() {
+
+            const row = this.closest(".etl-row");
+            const sourceTable = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            const action = this.innerText.trim() === "Pause"
+                ? "etl_pause_clicked"
+                : "etl_resume_clicked";
+
+            HyperDX.addAction(action, {
+                source_table: sourceTable
+            });
+        });
+    });
+
+    /* Logs */
+    document.querySelectorAll("a[href*='search?']").forEach(btn => {
+        btn.addEventListener("click", function() {
+
+            const row = this.closest(".etl-row");
+            const sourceTable = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            HyperDX.addAction("etl_logs_opened", {
+                source_table: sourceTable
+            });
+        });
+    });
+
+    /* Delete */
+    document.querySelectorAll("a[onclick*='openDeleteModel']").forEach(btn => {
+        btn.addEventListener("click", function() {
+
+            const row = this.closest(".etl-row");
+            const sourceTable = row?.querySelector(".text-consoleAccent")?.innerText;
+
+            HyperDX.addAction("etl_delete_clicked", {
+                source_table: sourceTable
+            });
+        });
+    });
+
+}
+
+document.addEventListener("DOMContentLoaded", initETLTracking);
+
+</script>
+
 {% endblock %}
