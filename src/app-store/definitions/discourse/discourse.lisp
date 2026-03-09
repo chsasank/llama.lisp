@@ -4,7 +4,7 @@
     (url "https://www.discourse.org/")
     (let ((db-user "bn_discourse")
           (db-password ,(gen-password))
-          (db-name "bitnami_discourse")
+          (db-name "postgres")
           (redis-password ,(gen-password))
           (discourse-image "docker.io/bitnami/discourse:3.3.2")
           (discourse-host ,(interactive-input "Where is this going to be deployed?" "Example: www.example.com"))
@@ -13,18 +13,18 @@
         (containers
             (container
                 (name "postgresql")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("postgresql_data" "/bitnami/postgresql"))
+                    ("postgresql_data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" ,db-user)
-                    ("POSTGRESQL_DATABASE" ,db-name)
-                    ("POSTGRESQL_PASSWORD" ,db-password)))
+                    ("POSTGRES_USER" ,db-user)
+                    ("POSTGRES_DB" ,db-name)
+                    ("POSTGRES_PASSWORD" ,db-password)))
             (container
                 (name "redis")
-                (image "docker.io/bitnami/redis:7.4")
+                (image "docker.io/library/redis:7.4")
                 (volumes
-                    ("redis_data" "/bitnami/redis"))
+                    ("redis_data" "/data"))
                 (environment
                     ("REDIS_PASSWORD" ,redis-password)))
             (container

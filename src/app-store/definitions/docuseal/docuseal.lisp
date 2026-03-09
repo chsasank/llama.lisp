@@ -17,10 +17,10 @@
                     ("DATABASE_NAME" "docuseal")))
             (container
                 (name "postgres")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("pg_data" "/bitnami/postgresql"))
+                    ("pg_data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "postgres")
-                    ("POSTGRESQL_DATABASE" "docuseal")
-                    ("POSTGRESQL_PASSWORD" ,db-password))))))
+                    ("POSTGRES_USER" "postgres")
+                    ("POSTGRES_DB" "docuseal")
+                    ("POSTGRES_PASSWORD" ,db-password))))))

@@ -19,10 +19,10 @@
                     ("custom_components" "/app/custom_components")))
             (container
                 (name "postgres")
-                (image "docker.io/bitnami/postgresql:17")
+                (image  "docker.io/library/postgres:17")
                 (volumes
-                    ("langflow-postgres" "/bitnami/postgresql"))
+                    ("langflow-postgres" "/var/lib/postgresql/data"))
                 (environment 
-                    ("POSTGRESQL_PASSWORD" ,db-password)
-                    ("POSTGRESQL_USERNAME" "langflow")
-                    ("POSTGRESQL_DATABASE" "langflow"))))))
+                    ("POSTGRES_PASSWORD" ,db-password)
+                    ("POSTGRES_USER" "langflow")
+                    ("POSTGRES_DB" "langflow"))))))
