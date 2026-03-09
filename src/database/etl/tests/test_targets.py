@@ -207,7 +207,52 @@ def test_ch_drop_table():
 
     # Recreate to confirm drop worked
     tgt.ensure_schema(test_etl_schema)
+    
+def test_ch_timedelta_normalization():
+    tgt = ClickhouseTarget(test_ch_config)
 
+    td = datetime.timedelta(hours=2, minutes=30)
+
+    normalized = tgt._normalize_value(td, ETLDataTypes.TIME_INTERVAL)
+
+    assert isinstance(normalized, str)
+    assert normalized == "2:30:00"
+    
+def test_ch_load_batch_with_timedelta():
+    tgt = ClickhouseTarget(test_ch_config)
+
+    schema = {
+        "columns": [
+            ("id", ETLDataTypes.INTEGER),
+            ("duration", ETLDataTypes.TIME_INTERVAL),
+        ],
+        "primary_keys": ["id"],
+    }
+
+    tgt.ensure_schema(schema)
+
+    rows = [
+        (
+            1,
+            datetime.timedelta(minutes=5, seconds=30),
+        )
+    ]
+
+    # Should NOT crash
+    tgt.load_batch(rows, schema)
+    
+def test_ch_timedelta_edge_cases():
+    tgt = ClickhouseTarget(test_ch_config)
+
+    values = [
+        datetime.timedelta(seconds=0),
+        datetime.timedelta(hours=1),
+        datetime.timedelta(days=1, minutes=2),
+    ]
+
+    for v in values:
+        normalized = tgt._normalize_value(v, ETLDataTypes.TIME_INTERVAL)
+        assert isinstance(normalized, str)
 
 if __name__ == "__main__":
     test_psql_conn()
@@ -222,3 +267,6 @@ if __name__ == "__main__":
     test_ch_normalize_utf_string_datetime()
     test_psql_drop_table()
     test_ch_drop_table()
+    test_ch_timedelta_normalization()
+    test_ch_load_batch_with_timedelta()
+    test_ch_timedelta_edge_cases()

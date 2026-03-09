@@ -34,6 +34,10 @@ class ClickhouseTarget(TargetDriver):
                 value, datetime.datetime
             ):
                 return datetime.datetime.combine(value, datetime.time.min)
+            
+        # FIX: Handle timedelta from Oracle INTERVAL
+        if isinstance(value, datetime.timedelta):
+            return str(value)
 
         return value
 
