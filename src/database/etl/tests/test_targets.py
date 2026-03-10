@@ -215,8 +215,8 @@ def test_ch_timedelta_normalization():
 
     normalized = tgt._normalize_value(td, ETLDataTypes.TIME_INTERVAL)
 
-    assert isinstance(normalized, str)
-    assert normalized == "2:30:00"
+    assert isinstance(normalized, int)
+    assert normalized == 9000
     
 def test_ch_load_batch_with_timedelta():
     tgt = ClickhouseTarget(test_ch_config)
@@ -245,14 +245,15 @@ def test_ch_timedelta_edge_cases():
     tgt = ClickhouseTarget(test_ch_config)
 
     values = [
-        datetime.timedelta(seconds=0),
-        datetime.timedelta(hours=1),
-        datetime.timedelta(days=1, minutes=2),
+        (datetime.timedelta(seconds=0), 0),
+        (datetime.timedelta(hours=1), 3600),
+        (datetime.timedelta(days=1, minutes=2), 86520),
     ]
 
-    for v in values:
+    for v, expected in values:
         normalized = tgt._normalize_value(v, ETLDataTypes.TIME_INTERVAL)
-        assert isinstance(normalized, str)
+        assert isinstance(normalized, int)
+        assert normalized == expected
 
 if __name__ == "__main__":
     test_psql_conn()

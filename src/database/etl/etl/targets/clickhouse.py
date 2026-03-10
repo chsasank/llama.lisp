@@ -37,7 +37,7 @@ class ClickhouseTarget(TargetDriver):
             
         # FIX: Handle timedelta from Oracle INTERVAL
         if isinstance(value, datetime.timedelta):
-            return str(value)
+            return int(value.total_seconds())
 
         return value
 
@@ -53,7 +53,7 @@ class ClickhouseTarget(TargetDriver):
         elif etl_dtype == ETLDataTypes.TIME:
             return "String"
         elif etl_dtype == ETLDataTypes.TIME_INTERVAL:
-            return "String"
+            return "IntervalSecond"
         elif etl_dtype == ETLDataTypes.JSON:
             return "Json"
         elif etl_dtype == ETLDataTypes.STRING:
