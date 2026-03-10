@@ -20,14 +20,14 @@
                     ("POSTGRES_PASSWORD" ,db-password)))
             (container
                 (name "postgres")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("postgres-data" "/bitnami/postgresql"))
+                    ("postgres-data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "synapse")
-                    ("POSTGRESQL_DATABASE" "synapse")
-                    ("POSTGRESQL_INITDB_ARGS" "--encoding=UTF-8 --lc-collate=C --lc-ctype=C")
-                    ("POSTGRESQL_PASSWORD" ,db-password)))
+                    ("POSTGRES_USER" "synapse")
+                    ("POSTGRES_DB" "synapse")
+                    ("POSTGRES_INITDB_ARGS" "--encoding=UTF-8 --lc-collate=C --lc-ctype=C")
+                    ("POSTGRES_PASSWORD" ,db-password)))
             (container
                 (name "mautrix-whatsapp")
                 (image "dock.mau.dev/mautrix/whatsapp:v0.11.0")
@@ -40,11 +40,11 @@
                     ("MAUTRIX_POSTGRES_PASSWORD" ,mautrix-db-password)))
             (container
                 (name "mautrix-postgres")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("mautrix-pgdata" "/bitnami/postgresql"))
+                    ("mautrix-pgdata" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "mautrix")
-                    ("POSTGRESQL_DATABASE" "mautrix")
+                    ("POSTGRES_USER" "mautrix")
+                    ("POSTGRES_DB" "mautrix")
                     ("POSTGRESQL_PORT_NUMBER" "5433")
-                    ("POSTGRESQL_PASSWORD" ,mautrix-db-password))))))
+                    ("POSTGRES_PASSWORD" ,mautrix-db-password))))))

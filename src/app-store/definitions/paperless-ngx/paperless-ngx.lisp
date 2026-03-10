@@ -10,13 +10,13 @@
                     ("redisdata" "/data"))) 
             (container
                 (name "postgresql")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("postgresql_data" "/bitnami/postgresql"))
+                    ("postgresql_data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "paperless")
-                    ("POSTGRESQL_DATABASE" "paperless")
-                    ("POSTGRESQL_PASSWORD" ,db-password)))
+                    ("POSTGRES_USER" "paperless")
+                    ("POSTGRES_DB" "paperless")
+                    ("POSTGRES_PASSWORD" ,db-password)))
             (container 
                 (name "webserver")
                 (image "ghcr.io/paperless-ngx/paperless-ngx:2.14.7")

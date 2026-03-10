@@ -5,13 +5,13 @@
         (containers
             (container
                 (name "db")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("postgresql_data" "/bitnami/postgresql"))
+                    ("postgresql_data"  "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "flowise")
-                    ("POSTGRESQL_DATABASE" "flowise")
-                    ("POSTGRESQL_PASSWORD" ,db-password)))
+                    ("POSTGRES_USER" "flowise")
+                    ("POSTGRES_DB" "flowise")
+                    ("POSTGRES_PASSWORD" ,db-password)))
             (container 
                 (name "flowise")
                 (image "docker.io/flowiseai/flowise:2.1.2")

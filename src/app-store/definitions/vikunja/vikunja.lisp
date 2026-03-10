@@ -6,13 +6,13 @@
         (containers
             (container
                 (name "db")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("psql_data" "/bitnami/postgresql"))
+                    ("psql_data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "vikunja")
-                    ("POSTGRESQL_DATABASE" "vikunja")
-                    ("POSTGRESQL_PASSWORD" ,db-password)))
+                    ("POSTGRES_USER" "vikunja")
+                    ("POSTGRES_DB" "vikunja")
+                    ("POSTGRES_PASSWORD" ,db-password)))
             (container
                 (name "vikunja")
                 (image "docker.io/vikunja/vikunja:0.24.6")

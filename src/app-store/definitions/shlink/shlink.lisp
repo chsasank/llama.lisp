@@ -5,13 +5,13 @@
         (containers 
             (container
                 (name "postgresql")
-                (image "docker.io/bitnami/postgresql:17")
+                (image "docker.io/library/postgres:17")
                 (volumes
-                    ("postgresql_data" "/bitnami/postgresql"))
+                    ("postgresql_data" "/var/lib/postgresql/data"))
                 (environment
-                    ("POSTGRESQL_USERNAME" "shlink")
-                    ("POSTGRESQL_DATABASE" "shlink")
-                    ("POSTGRESQL_PASSWORD" ,db-password)))
+                    ("POSTGRES_USER" "shlink")
+                    ("POSTGRES_DB" "shlink")
+                    ("POSTGRES_PASSWORD" ,db-password)))
             (container 
                 (name "shlink")
                 (image "docker.io/shlinkio/shlink:4.5.2")
