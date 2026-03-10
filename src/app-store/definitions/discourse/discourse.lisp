@@ -4,7 +4,7 @@
     (url "https://www.discourse.org/")
     (let ((db-user "bn_discourse")
           (db-password ,(gen-password))
-          (db-name "postgres")
+          (db-name "discourse")
           (redis-password ,(gen-password))
           (discourse-image "docker.io/bitnami/discourse:3.3.2")
           (discourse-host ,(interactive-input "Where is this going to be deployed?" "Example: www.example.com"))
