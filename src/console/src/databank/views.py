@@ -10,6 +10,7 @@ import pyodbc
 from django.conf import settings
 from django.contrib.auth.decorators import login_not_required
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 
 # Create your views here.
 from django.shortcuts import get_object_or_404, redirect, render
@@ -166,7 +167,7 @@ def etl_list(request):
     etls = ETLConfiguration.objects.all()
     for e in etls:
         # Logs URL
-        query = f"LogAttributes['source_table'] IN ('{e.source_table}')"
+        query = f"LogAttributes['etl_id'] IN ('{e.id}')"
 
         params = {
             "source": settings.LOGS_SOURCE_ID,
@@ -271,7 +272,7 @@ def etl_status_api(request):
 # DOWNLOAD ETLS
 def download_etls(request):
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="etls.csv"'
+    response["Content-Disposition"] = 'attachment; filename="all_etls.csv"'
 
     writer = csv.writer(response)
 
