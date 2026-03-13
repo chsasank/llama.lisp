@@ -5,6 +5,7 @@ import oracledb
 import psycopg
 import pyodbc
 from common import testing_database_host
+from datetime import datetime
 
 from etl.common import ETLDataTypes, JSONStateManager
 from etl.sources import MssqlSource, OracleSource, PostgresSource
@@ -512,7 +513,72 @@ def test_oracle_thick_mode_enabled():
     assert len(version) >= 2
 
     print(f"Oracle THICK mode confirmed, client version = {version}")
+    
 
+def test_oracle_replication_state_string_datetime():
+    state_manager = JSONStateManager(
+        json_path="testing.json",
+        state_id="oracle_datetime_state_test",
+        replication_key="HIRE_DATE",
+    )
+
+    # use earlier date so rows exist
+    state_manager.set_state("2000-01-01 00:00:00")
+
+    src = OracleSource(
+        test_oracle_config,
+        state_manager,
+        batch_size=5,
+    )
+
+    batches = src.stream_batches()
+    first_batch = next(batches)
+
+    assert len(first_batch) > 0
+    
+    
+def test_oracle_incremental_datetime_replication():
+    from datetime import datetime
+
+    state_manager = JSONStateManager(
+        json_path="testing.json",
+        state_id="oracle_incremental_datetime",
+        replication_key="HIRE_DATE",
+    )
+
+    # start replication from an old date
+    state_manager.set_state(datetime(2000, 1, 1))
+
+    src = OracleSource(
+        test_oracle_config,
+        state_manager,
+        batch_size=5,
+    )
+
+    for batch in src.stream_batches():
+        assert len(batch) <= 5
+        break
+    
+
+def test_state_manager_datetime_roundtrip():
+    from datetime import datetime
+
+    state_manager = JSONStateManager(
+        json_path="testing.json",
+        state_id="oracle_state_roundtrip",
+        replication_key="HIRE_DATE",
+    )
+
+    now = datetime.now()
+
+    state_manager.set_state(now)
+
+    state_value = state_manager.get_state()
+
+    # state manager may return string but must be convertible
+    if isinstance(state_value, str):
+        parsed = datetime.fromisoformat(state_value)
+        assert isinstance(parsed, datetime)
 
 if __name__ == "__main__":
     test_psql_init()
@@ -531,3 +597,6 @@ if __name__ == "__main__":
     test_oracle_stream_batches()
     test_oracle_stream_batches_replication()
     test_oracle_thick_mode_enabled()
+    test_oracle_replication_state_string_datetime()
+    test_oracle_incremental_datetime_replication()
+    test_state_manager_datetime_roundtrip()

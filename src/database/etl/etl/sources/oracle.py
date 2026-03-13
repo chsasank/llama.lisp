@@ -2,6 +2,7 @@ import logging
 
 import oracledb
 
+from datetime import datetime
 from etl.common import ETLDataTypes, SourceDriver, StateManagerDriver
 
 logger = logging.getLogger(__name__)
@@ -181,6 +182,14 @@ class OracleSource(SourceDriver):
             ), f"{self.state_manager.replication_key} is not in cols {col_names}"
             replication_key = self.state_manager.replication_key
             current_state = self.state_manager.get_state()
+            
+            # FIX: convert string state to datetime
+            if isinstance(current_state, str):
+                try:
+                    current_state = datetime.fromisoformat(current_state)
+                except ValueError:
+                    pass
+    
             logger.info(f"Replication key found: {replication_key}")
 
             if current_state:
