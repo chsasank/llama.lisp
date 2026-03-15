@@ -1,0 +1,293 @@
+(cuda-lisp
+  (define-shared As (8192 float))
+  (define-shared Bs (8192 float))
+  (define-inline-brilisp
+    ((memcpy4 void)
+     (dst (ptr int8))
+     (src (ptr int8)))
+    (set (temp (struct int4))
+         (asm "ld.global.v4.b32 {$0, $1, $2, $3}, [$4]; st.global.v4.b32 [$5], {$0, $1, $2, $3};"
+              "=&r,=&r,=&r,=&r,l,l"
+              src
+              dst))
+    (ret))
+  (define-kernel
+    ((kernel void)
+     (M int)
+     (N int)
+     (K int)
+     (alpha float)
+     (A (ptr float))
+     (B (ptr float))
+     (beta float)
+     (C (ptr float)))
+    (declare cRow int)
+    (declare cCol int)
+    (declare k int)
+    (set cRow (tid.y))
+    (set cCol (tid.x))
+    (declare WARPSIZE int)
+    (set WARPSIZE 32)
+    (declare warpIdx int)
+    (declare warpCol int)
+    (declare warpRow int)
+    (declare threadIdxInWarp int)
+    (declare threadColInWarp int)
+    (declare threadRowInWarp int)
+    (set warpIdx (div (tid.x) WARPSIZE))
+    (set warpCol (rem warpIdx (div 128 64)))
+    (set warpRow (div warpIdx (div 128 64)))
+    (set threadIdxInWarp (rem (tid.x) WARPSIZE))
+    (set threadColInWarp
+         (rem threadIdxInWarp (div 32 8)))
+    (set threadRowInWarp
+         (div threadIdxInWarp (div 32 8)))
+    (set A (ptradd A (mul (mul cRow 128) K)))
+    (set B (ptradd B (mul cCol 128)))
+    (set C
+         (ptradd
+           C
+           (add (mul (add (mul cRow 128) (mul warpRow 64)) N)
+                (add (mul cCol 128) (mul warpCol 64)))))
+    (declare innerRowA int)
+    (declare innerColA int)
+    (declare innerRowB int)
+    (declare innerColB int)
+    (set innerRowA (div (tid.x) (div 64 4)))
+    (set innerColA (rem (tid.x) (div 64 4)))
+    (set innerRowB (div (tid.x) (div 128 4)))
+    (set innerColB (rem (tid.x) (div 128 4)))
+    (declare size int)
+    (declare idx int)
+    (declare threadResults (ptr float))
+    (declare regM (arr size float))
+    (declare regN (arr size float))
+    (declare bkIdx int)
+    (set size (mul (mul (mul 1 8) 2) 8))
+    (for ((set idx 0) (lt idx size) (set idx (add idx 1)))
+         (store (ptradd threadResults idx) 0.0))
+    (set size (mul 1 8))
+    (for ((set idx 0) (lt idx size) (set idx (add idx 1)))
+         (store (aptradd regM idx) 0.0))
+    (set size (mul 2 8))
+    (for ((set idx 0) (lt idx size) (set idx (add idx 1)))
+         (store (aptradd regN idx) 0.0))
+    (for ((set bkIdx 0)
+          (lt bkIdx K)
+          (set bkIdx (add bkIdx 64)))
+         ((declare offset int)
+          (declare tmp (arr 4 float))
+          (for ((set offset 0)
+                (lt (add offset 16) 128)
+                (set offset (add offset 16)))
+               (declare idx int)
+               (for ((set idx 0) (lt idx 4) (set idx (add idx 1)))
+                    (store (aptradd tmp idx) 0.0))
+               (call memcpy4
+                     (bitcast (aptradd tmp 0) (ptr int8))
+                     (bitcast
+                       (ptradd
+                         A
+                         (add (mul (add innerRowA offset) K)
+                              (mul innerColA 4)))
+                       (ptr int8)))
+               (store (aptradd
+                        As
+                        (add (mul (add (mul innerColA 4) 0) 128)
+                             (add innerRowA offset)))
+                      (load (aptradd tmp 0)))
+               (store (aptradd
+                        As
+                        (add (mul (add (mul innerColA 4) 1) 128)
+                             (add innerRowA offset)))
+                      (load (aptradd tmp 1)))
+               (store (aptradd
+                        As
+                        (add (mul (add (mul innerColA 4) 2) 128)
+                             (add innerRowA offset)))
+                      (load (aptradd tmp 2)))
+               (store (aptradd
+                        As
+                        (add (mul (add (mul innerColA 4) 3) 128)
+                             (add innerRowA offset)))
+                      (load (aptradd tmp 3))))
+          (declare first_dest (arr 4 float))
+          (declare second_dest (arr 4 float))
+          (for ((set offset 0)
+                (lt (add offset 8) 64)
+                (set offset (add offset 8)))
+               (call memcpy4
+                     (bitcast (aptradd second_dest 0) (ptr int8))
+                     (bitcast
+                       (ptradd
+                         B
+                         (add (mul (add innerRowB offset) 128)
+                              (mul innerColB 4)))
+                       (ptr int8)))
+               (call memcpy4
+                     (bitcast (aptradd first_dest 0) (ptr int8))
+                     (bitcast
+                       (aptradd
+                         Bs
+                         (add (mul (add innerRowB offset) 128)
+                              (mul innerColB 4)))
+                       (ptr int8)))
+               (call memcpy4
+                     (bitcast (aptradd first_dest 0) (ptr int8))
+                     (bitcast (aptradd second_dest 0) (ptr int8)))))
+         (__syncthreads)
+         ((declare dotIdx int)
+          (declare wSubRowIdx int)
+          (declare wSubColIdx int)
+          (declare i int)
+          (for ((set dotIdx 0)
+                (lt dotIdx 64)
+                (set dotIdx (add dotIdx 1)))
+               (for ((set wSubRowIdx 0)
+                     (lt wSubRowIdx 1)
+                     (set wSubRowIdx (add wSubRowIdx 1)))
+                    (for ((set i 0) (lt i 8) (set i (add i 1)))
+                         (store (aptradd regM (add (mul wSubRowIdx 8) i))
+                                (load (aptradd
+                                        As
+                                        (add (add (add (mul dotIdx 128)
+                                                       (mul warpRow 64))
+                                                  (mul wSubRowIdx 64))
+                                             (add (mul threadColInWarp 8)
+                                                  i)))))))
+               (for ((set wSubColIdx 0)
+                     (lt wSubRowIdx 2)
+                     (set wSubColIdx (add wSubColIdx 1)))
+                    (for ((set i 0) (lt i 8) (set i (add i 1)))
+                         (store (aptradd regN (add (mul wSubColIdx 8) i))
+                                (load (aptradd
+                                        Bs
+                                        (add (add (add (mul dotIdx 128)
+                                                       (mul warpCol 64))
+                                                  (mul wSubColIdx 32))
+                                             (add (mul threadColInWarp 8)
+                                                  i)))))))
+               (declare resIdxM int)
+               (declare resIdxN int)
+               (for ((set wSubRowIdx 0)
+                     (lt wSubRowIdx 1)
+                     (set wSubRowIdx (add wSubRowIdx 1)))
+                    (for ((set wSubColIdx 0)
+                          (lt wSubColIdx 2)
+                          (set wSubColIdx (add wSubColIdx 1)))
+                         (for ((set resIdxM 0)
+                               (lt resIdxM 8)
+                               (set resIdxM (add resIdxM 1)))
+                              (for ((set resIdxN 0)
+                                    (lt resIdxN 8)
+                                    (set resIdxN (add resIdxN 1)))
+                                   (store (ptradd
+                                            threadResults
+                                            (add (add (mul (add (mul wSubRowIdx
+                                                                     8)
+                                                                resIdxM)
+                                                           (mul 2 8))
+                                                      (mul wSubColIdx 8))
+                                                 resIdxN))
+                                          (fadd (load (ptradd
+                                                        threadResults
+                                                        (add (add (mul (add (mul wSubRowIdx
+                                                                                 8)
+                                                                            resIdxM)
+                                                                       (mul 2
+                                                                            8))
+                                                                  (mul wSubColIdx
+                                                                       8))
+                                                             resIdxN)))
+                                                (fmul (load (aptradd
+                                                              regM
+                                                              (add (mul wSubRowIdx
+                                                                        8)
+                                                                   resIdxM)))
+                                                      (load (aptradd
+                                                              regN
+                                                              (add (mul wSubColIdx
+                                                                        8)
+                                                                   resIdxN))))))))))))
+         (set A (ptradd A 64))
+         (set B (ptradd B (mul 64 N)))
+         (__syncthreads))
+    (declare wSubRowIdx int)
+    (declare wSubColIdx int)
+    (declare C_interim (ptr float))
+    (for ((set wSubRowIdx 0)
+          (lt wSubRowIdx 1)
+          (set wSubRowIdx (add wSubRowIdx 1)))
+         (for ((set wSubColIdx 0)
+               (lt wSubColIdx 2)
+               (set wSubColIdx (add wSubColIdx 1)))
+              (set C_interim
+                   (ptradd
+                     C
+                     (add (mul (mul wSubRowIdx 64) N)
+                          (mul wSubColIdx 32))))
+              (declare resIdxM int)
+              (for ((set resIdxM 0)
+                    (lt resIdxM 8)
+                    (set resIdxM (add resIdxM 1)))
+                   (declare resIdxN int)
+                   (declare tmp (arr 4 float))
+                   (for ((set resIdxN 0)
+                         (lt resIdxN 8)
+                         (set resIdxN (add resIdxN 4)))
+                        (set tmp
+                             (call memcpy4
+                                   (bitcast (aptradd tmp 0) (ptr int8))
+                                   (bitcast
+                                     (ptradd
+                                       C_interim
+                                       (add (mul (add (mul threadRowInWarp 8)
+                                                      resIdxM)
+                                                 N)
+                                            (add (mul threadColInWarp 8)
+                                                 resIdxN)))
+                                     (ptr int8))))
+                        (declare i int)
+                        (set i
+                             (add (mul (add (mul wSubRowIdx 8) resIdxM)
+                                       (mul 2 8))
+                                  (add (mul wSubColIdx 8) resIdxN)))
+                        (store (aptradd tmp 0)
+                               (fadd (fmul alpha
+                                           (load (ptradd
+                                                   threadResults
+                                                   (add i 0))))
+                                     (fmul beta (load (aptradd tmp 0)))))
+                        (store (aptradd tmp 1)
+                               (fadd (fmul alpha
+                                           (load (ptradd
+                                                   threadResults
+                                                   (add i 1))))
+                                     (fmul beta (load (aptradd tmp 1)))))
+                        (store (aptradd tmp 2)
+                               (fadd (fmul alpha
+                                           (load (ptradd
+                                                   threadResults
+                                                   (add i 2))))
+                                     (fmul beta (load (aptradd tmp 2)))))
+                        (store (aptradd tmp 3)
+                               (fadd (fmul alpha
+                                           (load (ptradd
+                                                   threadResults
+                                                   (add i 3))))
+                                     (fmul beta (load (aptradd tmp 3)))))
+                        (declare res (arr 4 float))
+                        (for ((set idx 0) (lt idx 4) (set idx (add idx 1)))
+                             (store (aptradd res idx) 0.0))
+                        (call memcpy4
+                              (bitcast (aptradd res 0) (ptr int8))
+                              (bitcast
+                                (ptradd
+                                  C_interim
+                                  (add (mul (add (mul threadRowInWarp 8)
+                                                 resIdxM)
+                                            N)
+                                       (add (mul threadColInWarp 8) resIdxN)))
+                                (ptr int8)))
+                        (set res tmp)))))
+    (ret)))
