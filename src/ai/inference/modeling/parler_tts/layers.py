@@ -110,7 +110,7 @@ class DecoderLayer(torch.nn.Module):
         # cross attn
         residual = hidden_states
         hidden_states = self.encoder_attn_layer_norm(hidden_states)
-        hidden_states, encoder_kv_cache = self.cross_attn(
+        hidden_states, encoder_kv_cache = self.encoder_attn(
             hidden_states,
             key_value_states=encoder_hidden_states,
             kv_cache=encoder_kv_cache,

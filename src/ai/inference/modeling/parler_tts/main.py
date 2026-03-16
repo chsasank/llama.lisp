@@ -96,6 +96,118 @@ class ParlerTTS(torch.nn.Module):
             _sub_state_dict("decoder.lm_heads", model_weights)
         )
 
+    @torch.no_grad
+    def prefill(self, prompts, descriptions, decoder_input_ids, decoder_position_ids):
+        num_codebooks = self.config["decoder"]["num_codebooks"]
+        vocab_size = self.config["decoder"]["vocab_size"]
 
-model = ParlerTTS("/home/sasank/code/inference-opt/checkpoints")
-print(model)
+        # TODO: no attention mask, assuming bs = 1
+        desc_tokens = model.description_tokenizer(descriptions, return_tensors="pt")
+        encoder_hidden_states = model.description_encoder(
+            desc_tokens["input_ids"]
+        ).last_hidden_state
+        prompt_tokens = model.prompt_tokenizer(prompts, return_tensors="pt")
+        prompt_hidden_states = model.embed_prompt(prompt_tokens["input_ids"])
+
+        decoder_input_ids = decoder_input_ids.reshape(
+            -1, num_codebooks, decoder_input_ids.shape[-1]
+        )
+        inputs_embeds = sum(
+            [
+                self.embed_audio[codebook](decoder_input_ids[:, codebook])
+                for codebook in range(num_codebooks)
+            ]
+        )
+        inputs_embeds = torch.cat([prompt_hidden_states, inputs_embeds], dim=1)
+        position_embeds = self.embed_position.from_position_ids(
+            decoder_position_ids
+        ).to(inputs_embeds.device)
+        hidden_states = inputs_embeds + position_embeds
+
+        model_kv_cache = []
+        model_encoder_kv_cache = []
+        for layer in range(len(self.decoder_layers)):
+            hidden_states, layer_kv_cache, layer_encoder_kv_cache = self.decoder_layers[
+                layer
+            ](
+                hidden_states=hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+            )
+            odel_kv_cache.append(layer_kv_cache)
+            model_encoder_kv_cache.append(layer_encoder_kv_cache)
+
+        hidden_states = self.layer_norm(hidden_states)
+        lm_logits = (
+            self.lm_heads(hidden_states)
+            .view(hidden_states.shape[0], -1, num_codebooks, vocab_size)
+            .transpose(1, 2)
+        )
+        return lm_logits, model_kv_cache, model_encoder_kv_cache
+
+
+model = ParlerTTS("/home/sasank/code/inference-opt/checkpoints").eval()
+
+
+def test_ref_inputs():
+    prompts = ["अरे, तुम आज कैसे हो?"]
+    descriptions = [
+        "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise."
+    ]
+    ref = torch.load(
+        "/home/sasank/code/inference-opt/checkpoints/values_to_save.pt",
+        weights_only=False,
+        map_location=torch.device("cpu"),
+    )
+
+    # description -> encoder
+    expected_encoder_outputs = ref["encoder_outputs"].last_hidden_state
+    desc_tokens = model.description_tokenizer(descriptions, return_tensors="pt")
+    encoder_outputs = model.description_encoder(
+        desc_tokens["input_ids"]
+    ).last_hidden_state
+    assert torch.allclose(expected_encoder_outputs, encoder_outputs, atol=1e-4)
+
+    # prompts -> embeddings
+    expected_prompt_hidden_states = ref["prompt_hidden_states"]
+    prompt_tokens = model.prompt_tokenizer(prompts, return_tensors="pt")
+    prompt_hidden_states = model.embed_prompt(prompt_tokens["input_ids"])
+    assert torch.allclose(
+        expected_prompt_hidden_states, prompt_hidden_states, atol=1e-4
+    )
+
+    decoder_input_ids = ref["decoder_input_ids"]
+    decoder_position_ids = ref["decoder_position_ids"]
+
+    expected_logits = ref["prefill_logits"]
+    expected_past_key_values = ref["past_key_values"]
+    logits, model_kv_cache, model_encoder_kv_cache = model.prefill(
+        prompts, descriptions, decoder_input_ids, decoder_position_ids
+    )
+    assert torch.allclose(expected_logits, logits, atol=1e-4)
+
+    for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
+        assert torch.allclose(
+            expected_past_key_values[layer_id][0],
+            model_kv_cache[layer_id][0],
+            atol=1e-4,
+        )
+        assert torch.allclose(
+            expected_past_key_values[layer_id][1],
+            model_kv_cache[layer_id][1],
+            atol=1e-4,
+        )
+        assert torch.allclose(
+            expected_past_key_values[layer_id][2],
+            model_encoder_kv_cache[layer_id][0],
+            atol=1e-4,
+        )
+        assert torch.allclose(
+            expected_past_key_values[layer_id][3],
+            model_encoder_kv_cache[layer_id][1],
+            atol=1e-4,
+        )
+
+        print(f"k cache {layer_id} pass")
+
+
+test_ref_inputs()
