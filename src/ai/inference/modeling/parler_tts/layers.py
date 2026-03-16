@@ -68,7 +68,7 @@ class AttentionBlock(torch.nn.Module):
         return output, kv_cache
 
 
-class DecoderLayer(nn.Module):
+class DecoderLayer(torch.nn.Module):
     def __init__(
         self,
         embed_dim,

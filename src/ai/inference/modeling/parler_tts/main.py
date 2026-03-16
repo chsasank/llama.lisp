@@ -3,7 +3,7 @@ import json
 
 import transformers
 import torch
-from layers import SinusoidalPositionalEmbedding
+from layers import SinusoidalPositionalEmbedding, DecoderLayer
 
 
 class ParlerTTS(torch.nn.Module):
@@ -38,7 +38,28 @@ class ParlerTTS(torch.nn.Module):
             self.config["decoder"]["max_position_embeddings"],
             self.config["decoder"]["hidden_size"],
         )
-
+        self.decoder_layers = torch.nn.ModuleList(
+            [
+                DecoderLayer(
+                    embed_dim=self.config["decoder"]["hidden_size"],
+                    num_heads=self.config["text_encoder"]["num_heads"],
+                    ffn_dim=self.config["decoder"]["ffn_dim"],
+                    dropout_p=self.config["decoder"]["dropout"],
+                    activation_dropout_p=self.config["decoder"]["attention_dropout"],
+                    activation=self.config["decoder"]["activation_function"],
+                )
+                for _ in range(self.config["decoder"]["num_hidden_layers"])
+            ]
+        )
+        self.layer_norm = torch.nn.LayerNorm(self.config["decoder"]["hidden_size"])
+        self.lm_heads = torch.nn.Linear(
+            self.config["decoder"]["hidden_size"],
+            (
+                self.config["decoder"]["vocab_size"]
+                * self.config["decoder"]["num_codebooks"]
+            ),
+            bias=False,
+        )
         self._load_weights()
 
     def _load_weights(self):
@@ -62,7 +83,18 @@ class ParlerTTS(torch.nn.Module):
         self.embed_audio.load_state_dict(
             _sub_state_dict("decoder.model.decoder.embed_tokens", model_weights)
         )
-        self.embed_position.weights = model_weights["decoder.model.decoder.embed_positions.weights"]
+        self.embed_position.weights = model_weights[
+            "decoder.model.decoder.embed_positions.weights"
+        ]
+        self.decoder_layers.load_state_dict(
+            _sub_state_dict("decoder.model.decoder.layers", model_weights)
+        )
+        self.layer_norm.load_state_dict(
+            _sub_state_dict("decoder.model.decoder.layer_norm", model_weights)
+        )
+        self.lm_heads.load_state_dict(
+            _sub_state_dict("decoder.lm_heads", model_weights)
+        )
 
 
 model = ParlerTTS("/home/sasank/code/inference-opt/checkpoints")
