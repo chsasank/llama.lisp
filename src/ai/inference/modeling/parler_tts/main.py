@@ -62,9 +62,7 @@ class ParlerTTS(torch.nn.Module):
         self.embed_audio.load_state_dict(
             _sub_state_dict("decoder.model.decoder.embed_tokens", model_weights)
         )
-        self.embed_position.weights = model_weights[
-            "decoder.model.decoder.embed_positions.weights"
-        ]
+        self.embed_position.weights = model_weights["decoder.model.decoder.embed_positions.weights"]
 
 
 model = ParlerTTS("/home/sasank/code/inference-opt/checkpoints")

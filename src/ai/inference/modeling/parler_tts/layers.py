@@ -57,7 +57,10 @@ class AttentionBlock(torch.nn.Module):
                 value = torch.cat([past_value, value], dim=2)
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
-            query, key, value, is_causal=not is_cross_attn,
+            query,
+            key,
+            value,
+            is_causal=not is_cross_attn,
         )
         attn_output = self.merge_heads(attn_output)
         output = self.out_proj(attn_output)
@@ -66,7 +69,15 @@ class AttentionBlock(torch.nn.Module):
 
 
 class DecoderLayer(nn.Module):
-    def __init__(self, embed_dim, num_heads, ffn_dim, dropout_p, activation_dropout_p, activation="gelu"):
+    def __init__(
+        self,
+        embed_dim,
+        num_heads,
+        ffn_dim,
+        dropout_p,
+        activation_dropout_p,
+        activation="gelu",
+    ):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -99,7 +110,7 @@ class DecoderLayer(nn.Module):
         # cross attn
         residual = hidden_states
         hidden_states = self.encoder_attn_layer_norm(hidden_states)
-        hidden_states, encoder_kv_cache = self.self_attn(
+        hidden_states, encoder_kv_cache = self.cross_attn(
             hidden_states,
             key_value_states=encoder_hidden_states,
             kv_cache=encoder_kv_cache,
@@ -114,7 +125,7 @@ class DecoderLayer(nn.Module):
         hidden_states = self.activation_fn(hidden_states)
         hidden_states = self.activation_dropout(hidden_states)
         hidden_states = self.fc2(hidden_states)
-        hidden_states = self.dropout(hidden_states) 
+        hidden_states = self.dropout(hidden_states)
         hidden_states = residual + hidden_states
 
         return hidden_states, kv_cache, encoder_kv_cache
