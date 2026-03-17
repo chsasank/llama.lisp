@@ -31,7 +31,9 @@ class AttentionBlock(torch.nn.Module):
         batch_size, heads, seq_len, head_dim = x.shape
         return x.transpose(1, 2).reshape(batch_size, seq_len, heads * head_dim)
 
-    def forward(self, hidden_states, key_value_states=None, kv_cache=None):
+    def forward(
+        self, hidden_states, key_value_states=None, kv_cache=None, attn_mask=None
+    ):
         """If key_value_states is not None, assumed to cross attention"""
         is_cross_attn = key_value_states is not None
         if key_value_states is None:
@@ -56,12 +58,17 @@ class AttentionBlock(torch.nn.Module):
                 key = torch.cat([past_key, key], dim=2)
                 value = torch.cat([past_value, value], dim=2)
 
+        # print("query_states", query[0, 0, :, 0])
+        # print("key_states", key[0, 0, :, 0])
+        # print("value_states", value[0, 0, :, 0])
+
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query,
             key,
             value,
-            is_causal=not is_cross_attn,
+            attn_mask,
         )
+        # print("attn_output", attn_output[0, 0, :, 0])
         attn_output = self.merge_heads(attn_output)
         output = self.out_proj(attn_output)
         kv_cache = (key, value)
@@ -98,27 +105,39 @@ class DecoderLayer(torch.nn.Module):
         self.final_layer_norm = torch.nn.LayerNorm(self.embed_dim)
 
     def forward(
-        self, hidden_states, encoder_hidden_states, kv_cache=None, encoder_kv_cache=None
+        self,
+        hidden_states,
+        encoder_hidden_states,
+        kv_cache=None,
+        encoder_kv_cache=None,
+        self_attn_mask=None,
+        cross_attn_mask=None,
     ):
         # self attn
         residual = hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
-        hidden_states, kv_cache = self.self_attn(hidden_states, kv_cache=kv_cache)
+        # print('===> in layer, before self attn ', hidden_states[:, :, 0])
+        hidden_states, kv_cache = self.self_attn(
+            hidden_states, kv_cache=kv_cache, attn_mask=self_attn_mask
+        )
         hidden_states = self.dropout(hidden_states)
         hidden_states = residual + hidden_states
 
         # cross attn
+        # print('===> in layer, before crss attn ', hidden_states[:, :, 0])
         residual = hidden_states
         hidden_states = self.encoder_attn_layer_norm(hidden_states)
         hidden_states, encoder_kv_cache = self.encoder_attn(
             hidden_states,
             key_value_states=encoder_hidden_states,
             kv_cache=encoder_kv_cache,
+            attn_mask=cross_attn_mask,
         )
         hidden_states = self.dropout(hidden_states)
         hidden_states = residual + hidden_states
 
         # fully connected
+        # print('===> in layer, before fc ', hidden_states[:, :, 0])
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.fc1(hidden_states)
@@ -127,5 +146,6 @@ class DecoderLayer(torch.nn.Module):
         hidden_states = self.fc2(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = residual + hidden_states
+        # print('===> in layer, final ', hidden_states[:, :, 0])
 
         return hidden_states, kv_cache, encoder_kv_cache
