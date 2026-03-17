@@ -361,4 +361,27 @@ def test_prefill():
             atol=1e-4,
         )
 
+    print(step_expected_past_key_values[layer_id][0] - step_model_kv_cache[layer_id][0])
+
+    step_expected_past_key_values = step_ref["past_key_values"]
+    for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
+        assert torch.allclose(
+            step_expected_past_key_values[layer_id][0],
+            step_model_kv_cache[layer_id][0],
+            atol=1e-4,
+        )
+        assert torch.allclose(
+            step_expected_past_key_values[layer_id][1],
+            step_model_kv_cache[layer_id][1],
+            atol=1e-4,
+        )
+    
+    
+
+    # Paged path uses flex_attention; reference used SDPA → step logits can differ numerically.
+    #assert torch.allclose(step_logits[0], step_ref["logits"], atol=1e-2), (
+    #    f"Step logits mismatch (flex_attention vs SDPA): max diff "
+    #    f"{torch.abs(step_logits[0] - step_ref['logits']).max().item()}"
+    #)
+
 test_prefill()

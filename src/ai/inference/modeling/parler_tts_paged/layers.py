@@ -12,7 +12,6 @@ try:
     FLEX_ATTENTION_AVAILABLE = True
 except Exception:
     FLEX_ATTENTION_AVAILABLE = False
-    _flex_attention = None
 
 from paging import PagedAttention
 
