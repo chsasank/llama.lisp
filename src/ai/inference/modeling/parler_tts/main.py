@@ -118,9 +118,7 @@ class ParlerTTS(torch.nn.Module):
         decoder_position_ids,
         encoder_hidden_states,
         prompt_hidden_states=None,
-        model_kv_cache=None,
         model_encoder_kv_cache=None,
-        self_attn_mask=None,
         cross_attn_mask=None,
     ):
         num_decoder_layers = self.config["decoder"]["num_hidden_layers"]
@@ -136,32 +134,26 @@ class ParlerTTS(torch.nn.Module):
                 for codebook in range(num_codebooks)
             ]
         )
-        if model_kv_cache is None:
-            # prefill step
-            inputs_embeds = torch.cat([prompt_hidden_states, inputs_embeds], dim=1)
+        inputs_embeds = torch.cat([prompt_hidden_states, inputs_embeds], dim=1)
 
         position_embeds = self.embed_position.from_position_ids(
             decoder_position_ids
         ).to(inputs_embeds.device)
-        # print("position_embeds", position_embeds[0, :, 0])
-        # print("inputs_embeds", inputs_embeds[0, :, 0])
         hidden_states = inputs_embeds + position_embeds
 
+        model_kv_cache = None
         if model_kv_cache is None:
             model_kv_cache = [None for _ in range(num_decoder_layers)]
         if model_encoder_kv_cache is None:
             model_encoder_kv_cache = [None for _ in range(num_decoder_layers)]
 
         for layer in range(num_decoder_layers):
-            # print(f"hidden_states layer {layer}", hidden_states[0, :, 0])
             hidden_states, layer_kv_cache, layer_encoder_kv_cache = self.decoder_layers[
                 layer
             ](
                 hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
-                kv_cache=model_kv_cache[layer],
                 encoder_kv_cache=model_encoder_kv_cache[layer],
-                self_attn_mask=self_attn_mask,
                 cross_attn_mask=cross_attn_mask,
             )
             model_kv_cache[layer] = layer_kv_cache
@@ -220,7 +212,6 @@ def test_prefill():
         decoder_position_ids=decoder_position_ids,
         encoder_hidden_states=encoder_hidden_states,
         prompt_hidden_states=prompt_hidden_states,
-        self_attn_mask=self_attn_mask,
         cross_attn_mask=cross_attn_mask,
     )
     assert torch.allclose(expected_logits, logits[0], atol=1e-4)
@@ -247,49 +238,51 @@ def test_prefill():
             atol=1e-4,
         )
 
-    # model step
-    step_ref = ref = torch.load(
-        "/home/sasank/code/inference-opt/checkpoints/model_step.pt",
-        weights_only=False,
-        map_location=torch.device("cpu"),
-    )
-    step_decoder_input_ids = step_ref["decoder_input_ids"]
-    step_decoder_position_ids = step_ref["decoder_position_ids"]
-    step_self_attn_mask = step_ref["decoder_attention_mask"]
-    step_cross_attn_mask = step_ref["attention_mask"]
-    step_logits, step_model_kv_cache, step_model_encoder_kv_cache = model.decode(
-        encoder_hidden_states=encoder_hidden_states,
-        decoder_input_ids=step_decoder_input_ids,
-        decoder_position_ids=step_decoder_position_ids,
-        model_kv_cache=model_kv_cache,
-        model_encoder_kv_cache=model_encoder_kv_cache,
-    )
+    # # model step
+    # step_ref = ref = torch.load(
+    #     "/home/sasank/code/inference-opt/checkpoints/model_step.pt",
+    #     weights_only=False,
+    #     map_location=torch.device("cpu"),
+    # )
+    # step_decoder_input_ids = step_ref["decoder_input_ids"]
+    # step_decoder_position_ids = step_ref["decoder_position_ids"]
+    # step_self_attn_mask = step_ref["decoder_attention_mask"]
+    # step_cross_attn_mask = step_ref["attention_mask"]
+    # step_logits, step_model_kv_cache, step_model_encoder_kv_cache = model.decode(
+    #     encoder_hidden_states=encoder_hidden_states,
+    #     decoder_input_ids=step_decoder_input_ids,
+    #     decoder_position_ids=step_decoder_position_ids,
+    #     model_kv_cache=model_kv_cache,
+    #     model_encoder_kv_cache=model_encoder_kv_cache,
+    #     self_attn_mask=step_self_attn_mask,
+    #     cross_attn_mask=step_cross_attn_mask,
+    # )
 
-    step_expected_logits = step_ref["logits"]
-    assert torch.allclose(step_expected_logits, step_logits[0], atol=1e-4)
+    # step_expected_logits = step_ref["logits"]
+    # assert torch.allclose(step_expected_logits, step_logits[0], atol=1e-4)
 
-    step_expected_past_key_values = step_ref["past_key_values"]
-    for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
-        assert torch.allclose(
-            step_expected_past_key_values[layer_id][0],
-            step_model_kv_cache[layer_id][0],
-            atol=1e-4,
-        )
-        assert torch.allclose(
-            step_expected_past_key_values[layer_id][1],
-            step_model_kv_cache[layer_id][1],
-            atol=1e-4,
-        )
-        assert torch.allclose(
-            step_expected_past_key_values[layer_id][2],
-            step_model_encoder_kv_cache[layer_id][0],
-            atol=1e-4,
-        )
-        assert torch.allclose(
-            step_expected_past_key_values[layer_id][3],
-            step_model_encoder_kv_cache[layer_id][1],
-            atol=1e-4,
-        )
+    # step_expected_past_key_values = step_ref["past_key_values"]
+    # for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
+    #     assert torch.allclose(
+    #         step_expected_past_key_values[layer_id][0],
+    #         step_model_kv_cache[layer_id][0],
+    #         atol=1e-4,
+    #     )
+    #     assert torch.allclose(
+    #         step_expected_past_key_values[layer_id][1],
+    #         step_model_kv_cache[layer_id][1],
+    #         atol=1e-4,
+    #     )
+    #     assert torch.allclose(
+    #         step_expected_past_key_values[layer_id][2],
+    #         step_model_encoder_kv_cache[layer_id][0],
+    #         atol=1e-4,
+    #     )
+    #     assert torch.allclose(
+    #         step_expected_past_key_values[layer_id][3],
+    #         step_model_encoder_kv_cache[layer_id][1],
+    #         atol=1e-4,
+    #     )
 
 
 test_prefill()

@@ -31,44 +31,41 @@ class AttentionBlock(torch.nn.Module):
         batch_size, heads, seq_len, head_dim = x.shape
         return x.transpose(1, 2).reshape(batch_size, seq_len, heads * head_dim)
 
-    def forward(
-        self, hidden_states, key_value_states=None, kv_cache=None, attn_mask=None
-    ):
-        """If key_value_states is not None, assumed to cross attention"""
-        is_cross_attn = key_value_states is not None
-        if key_value_states is None:
-            # for self attn
-            key_value_states = hidden_states
 
+class CrossAttentionBlock(AttentionBlock):
+    def forward(self, hidden_states, key_value_states, kv_cache=None, attn_mask=None):
+        """If key_value_states is not None, assumed to cross attention"""
         query = self.split_heads(self.q_proj(hidden_states))
 
-        if is_cross_attn:
-            # cross-attention: compute KV once
-            if kv_cache is None:
-                key = self.split_heads(self.k_proj(key_value_states))
-                value = self.split_heads(self.v_proj(key_value_states))
-            else:
-                key, value = kv_cache
-        else:
-            # self-attention: append KV every step
+        # cross-attention: compute KV once
+        if kv_cache is None:
             key = self.split_heads(self.k_proj(key_value_states))
             value = self.split_heads(self.v_proj(key_value_states))
-            if kv_cache is not None:
-                past_key, past_value = kv_cache
-                key = torch.cat([past_key, key], dim=2)
-                value = torch.cat([past_value, value], dim=2)
+        else:
+            key, value = kv_cache
 
-        # print("query_states", query[0, 0, :, 0])
-        # print("key_states", key[0, 0, :, 0])
-        # print("value_states", value[0, 0, :, 0])
+        # need to make this go fast
+        attn_output = torch.nn.functional.scaled_dot_product_attention(
+            query, key, value, attn_mask
+        )
+
+        attn_output = self.merge_heads(attn_output)
+        output = self.out_proj(attn_output)
+        kv_cache = (key, value)
+        return output, kv_cache
+
+
+class SelfAttentionBlock(AttentionBlock):
+    def prefill(self, hidden_states, attn_mask=None):
+        key_value_states = hidden_states
+        query = self.split_heads(self.q_proj(hidden_states))
+        # self-attention: append KV every step
+        key = self.split_heads(self.k_proj(key_value_states))
+        value = self.split_heads(self.v_proj(key_value_states))
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
-            query,
-            key,
-            value,
-            attn_mask,
+            query, key, value, attn_mask, is_causal=True
         )
-        # print("attn_output", attn_output[0, 0, :, 0])
         attn_output = self.merge_heads(attn_output)
         output = self.out_proj(attn_output)
         kv_cache = (key, value)
@@ -93,11 +90,11 @@ class DecoderLayer(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout_p)
 
         self.self_attn_layer_norm = torch.nn.LayerNorm(self.embed_dim)
-        self.self_attn = AttentionBlock(self.embed_dim, num_heads, bias=False)
+        self.self_attn = SelfAttentionBlock(self.embed_dim, num_heads, bias=False)
         self.activation_fn = transformers.activations.ACT2FN[activation]
 
         self.encoder_attn_layer_norm = torch.nn.LayerNorm(self.embed_dim)
-        self.encoder_attn = AttentionBlock(self.embed_dim, num_heads, bias=False)
+        self.encoder_attn = CrossAttentionBlock(self.embed_dim, num_heads, bias=False)
 
         self.activation_dropout = torch.nn.Dropout(activation_dropout_p)
         self.fc1 = torch.nn.Linear(self.embed_dim, self.ffn_dim, bias=False)
@@ -108,23 +105,17 @@ class DecoderLayer(torch.nn.Module):
         self,
         hidden_states,
         encoder_hidden_states,
-        kv_cache=None,
         encoder_kv_cache=None,
-        self_attn_mask=None,
         cross_attn_mask=None,
     ):
         # self attn
         residual = hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
-        # print('===> in layer, before self attn ', hidden_states[:, :, 0])
-        hidden_states, kv_cache = self.self_attn(
-            hidden_states, kv_cache=kv_cache, attn_mask=self_attn_mask
-        )
+        hidden_states, kv_cache = self.self_attn.prefill(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = residual + hidden_states
 
         # cross attn
-        # print('===> in layer, before crss attn ', hidden_states[:, :, 0])
         residual = hidden_states
         hidden_states = self.encoder_attn_layer_norm(hidden_states)
         hidden_states, encoder_kv_cache = self.encoder_attn(
@@ -137,7 +128,6 @@ class DecoderLayer(torch.nn.Module):
         hidden_states = residual + hidden_states
 
         # fully connected
-        # print('===> in layer, before fc ', hidden_states[:, :, 0])
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.fc1(hidden_states)
@@ -146,6 +136,5 @@ class DecoderLayer(torch.nn.Module):
         hidden_states = self.fc2(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = residual + hidden_states
-        # print('===> in layer, final ', hidden_states[:, :, 0])
 
         return hidden_states, kv_cache, encoder_kv_cache
