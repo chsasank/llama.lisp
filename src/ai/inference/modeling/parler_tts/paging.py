@@ -144,10 +144,17 @@ class VirtualMemory:
         ]
         self.page_table = PageTable(page_size=page_size)
         self.num_kv_heads = num_kv_heads
+        self.num_qo_heads = num_kv_heads  # no gqa for now
         self.head_dim = head_dim
         self.page_size = page_size
         self.num_layers = num_layers
-        self.num_qo_heads = 16
+
+        workspace_buffer = torch.zeros(
+            128 * 1024 * 1024, dtype=torch.uint8, device=device
+        )
+        self.decode_wrapper = flashinfer.BatchDecodeWithPagedKVCacheWrapper(
+            workspace_buffer
+        )
 
     def prefill(self, pid, model_kv_cache):
         n_seq = model_kv_cache[0][0].shape[2]
@@ -176,3 +183,55 @@ class VirtualMemory:
                 kv_indptr=kv_indptr,
                 kv_last_page_len=kv_last_page_len,
             )
+
+    def get_decode_closures(self):
+        sorted_pids = sorted(self.page_table.pid_mem_sizes.keys())
+        for pid in sorted_pids:
+            self.page_table.allocate(pid=pid, mem_size=1)
+
+        # we gotta insert at the last position
+        positions = [self.page_table.pid_mem_sizes[pid] - 1 for pid in sorted_pids]
+        positions = torch.Tensor(positions).int().to(device)
+
+        batch_indices = torch.arange(len(sorted_pids), dtype=torch.int32, device=device)
+        kv_indices, kv_indptr, kv_last_page_len = (
+            self.page_table.convert_to_flashinfer()
+        )
+        self.decode_wrapper.plan(
+            kv_indptr,
+            kv_indices,
+            kv_last_page_len,
+            self.num_qo_heads,
+            self.num_kv_heads,
+            self.head_dim,
+            self.page_size,
+            data_type=torch.float16,
+        )
+
+        def _cache_updater(layer_id, append_kv):
+            num_batches = append_kv[0].shape[0]
+            num_seqs = append_kv[0].shape[2]
+            assert num_batches == len(
+                self.page_table.pid_mem_sizes
+            ), "batch size doesn't match active sequences"
+            assert num_seqs == 1, "decode step assumes only 1 token decoded per batch"
+            append_key = append_kv[0][:, :, 0].contiguous().half()
+            append_value = append_kv[1][:, :, 0].contiguous().half()
+            flashinfer.append_paged_kv_cache(
+                append_key=append_key,
+                append_value=append_value,
+                batch_indices=batch_indices,
+                positions=positions,
+                paged_kv_cache=self.paged_model_kv_cache[layer_id],
+                kv_indices=kv_indices,
+                kv_indptr=kv_indptr,
+                kv_last_page_len=kv_last_page_len,
+            )
+
+        def _attn(layer_id, q):
+            num_seqs = q.shape[2]
+            assert num_seqs == 1, "decode step assumes only 1 token decoded per batch"
+            q = q.squeeze(2)
+            return self.decode_wrapper.run(q, self.paged_model_kv_cache[layer_id]).unsqueeze(2)
+
+        return _cache_updater, _attn

@@ -142,20 +142,19 @@ class ParlerTTS(torch.nn.Module):
         ).to(inputs_embeds.device)
         hidden_states = inputs_embeds + position_embeds
 
-        model_kv_cache = [None for _ in range(num_decoder_layers)]
-        model_encoder_kv_cache = [None for _ in range(num_decoder_layers)]
+        model_kv_cache = []
+        model_encoder_kv_cache = []
 
         for layer in range(num_decoder_layers):
             hidden_states, layer_kv_cache, layer_encoder_kv_cache = self.decoder_layers[
                 layer
-            ](
+            ].prefill(
                 hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
-                encoder_kv_cache=model_encoder_kv_cache[layer],
                 cross_attn_mask=cross_attn_mask,
             )
-            model_kv_cache[layer] = layer_kv_cache
-            model_encoder_kv_cache[layer] = layer_encoder_kv_cache
+            model_kv_cache.append(layer_kv_cache)
+            model_encoder_kv_cache.append(layer_encoder_kv_cache)
 
         hidden_states = self.layer_norm(hidden_states)
         lm_logits = (
@@ -165,11 +164,66 @@ class ParlerTTS(torch.nn.Module):
         )
         return lm_logits, model_kv_cache, model_encoder_kv_cache
 
+    @torch.no_grad
+    def decode(
+        self,
+        decoder_input_ids,
+        decoder_position_ids,
+        encoder_hidden_states,
+        model_kv_cache_vem,
+        model_encoder_kv_cache,
+        cross_attn_mask=None,
+    ):
+        num_decoder_layers = self.config["decoder"]["num_hidden_layers"]
+        num_codebooks = self.config["decoder"]["num_codebooks"]
+        vocab_size = self.config["decoder"]["vocab_size"]
+
+        # embed everything
+        decoder_input_ids = decoder_input_ids.reshape(
+            -1, num_codebooks, decoder_input_ids.shape[-1]
+        )
+        inputs_embeds = sum(
+            [
+                self.embed_audio[codebook](decoder_input_ids[:, codebook])
+                for codebook in range(num_codebooks)
+            ]
+        )
+        position_embeds = self.embed_position.from_position_ids(
+            decoder_position_ids
+        ).to(inputs_embeds.device)
+        hidden_states = inputs_embeds + position_embeds
+
+        # run layers
+        model_kv_cache_updater, model_attn_kernel = (
+            model_kv_cache_vem.get_decode_closures()
+        )
+        for layer_id in range(num_decoder_layers):
+            decoder_kv_cache_vmem_thingy = (
+                lambda append_kv: model_kv_cache_updater(layer_id, append_kv),
+                lambda q: model_attn_kernel(layer_id, q),
+            )
+
+            hidden_states = self.decoder_layers[layer_id].decode(
+                hidden_states=hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                encoder_kv_cache=model_encoder_kv_cache[layer_id],
+                cross_attn_mask=cross_attn_mask,
+                decoder_kv_cache_vmem_thingy=decoder_kv_cache_vmem_thingy,
+            )
+
+        hidden_states = self.layer_norm(hidden_states)
+        lm_logits = (
+            self.lm_heads(hidden_states)
+            .view(hidden_states.shape[0], -1, num_codebooks, vocab_size)
+            .transpose(1, 2)
+        )
+        return lm_logits
+
 
 model = ParlerTTS("/home/sasank/code/inference-opt/checkpoints").eval().to(device)
 
 
-def test_prefill():
+def test_model_run():
     prompts = ["अरे, तुम आज कैसे हो?"]
     descriptions = [
         "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise."
@@ -250,59 +304,54 @@ def test_prefill():
     )
     vmem.prefill(pid=0, model_kv_cache=model_kv_cache)
 
+    max_size = vmem.page_table.pid_mem_sizes[0]
+    assert max_size < vmem.page_size
     for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
-        # first page first few seqs should match
         assert torch.allclose(
-            vmem.paged_model_kv_cache[layer_id][0, 0, :4],
-            model_kv_cache[layer_id][0][0, :, :4].transpose(0, 1),
+            vmem.paged_model_kv_cache[layer_id][0, 0, :max_size],
+            model_kv_cache[layer_id][0][0, :, :max_size].transpose(0, 1),
+            atol=5e-2,
+        )
+        assert torch.allclose(
+            vmem.paged_model_kv_cache[layer_id][0, 1, :max_size],
+            model_kv_cache[layer_id][1][0, :, :max_size].transpose(0, 1),
             atol=5e-2,
         )
 
-    # # model step
-    # step_ref = ref = torch.load(
-    #     "/home/sasank/code/inference-opt/checkpoints/model_step.pt",
-    #     weights_only=False,
-    #     map_location=torch.device("cpu"),
-    # )
-    # step_decoder_input_ids = step_ref["decoder_input_ids"]
-    # step_decoder_position_ids = step_ref["decoder_position_ids"]
-    # step_self_attn_mask = step_ref["decoder_attention_mask"]
-    # step_cross_attn_mask = step_ref["attention_mask"]
-    # step_logits, step_model_kv_cache, step_model_encoder_kv_cache = model.decode(
-    #     encoder_hidden_states=encoder_hidden_states,
-    #     decoder_input_ids=step_decoder_input_ids,
-    #     decoder_position_ids=step_decoder_position_ids,
-    #     model_kv_cache=model_kv_cache,
-    #     model_encoder_kv_cache=model_encoder_kv_cache,
-    #     self_attn_mask=step_self_attn_mask,
-    #     cross_attn_mask=step_cross_attn_mask,
-    # )
+    # model step
+    step_ref = ref = torch.load(
+        "/home/sasank/code/inference-opt/checkpoints/model_step.pt",
+        weights_only=False,
+        map_location=device,
+    )
+    step_decoder_input_ids = step_ref["decoder_input_ids"]
+    step_decoder_position_ids = step_ref["decoder_position_ids"]
+    step_cross_attn_mask = step_ref["attention_mask"]
+    step_logits = model.decode(
+        decoder_input_ids=step_decoder_input_ids,
+        decoder_position_ids=step_decoder_position_ids,
+        encoder_hidden_states=encoder_hidden_states,
+        model_encoder_kv_cache=model_encoder_kv_cache,
+        model_kv_cache_vem=vmem,
+        cross_attn_mask=step_cross_attn_mask,
+    )
 
-    # step_expected_logits = step_ref["logits"]
-    # assert torch.allclose(step_expected_logits, step_logits[0], atol=1e-4)
+    step_expected_logits = step_ref["logits"]
+    assert torch.allclose(step_expected_logits, step_logits[0], atol=5e-2)
+    step_expected_past_key_values = step_ref["past_key_values"]
+    
+    max_size = vmem.page_table.pid_mem_sizes[0]
+    assert max_size < vmem.page_size
+    for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
+        assert torch.allclose(
+            vmem.paged_model_kv_cache[layer_id][0, 0, :max_size],
+            step_expected_past_key_values[layer_id][0][0, :, :max_size].transpose(0, 1).half(),
+            atol=5e-2,
+        )
+        assert torch.allclose(
+            vmem.paged_model_kv_cache[layer_id][0, 1, :max_size],
+            step_expected_past_key_values[layer_id][1][0, :, :max_size].transpose(0, 1).half(),
+            atol=5e-2,
+        )
 
-    # step_expected_past_key_values = step_ref["past_key_values"]
-    # for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
-    #     assert torch.allclose(
-    #         step_expected_past_key_values[layer_id][0],
-    #         step_model_kv_cache[layer_id][0],
-    #         atol=1e-4,
-    #     )
-    #     assert torch.allclose(
-    #         step_expected_past_key_values[layer_id][1],
-    #         step_model_kv_cache[layer_id][1],
-    #         atol=1e-4,
-    #     )
-    #     assert torch.allclose(
-    #         step_expected_past_key_values[layer_id][2],
-    #         step_model_encoder_kv_cache[layer_id][0],
-    #         atol=1e-4,
-    #     )
-    #     assert torch.allclose(
-    #         step_expected_past_key_values[layer_id][3],
-    #         step_model_encoder_kv_cache[layer_id][1],
-    #         atol=1e-4,
-    #     )
-
-
-test_prefill()
+test_model_run()
