@@ -1,5 +1,5 @@
 import torch
-from config import device
+from inference.config import device
 import math
 import flashinfer
 
