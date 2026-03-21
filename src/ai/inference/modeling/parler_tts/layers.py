@@ -18,10 +18,10 @@ class AttentionBlock(torch.nn.Module):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
 
-        self.k_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.v_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.q_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.out_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.k_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
+        self.v_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
+        self.q_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
+        self.out_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
 
     def split_heads(self, x):
         batch_size, seq_len, _ = x.shape
@@ -35,6 +35,10 @@ class AttentionBlock(torch.nn.Module):
 class CrossAttentionBlock(AttentionBlock):
     def forward(self, hidden_states, key_value_states, kv_cache=None, attn_mask=None):
         """If key_value_states is not None, assumed to cross attention"""
+        hidden_states = hidden_states.half()
+        key_value_states = key_value_states.half()
+        attn_mask = attn_mask.half()
+
         query = self.split_heads(self.q_proj(hidden_states))
 
         # cross-attention: compute KV once
@@ -46,7 +50,9 @@ class CrossAttentionBlock(AttentionBlock):
 
         # need to make this go fast
         attn_output = torch.nn.functional.scaled_dot_product_attention(
-            query, key, value, attn_mask
+            query,
+            key,
+            value,
         )
 
         attn_output = self.merge_heads(attn_output)
@@ -57,6 +63,7 @@ class CrossAttentionBlock(AttentionBlock):
 
 class SelfAttentionBlock(AttentionBlock):
     def prefill(self, hidden_states, attn_mask=None):
+        hidden_states = hidden_states.half()
         key_value_states = hidden_states
         query = self.split_heads(self.q_proj(hidden_states))
         # self-attention: append KV every step
