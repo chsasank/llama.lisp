@@ -161,8 +161,9 @@ class VirtualMemory:
         assert model_kv_cache[0][0].shape[0] == 1
 
         self.page_table.allocate(pid=pid, mem_size=n_seq)
-
-        batch_indices = torch.full((n_seq,), pid, dtype=torch.int32, device=device)
+        sorted_pids = sorted(self.page_table.pid_mem_sizes.keys())
+        bid = sorted_pids.index(pid)
+        batch_indices = torch.full((n_seq,), bid, dtype=torch.int32, device=device)
         positions = torch.arange(n_seq, dtype=torch.int32, device=device)
         kv_indices, kv_indptr, kv_last_page_len = (
             self.page_table.convert_to_flashinfer()
@@ -232,6 +233,8 @@ class VirtualMemory:
             num_seqs = q.shape[2]
             assert num_seqs == 1, "decode step assumes only 1 token decoded per batch"
             q = q.squeeze(2)
-            return self.decode_wrapper.run(q, self.paged_model_kv_cache[layer_id]).unsqueeze(2)
+            return self.decode_wrapper.run(
+                q, self.paged_model_kv_cache[layer_id]
+            ).unsqueeze(2)
 
         return _cache_updater, _attn

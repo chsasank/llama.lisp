@@ -3,12 +3,13 @@ import os
 from inference.modeling import ParlerTTS
 from inference.config import device
 from inference.paging import VirtualMemory
+from inference.runner import ParlerTTSModelRunner, TTSRequest
 
 here = os.path.dirname(__file__)
 
-model = ParlerTTS(os.path.join(here, "checkpoints")).eval().to(device)
 
 def test_model_run():
+    model = ParlerTTS(os.path.join(here, "checkpoints")).eval().to(device)
     prompts = ["अरे, तुम आज कैसे हो?"]
     descriptions = [
         "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise."
@@ -124,19 +125,34 @@ def test_model_run():
     step_expected_logits = step_ref["logits"]
     assert torch.allclose(step_expected_logits, step_logits[0], atol=5e-2)
     step_expected_past_key_values = step_ref["past_key_values"]
-    
+
     max_size = vmem.page_table.pid_mem_sizes[0]
     assert max_size < vmem.page_size
     for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
         assert torch.allclose(
             vmem.paged_model_kv_cache[layer_id][0, 0, :max_size],
-            step_expected_past_key_values[layer_id][0][0, :, :max_size].transpose(0, 1).half(),
+            step_expected_past_key_values[layer_id][0][0, :, :max_size]
+            .transpose(0, 1)
+            .half(),
             atol=5e-2,
         )
         assert torch.allclose(
             vmem.paged_model_kv_cache[layer_id][0, 1, :max_size],
-            step_expected_past_key_values[layer_id][1][0, :, :max_size].transpose(0, 1).half(),
+            step_expected_past_key_values[layer_id][1][0, :, :max_size]
+            .transpose(0, 1)
+            .half(),
             atol=5e-2,
         )
 
-test_model_run()
+
+def test_runner_obj():
+    model_runner = ParlerTTSModelRunner()
+    req = TTSRequest(
+        prompt="अरे, तुम आज कैसे हो?",
+        description="Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
+    )
+    model_runner.prefill(req)
+
+
+# test_model_run()
+test_runner_obj()

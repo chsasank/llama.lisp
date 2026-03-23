@@ -37,7 +37,8 @@ class CrossAttentionBlock(AttentionBlock):
         """If key_value_states is not None, assumed to cross attention"""
         hidden_states = hidden_states.half()
         key_value_states = key_value_states.half()
-        attn_mask = attn_mask.half()
+        if attn_mask is not None:
+            attn_mask = attn_mask.half()
 
         query = self.split_heads(self.q_proj(hidden_states))
 
