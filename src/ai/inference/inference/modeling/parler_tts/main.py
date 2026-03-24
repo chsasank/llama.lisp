@@ -84,9 +84,9 @@ class ParlerTTS(torch.nn.Module):
         self.embed_audio.load_state_dict(
             _sub_state_dict("decoder.model.decoder.embed_tokens", model_weights)
         )
-        self.embed_position.weights = model_weights[
-            "decoder.model.decoder.embed_positions.weights"
-        ]
+        self.embed_position.weights = torch.nn.Parameter(
+            model_weights["decoder.model.decoder.embed_positions.weights"]
+        )
         self.decoder_layers.load_state_dict(
             _sub_state_dict("decoder.model.decoder.layers", model_weights)
         )
@@ -119,7 +119,6 @@ class ParlerTTS(torch.nn.Module):
         decoder_position_ids,
         encoder_hidden_states,
         prompt_hidden_states,
-        cross_attn_mask=None,
     ):
         num_decoder_layers = self.config["decoder"]["num_hidden_layers"]
         num_codebooks = self.config["decoder"]["num_codebooks"]
@@ -150,7 +149,6 @@ class ParlerTTS(torch.nn.Module):
             ].prefill(
                 hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
-                cross_attn_mask=cross_attn_mask,
             )
             model_kv_cache.append(layer_kv_cache)
             model_encoder_kv_cache.append(layer_encoder_kv_cache)
@@ -168,10 +166,8 @@ class ParlerTTS(torch.nn.Module):
         self,
         decoder_input_ids,
         decoder_position_ids,
-        encoder_hidden_states,
-        model_kv_cache_vem,
-        model_encoder_kv_cache,
-        cross_attn_mask=None,
+        model_kv_cache_vmem,
+        model_encoder_kv_cache_vmem,
     ):
         num_decoder_layers = self.config["decoder"]["num_hidden_layers"]
         num_codebooks = self.config["decoder"]["num_codebooks"]
@@ -194,19 +190,21 @@ class ParlerTTS(torch.nn.Module):
 
         # run layers
         model_kv_cache_updater, model_attn_kernel = (
-            model_kv_cache_vem.get_decode_closures()
+            model_kv_cache_vmem.get_decode_closures()
         )
+        _, model_encoder_attn_kernel = model_encoder_kv_cache_vmem.get_decode_closures()
         for layer_id in range(num_decoder_layers):
             decoder_kv_cache_vmem_thingy = (
                 lambda append_kv: model_kv_cache_updater(layer_id, append_kv),
                 lambda q: model_attn_kernel(layer_id, q),
             )
+            encoder_kv_cache_vmem_thingy = lambda q: model_encoder_attn_kernel(
+                layer_id, q
+            )
 
             hidden_states = self.decoder_layers[layer_id].decode(
                 hidden_states=hidden_states,
-                encoder_hidden_states=encoder_hidden_states,
-                encoder_kv_cache=model_encoder_kv_cache[layer_id],
-                cross_attn_mask=cross_attn_mask,
+                encoder_kv_cache_vmem_thingy=encoder_kv_cache_vmem_thingy,
                 decoder_kv_cache_vmem_thingy=decoder_kv_cache_vmem_thingy,
             )
 
@@ -217,4 +215,3 @@ class ParlerTTS(torch.nn.Module):
             .transpose(1, 2)
         )
         return lm_logits
-

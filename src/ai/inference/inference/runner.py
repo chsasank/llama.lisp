@@ -11,21 +11,13 @@ class TTSRequest:
         self.pid = uuid.uuid4().hex[:6]
         self.prompt = prompt
         self.description = description
-        self.decoder_input_ids = None
-        self.decoder_position_ids = None
-
-
+        self.decoder_input_ids = []
+        self.decoder_position_ids = []
 
 
 class ParlerTTSModelRunner:
-    def __init__(self):
-        self.model = (
-            ParlerTTS(
-                "/home/sasank/code/inference-opt/src/ai/inference/tests/checkpoints"
-            )
-            .eval()
-            .to(device)
-        )
+    def __init__(self, checkpoint_path):
+        self.model = ParlerTTS(checkpoint_path).eval().to(device)
         num_kv_heads = self.model.config["text_encoder"]["num_heads"]
         head_dim = self.model.config["decoder"]["hidden_size"] // num_kv_heads
         num_layers = self.model.config["decoder"]["num_hidden_layers"]
@@ -37,14 +29,24 @@ class ParlerTTSModelRunner:
             num_layers=num_layers,
         )
 
-        self.num_codebooks = self.model.config['decoder']['num_codebooks']
-        self.bos_token_id = self.model.config['decoder']['bos_token_id']
+        self.num_codebooks = self.model.config["decoder"]["num_codebooks"]
+        self.bos_token_id = self.model.config["decoder"]["bos_token_id"]
         self.running_requests = {}
 
     def prefill(self, request):
-        encoder_hidden_states, prompt_hidden_states = self.model.encode([request.prompt], [request.description])
-        decoder_input_ids = torch.full((self.num_codebooks, 1), self.bos_token_id, dtype=torch.int32, device=device)
-        decoder_position_ids = torch.arange(prompt_hidden_states.shape[1] + 1, dtype=torch.int32, device=device).unsqueeze(0)
+        encoder_hidden_states, prompt_hidden_states = self.model.encode(
+            [request.prompt], [request.description]
+        )
+        decoder_input_ids = torch.full(
+            (self.num_codebooks, 1), self.bos_token_id, dtype=torch.int32, device=device
+        )
+        decoder_position_ids = torch.arange(
+            prompt_hidden_states.shape[1] + 1, dtype=torch.int32, device=device
+        ).unsqueeze(0)
+
+        request.decoder_input_ids.append(decoder_input_ids)
+        request.decoder_position_ids.append(decoder_position_ids)
+
         logits, model_kv_cache, model_encoder_kv_cache = self.model.prefill(
             decoder_input_ids=decoder_input_ids,
             decoder_position_ids=decoder_position_ids,
@@ -55,7 +57,10 @@ class ParlerTTSModelRunner:
         self.vmem.prefill(pid=request.pid, model_kv_cache=model_kv_cache)
         self.running_requests[request.pid] = request
 
+        # dumb sample
+        sampled_tokens = logits.argmax(dim=-1)
+        next_decoder_input_ids = sampled_tokens[0, :, -1:]
+        next_decoder_position_ids = decoder_position_ids[:, -1:] + 1
 
-    def sample(self):
-        pass
-        
+        request.decoder_input_ids.append(next_decoder_input_ids)
+        request.decoder_position_ids.append(next_decoder_position_ids)
