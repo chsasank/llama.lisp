@@ -153,29 +153,20 @@ def test_model_run():
 
 def test_runner_obj():
     model_runner = ParlerTTSModelRunner(os.path.join(here, "checkpoints"))
-    req_0 = TTSRequest(
-        prompt="अरे, तुम आज कैसे हो?  कैसे हो? कैसे हो? कैसे हो? कैसे हो?",
-        description="Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
-    )
-    model_runner.prefill(req_0)
+    for id in range(16):
+        req = TTSRequest(
+            prompt="अरे, तुम आज कैसे हो?",
+            description="Vidya's voice is monotone.",
+        )
+        model_runner.prefill(req)
 
-    req_1 = TTSRequest(
-        prompt="अरे, तुम आज कैसे हो?",
-        description="Vidya's voice is monotone.",
-    )
-    model_runner.prefill(req_1)
+    import time
 
-    model_runner.step()
-    model_runner.step()
-    model_runner.step()
-
-    model_runner.evict(req_1)
-    model_runner.step()
-    model_runner.step()
-    model_runner.step()
-
-    print(req_0)
-    print(req_1)
+    for i in range(500):
+        start = time.time()
+        model_runner.step()
+        model_runner.check_stopping_criteria()
+        print("model runner step", 1000 * (time.time() - start))
 
 
 # test_model_run()
