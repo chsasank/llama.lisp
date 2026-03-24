@@ -126,7 +126,7 @@ def test_model_run():
     )
 
     step_expected_logits = step_ref["logits"]
-    # close enough?
+    # TODO: close enough?
     assert torch.allclose(step_expected_logits, step_logits[0], atol=1)
     step_expected_past_key_values = step_ref["past_key_values"]
 
@@ -153,12 +153,30 @@ def test_model_run():
 
 def test_runner_obj():
     model_runner = ParlerTTSModelRunner(os.path.join(here, "checkpoints"))
-    req = TTSRequest(
+    req_0 = TTSRequest(
         prompt="अरे, तुम आज कैसे हो?  कैसे हो? कैसे हो? कैसे हो? कैसे हो?",
         description="Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise.",
     )
-    model_runner.prefill(req)
+    model_runner.prefill(req_0)
+
+    req_1 = TTSRequest(
+        prompt="अरे, तुम आज कैसे हो?",
+        description="Vidya's voice is monotone.",
+    )
+    model_runner.prefill(req_1)
+
+    model_runner.step()
+    model_runner.step()
+    model_runner.step()
+
+    model_runner.evict(req_1)
+    model_runner.step()
+    model_runner.step()
+    model_runner.step()
+
+    print(req_0)
+    print(req_1)
 
 
-test_model_run()
-# test_runner_obj()
+# test_model_run()
+test_runner_obj()
