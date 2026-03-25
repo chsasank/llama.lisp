@@ -1,2 +1,4 @@
-flashinfer-python
-flashinfer-cubin
+flashinfer-python==0.6.7
+flashinfer-cubin==0.6.7
+torch==2.10.0
+transformers==4.46.1

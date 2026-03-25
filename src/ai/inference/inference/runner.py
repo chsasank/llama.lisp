@@ -157,11 +157,11 @@ class ParlerTTSModelRunner:
                 torch.softmax(scores, dim=-1).view(-1, scores.shape[-1]), num_samples=1
             ).view(scores.shape[:2])
 
-            # set eos token forcibly
-            # if eos_num.max() > 0:
-            eos_token_mask[eos_num == 0] = False
-            sampled_tokens[eos_token_mask] = self.eos_token_id
+            # set eos token forcibly, but only if eos_num.max() > 0:
+            eos_token_mask[eos_num == 0] = True
+            sampled_tokens[~eos_token_mask] = self.eos_token_id
 
+        # set bos mask
         current_seq_lens = (
             torch.Tensor(
                 [

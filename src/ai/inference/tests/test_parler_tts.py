@@ -162,12 +162,16 @@ def test_runner_obj():
 
     import time
 
-    for i in range(500):
+    for i in range(5000):
         start = time.time()
         model_runner.step()
         model_runner.check_stopping_criteria()
-        print("model runner step", 1000 * (time.time() - start))
+        print(
+            "model runner step",
+            len(model_runner.running_requests),
+            1000 * (time.time() - start),
+        )
 
 
-# test_model_run()
+test_model_run()
 test_runner_obj()
