@@ -78,10 +78,26 @@ class ParlerTTSModelRunner:
         self.cross_attn_vmem.prefill(
             pid=request.pid, model_kv_cache=model_encoder_kv_cache
         )
-        next_decoder_input_ids = self.sample(request, logits, mode="prefill")
+        next_decoder_input_ids = self._sample_prefill(request, logits)
         next_decoder_position_ids = decoder_position_ids[:, -1:] + 1
         request.decoder_input_ids.append(next_decoder_input_ids)
         request.decoder_position_ids.append(next_decoder_position_ids)
+
+    def _sample_prefill(self, request, logits, sampling="multinomial"):
+        if sampling == "argmax":
+            sampled_tokens = logits.argmax(dim=-1)[0, :, -1:]
+        else:
+            scores = logits[0, :, -1]
+            scores = self.topk_processor(input_ids=None, scores=scores)
+            sampled_tokens = torch.multinomial(
+                torch.softmax(scores, dim=-1).view(-1, scores.size(-1)), 1
+            ).view(scores.size(0), 1)
+
+        mask = torch.arange(self.num_codebooks) < len(request.decoder_input_ids)
+        next_decoder_input_ids = torch.where(
+            mask.to(device), sampled_tokens.squeeze(), self.bos_token_id
+        ).unsqueeze(-1)
+        return next_decoder_input_ids
 
     def step(self):
         sorted_pids = sorted(self.running_requests.keys())
@@ -96,65 +112,71 @@ class ParlerTTSModelRunner:
             ],
             dim=0,
         )
-
         logits = self.model.decode(
             decoder_input_ids=decoder_input_ids,
             decoder_position_ids=decoder_position_ids,
             model_kv_cache_vmem=self.self_attn_vmem,
             model_encoder_kv_cache_vmem=self.cross_attn_vmem,
         )
+
         next_decoder_position_ids = decoder_position_ids[:, -1:] + 1
+        next_decoder_input_ids = self._sample_decode(logits=logits)
 
         for bid, pid in enumerate(sorted_pids):
-            next_decoder_input_ids = self.sample(
-                self.running_requests[pid], logits[bid]
+            self.running_requests[pid].decoder_input_ids.append(
+                next_decoder_input_ids[bid]
             )
-            self.running_requests[pid].decoder_input_ids.append(next_decoder_input_ids)
             self.running_requests[pid].decoder_position_ids.append(
                 next_decoder_position_ids[bid].unsqueeze(0)
             )
 
-    def sample(self, request, logits, mode="step", sampling="multinomial"):
+    def _sample_decode(self, logits, sampling="multinomial"):
+        sorted_pids = sorted(self.running_requests.keys())
         if sampling == "argmax":
-            if mode == "prefill":
-                sampled_tokens = logits.argmax(dim=-1)[0, :, -1:]
-            else:
-                sampled_tokens = logits.argmax(dim=-1)
+            sampled_tokens = logits.argmax(dim=-1)
         else:
-            if mode == "prefill":
-                scores = logits[0, :, -1]
-                scores = self.topk_processor(
-                    torch.cat(request.decoder_input_ids), scores
-                )
-                sampled_tokens = torch.multinomial(
-                    torch.softmax(scores, dim=-1).view(-1, scores.size(-1)), 1
-                ).view(scores.size(0), 1)
-            else:
-                scores = logits[:, 0]
-                eos_num = (
-                    (request.decoder_input_ids[-1] == self.eos_token_id).sum().item()
-                )
-                eos_token_mask = torch.ones(
-                    self.num_codebooks, dtype=torch.bool, device=device
-                )
-                eos_token_mask[: eos_num + 1] = False
-                scores[eos_token_mask, self.eos_token_id] = -math.inf
-                scores = self.topk_processor(
-                    torch.cat(request.decoder_input_ids), scores
-                )
-                sampled_tokens = torch.multinomial(
-                    torch.softmax(scores, dim=-1).view(-1, scores.size(-1)), 1
-                ).view(scores.size(0), 1)
-                if eos_num > 0:
-                    sampled_tokens = torch.where(
-                        eos_token_mask, sampled_tokens.squeeze(), self.eos_token_id
-                    ).unsqueeze(-1)
+            scores = logits[:, :, 0]
+            stacked_decoder_input_ids = torch.stack(
+                [
+                    self.running_requests[pid].decoder_input_ids[-1][:, 0]
+                    for pid in sorted_pids
+                ],
+                dim=0,
+            )
+            # find number of eos per batch in input ids
+            eos_num = (stacked_decoder_input_ids == self.eos_token_id).sum(dim=1)
+            # do not allow eos token for eos_num + 1 to rest of codebooks
+            eos_token_mask = torch.arange(self.num_codebooks, device=device).unsqueeze(
+                0
+            ) > eos_num.unsqueeze(1)
+            scores[eos_token_mask, self.eos_token_id] = -math.inf
 
-        mask = torch.arange(self.num_codebooks) < len(request.decoder_input_ids)
-        next_decoder_input_ids = torch.where(
-            mask.to(device), sampled_tokens.squeeze(), self.bos_token_id
-        ).unsqueeze(-1)
-        return next_decoder_input_ids
+            # get samples from scores now
+            scores = self.topk_processor(input_ids=None, scores=scores)
+            sampled_tokens = torch.multinomial(
+                torch.softmax(scores, dim=-1).view(-1, scores.shape[-1]), num_samples=1
+            ).view(scores.shape[:2])
+
+            # set eos token forcibly
+            # if eos_num.max() > 0:
+            eos_token_mask[eos_num == 0] = False
+            sampled_tokens[eos_token_mask] = self.eos_token_id
+
+        current_seq_lens = (
+            torch.Tensor(
+                [
+                    len(self.running_requests[pid].decoder_input_ids)
+                    for pid in sorted_pids
+                ]
+            )
+            .int()
+            .to(device)
+        )
+        bos_token_mask = torch.arange(self.num_codebooks, device=device).unsqueeze(
+            0
+        ) >= current_seq_lens.unsqueeze(1)
+        sampled_tokens[bos_token_mask] = self.bos_token_id
+        return sampled_tokens.unsqueeze(-1)
 
     def check_stopping_criteria(self):
         sorted_pids = sorted(self.running_requests.keys())

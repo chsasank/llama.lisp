@@ -153,7 +153,7 @@ def test_model_run():
 
 def test_runner_obj():
     model_runner = ParlerTTSModelRunner(os.path.join(here, "checkpoints"))
-    for id in range(16):
+    for id in range(64):
         req = TTSRequest(
             prompt="अरे, तुम आज कैसे हो?",
             description="Vidya's voice is monotone.",
