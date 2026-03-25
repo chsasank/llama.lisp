@@ -151,18 +151,23 @@ def test_model_run():
     print("model ref test passed")
 
 
+@torch.no_grad()
 def test_runner_obj():
     model_runner = ParlerTTSModelRunner(os.path.join(here, "checkpoints"))
-    for id in range(64):
-        req = TTSRequest(
-            prompt="अरे, तुम आज कैसे हो?",
+    bs = 1
+    requests = [
+        TTSRequest(
+            prompt="अरे, तुम आज कैसे हो? कैसे हो? कैसे हो? कैसे हो?",
             description="Vidya's voice is monotone.",
         )
+        for _ in range(bs)
+    ]
+    for req in requests:
         model_runner.prefill(req)
 
     import time
 
-    for i in range(5000):
+    while len(model_runner.running_requests) > 0:
         start = time.time()
         model_runner.step()
         model_runner.check_stopping_criteria()
@@ -172,6 +177,42 @@ def test_runner_obj():
             1000 * (time.time() - start),
         )
 
+    from scipy.io import wavfile
 
-test_model_run()
+    start = time.time()
+    audio_tokens = torch.cat(requests[0].decoder_input_ids, dim=-1)
+    num_codebooks = audio_tokens.shape[0]
+    audio_tokens_fixed = []
+    for codebook in range(num_codebooks):
+        audo_code = audio_tokens[codebook, codebook + 1 : -num_codebooks + codebook]
+        audio_tokens_fixed.append(audo_code)
+
+    audio_tokens_fixed = torch.stack(audio_tokens_fixed).unsqueeze(0)
+    audio_tokens_fixed = torch.cat([audio_tokens_fixed for _idx in range(16)])[
+        :, :, :50
+    ]
+    print(audio_tokens_fixed.shape)
+    print(
+        "undelay audio",
+        1000 * (time.time() - start),
+    )
+
+    for _ in range(10):
+        start = time.time()
+        audio = model_runner.model.dac.decode(audio_codes=audio_tokens_fixed)[0]
+        torch.cuda.synchronize()
+        print(
+            "dac audio",
+            1000 * (time.time() - start),
+        )
+        start = time.time()
+
+    audio_arr = audio[0].detach().cpu().numpy().astype("float")
+    wavfile.write("lol.wav", 44100, audio_arr)
+
+    print("save audio", 1000 * (time.time() - start))
+    start = time.time()
+
+
+# test_model_run()
 test_runner_obj()

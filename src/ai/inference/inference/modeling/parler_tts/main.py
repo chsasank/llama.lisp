@@ -61,6 +61,11 @@ class ParlerTTS(torch.nn.Module):
             ),
             bias=False,
         )
+        self.dac = transformers.DacModel(
+            transformers.DacConfig(
+                sampling_rate=44100,
+            )
+        ).half()
         self._load_weights()
 
     def _load_weights(self):
@@ -96,6 +101,7 @@ class ParlerTTS(torch.nn.Module):
         self.lm_heads.load_state_dict(
             _sub_state_dict("decoder.lm_heads", model_weights)
         )
+        self.dac.load_state_dict(_sub_state_dict("audio_encoder", model_weights))
 
     @torch.no_grad
     def encode(

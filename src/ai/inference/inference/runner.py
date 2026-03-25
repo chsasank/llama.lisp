@@ -101,6 +101,9 @@ class ParlerTTSModelRunner:
 
     def step(self):
         sorted_pids = sorted(self.running_requests.keys())
+        if len(sorted_pids) == 0:
+            return
+
         decoder_input_ids = torch.cat(
             [self.running_requests[pid].decoder_input_ids[-1] for pid in sorted_pids],
             dim=0,
