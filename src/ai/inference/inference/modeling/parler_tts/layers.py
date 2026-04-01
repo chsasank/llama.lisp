@@ -18,10 +18,10 @@ class AttentionBlock(torch.nn.Module):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
 
-        self.k_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
-        self.v_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
-        self.q_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
-        self.out_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias).half()
+        self.k_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.v_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.q_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.out_proj = torch.nn.Linear(embed_dim, embed_dim, bias=bias)
 
     def split_heads(self, x):
         batch_size, seq_len, _ = x.shape
@@ -35,8 +35,8 @@ class AttentionBlock(torch.nn.Module):
 class CrossAttentionBlock(AttentionBlock):
     def prefill(self, hidden_states, key_value_states):
         """If key_value_states is not None, assumed to cross attention"""
-        hidden_states = hidden_states.half()
-        key_value_states = key_value_states.half()
+        hidden_states = hidden_states
+        key_value_states = key_value_states
 
         query = self.split_heads(self.q_proj(hidden_states))
 
@@ -56,7 +56,7 @@ class CrossAttentionBlock(AttentionBlock):
         return output, kv_cache
 
     def decode(self, hidden_states, encoder_kv_cache_vmem_thingy):
-        hidden_states = hidden_states.half()
+        hidden_states = hidden_states
         query = self.split_heads(self.q_proj(hidden_states))
         attn = encoder_kv_cache_vmem_thingy
         attn_output = attn(query)
@@ -67,7 +67,7 @@ class CrossAttentionBlock(AttentionBlock):
 
 class SelfAttentionBlock(AttentionBlock):
     def prefill(self, hidden_states, attn_mask=None):
-        hidden_states = hidden_states.half()
+        hidden_states = hidden_states
         query = self.split_heads(self.q_proj(hidden_states))
         key = self.split_heads(self.k_proj(hidden_states))
         value = self.split_heads(self.v_proj(hidden_states))
@@ -81,7 +81,7 @@ class SelfAttentionBlock(AttentionBlock):
         return output, kv_cache
 
     def decode(self, hidden_states, decoder_kv_cache_vmem_thingy):
-        hidden_states = hidden_states.half()
+        hidden_states = hidden_states
         query = self.split_heads(self.q_proj(hidden_states))
         key = self.split_heads(self.k_proj(hidden_states))
         value = self.split_heads(self.v_proj(hidden_states))

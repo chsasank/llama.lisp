@@ -8,6 +8,7 @@ from inference.runner import ParlerTTSModelRunner, TTSRequest
 here = os.path.dirname(__file__)
 
 
+@torch.no_grad()
 def test_model_run():
     model = ParlerTTS(os.path.join(here, "checkpoints")).eval().to(device)
     prompts = ["अरे, तुम आज कैसे हो?"]
@@ -26,6 +27,7 @@ def test_model_run():
     encoder_outputs = model.description_encoder(
         desc_tokens["input_ids"].to(device)
     ).last_hidden_state
+    # TODO: why is it not working with 1e-4
     assert torch.allclose(expected_encoder_outputs, encoder_outputs, atol=1e-4)
 
     # prompts -> embeddings
@@ -37,56 +39,53 @@ def test_model_run():
     )
 
     decoder_input_ids = ref["decoder_input_ids"]
-    decoder_position_ids = ref["decoder_position_ids"]
-    self_attn_mask = ref["decoder_attention_mask"]
-    cross_attn_mask = ref["attention_mask"]
-
-    expected_logits = ref["prefill_logits"]
+    decoder_position_ids = torch.arange(prompt_hidden_states.shape[1] + 1).unsqueeze(0).to(device)
+    expected_logits = ref["logits"].unsqueeze(0)
     expected_past_key_values = ref["past_key_values"]
 
     encoder_hidden_states, prompt_hidden_states = model.encode(prompts, descriptions)
     logits, model_kv_cache, model_encoder_kv_cache = model.prefill(
         decoder_input_ids=decoder_input_ids,
         decoder_position_ids=decoder_position_ids,
-        encoder_hidden_states=encoder_hidden_states,
-        prompt_hidden_states=prompt_hidden_states,
+        encoder_hidden_states=expected_encoder_outputs,
+        prompt_hidden_states=expected_prompt_hidden_states,
     )
-    assert torch.allclose(expected_logits, logits[0], atol=0.05)
+    assert torch.allclose(expected_logits, logits, atol=1e-4)
 
     for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
         assert torch.allclose(
-            expected_past_key_values[layer_id][0].half(),
+            expected_past_key_values.self_attention_cache.key_cache[layer_id],
             model_kv_cache[layer_id][0],
-            atol=5e-2,
+            atol=1e-4,
         )
         assert torch.allclose(
-            expected_past_key_values[layer_id][1].half(),
+            expected_past_key_values.self_attention_cache.value_cache[layer_id],
             model_kv_cache[layer_id][1],
-            atol=5e-2,
+            atol=1e-4,
         )
         assert torch.allclose(
-            expected_past_key_values[layer_id][2].half(),
+            expected_past_key_values.cross_attention_cache.key_cache[layer_id],
             model_encoder_kv_cache[layer_id][0],
-            atol=5e-2,
+            atol=1e-4,
         )
         assert torch.allclose(
-            expected_past_key_values[layer_id][3].half(),
+            expected_past_key_values.cross_attention_cache.value_cache[layer_id],
             model_encoder_kv_cache[layer_id][1],
-            atol=5e-2,
+            atol=1e-4,
         )
 
     num_kv_heads = model.config["text_encoder"]["num_heads"]
     head_dim = model.config["decoder"]["hidden_size"] // num_kv_heads
 
     vmem = VirtualMemory(
-        max_num_pages=1024,
+        max_num_pages=16,
         num_kv_heads=num_kv_heads,
         page_size=16,
         head_dim=head_dim,
         num_layers=model.config["decoder"]["num_hidden_layers"],
     )
     encoder_vmem = VirtualMemory(
-        max_num_pages=1024,
+        max_num_pages=16,
         num_kv_heads=num_kv_heads,
         page_size=16,
         head_dim=head_dim,
@@ -101,12 +100,12 @@ def test_model_run():
         assert torch.allclose(
             vmem.paged_model_kv_cache[layer_id][0, 0, :max_size],
             model_kv_cache[layer_id][0][0, :, :max_size].transpose(0, 1),
-            atol=5e-2,
+            atol=1e-4,
         )
         assert torch.allclose(
             vmem.paged_model_kv_cache[layer_id][0, 1, :max_size],
             model_kv_cache[layer_id][1][0, :, :max_size].transpose(0, 1),
-            atol=5e-2,
+            atol=1e-4,
         )
 
     # model step
@@ -116,8 +115,7 @@ def test_model_run():
         map_location=device,
     )
     step_decoder_input_ids = step_ref["decoder_input_ids"]
-    step_decoder_position_ids = step_ref["decoder_position_ids"]
-    step_cross_attn_mask = step_ref["attention_mask"]
+    step_decoder_position_ids = decoder_position_ids[:, -1:] + 1
     step_logits = model.decode(
         decoder_input_ids=step_decoder_input_ids,
         decoder_position_ids=step_decoder_position_ids,
@@ -126,8 +124,7 @@ def test_model_run():
     )
 
     step_expected_logits = step_ref["logits"]
-    # TODO: close enough?
-    assert torch.allclose(step_expected_logits, step_logits[0], atol=1)
+    assert torch.allclose(torch.argmax(step_logits, dim=-1), torch.argmax(step_expected_logits, dim=-1))
     step_expected_past_key_values = step_ref["past_key_values"]
 
     max_size = vmem.page_table.pid_mem_sizes[0]
@@ -135,9 +132,8 @@ def test_model_run():
     for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
         assert torch.allclose(
             vmem.paged_model_kv_cache[layer_id][0, 0, :max_size],
-            step_expected_past_key_values[layer_id][0][0, :, :max_size]
-            .transpose(0, 1)
-            .half(),
+            step_expected_past_key_values.self_attention_cache.key_cache[layer_id][0, :, :max_size]
+            .transpose(0, 1),
             atol=1e-1,
         )
         assert torch.allclose(
@@ -188,10 +184,6 @@ def test_runner_obj():
         audio_tokens_fixed.append(audo_code)
 
     audio_tokens_fixed = torch.stack(audio_tokens_fixed).unsqueeze(0)
-    audio_tokens_fixed = torch.cat([audio_tokens_fixed for _idx in range(16)])[
-        :, :, :50
-    ]
-    print(audio_tokens_fixed.shape)
     print(
         "undelay audio",
         1000 * (time.time() - start),
@@ -214,5 +206,5 @@ def test_runner_obj():
     start = time.time()
 
 
-# test_model_run()
+test_model_run()
 test_runner_obj()
