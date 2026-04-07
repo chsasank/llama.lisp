@@ -33,17 +33,17 @@ class ParlerTTSModelRunner:
         head_dim = self.model.config["decoder"]["hidden_size"] // num_kv_heads
         num_layers = self.model.config["decoder"]["num_hidden_layers"]
         self.self_attn_vmem = VirtualMemory(
-            max_num_pages=2048,
+            max_num_pages=1024,
             num_kv_heads=num_kv_heads,
-            page_size=16,
+            page_size=8,
             head_dim=head_dim,
             num_layers=num_layers,
             type="paged",
         )
         self.cross_attn_vmem = VirtualMemory(
-            max_num_pages=2048,
+            max_num_pages=1024,
             num_kv_heads=num_kv_heads,
-            page_size=16,
+            page_size=8,
             head_dim=head_dim,
             num_layers=num_layers,
             type="paged",

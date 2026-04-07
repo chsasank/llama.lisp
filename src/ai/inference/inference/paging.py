@@ -99,11 +99,12 @@ class PageTable:
             .int()
             .to(device)
         )
-        last_page_lens = (
-            torch.Tensor([self.pid_mem_sizes[pid] for pid in sorted_pids])
-            .int()
-            .to(device)
-            % self.page_size
+        mem_sizes = torch.Tensor([self.pid_mem_sizes[pid] for pid in sorted_pids]).int()
+        last_page_lens = (mem_sizes % self.page_size).to(device)
+        last_page_lens = torch.where(
+            (mem_sizes > 0).to(device) & (last_page_lens == 0),
+            torch.full_like(last_page_lens, self.page_size),
+            last_page_lens,
         )
 
         return page_indices, page_indptr, last_page_lens
@@ -121,6 +122,8 @@ class PageTable:
             # deal with last page carefully
             last_page = self.pid_page_table[pid][-1]
             last_page_len = self.pid_mem_sizes[pid] % self.page_size
+            if self.pid_mem_sizes[pid] > 0 and last_page_len == 0:
+                last_page_len = self.page_size
             attn_mask[
                 bid,
                 last_page * self.page_size : last_page * self.page_size + last_page_len,
@@ -277,7 +280,7 @@ class VirtualMemorySDPA:
                         dim=2,
                     ),
                 )
-            print("cache updater time: ", 1000 * (time.time() - time_), "seconds")
+            # print("cache updater time: ", 1000 * (time.time() - time_), "seconds")
 
         def _attn_(layer_id, q):
             num_seqs = q.shape[2]
@@ -347,14 +350,61 @@ class VirtualMemorySDPA:
             attn_output = torch.nn.functional.scaled_dot_product_attention(
                 q, keys_padded, values_padded, attn_mask=additive_mask
             )
-            print("attention time: ", 1000 * (time.time() - time_), "ms")
-            print("total calculation time: ", 1000 * (time.time() - time_0), "ms")
+
+            # attn_output_fp16 = torch.nn.functional.scaled_dot_product_attention(
+            #    q.half(), keys_padded.half(), values_padded.half(), attn_mask=additive_mask.half()
+            # )
+            # print("attention time: ", 1000 * (time.time() - time_), "ms")
+            # print("total calculation time: ", 1000 * (time.time() - time_0), "ms")
+
+            # attn_output_fp16 = attn_output_fp16 + torch.randn_like(attn_output_fp16) * 1e-1
+            # print((attn_output - attn_output_fp16).abs().max())
+
             return attn_output
 
         return _cache_updater, _attn
 
     def free(self, pid):
         del self.pid_kv_cache[pid]
+
+
+class VirtualMemoryCompare:
+    def __init__(self, max_num_pages, page_size, num_kv_heads, head_dim, num_layers):
+        self.vm_paged = VirtualMemoryPaged(
+            max_num_pages, page_size, num_kv_heads, head_dim, num_layers
+        )
+        self.vm_sdpa = VirtualMemorySDPA(
+            max_num_pages, page_size, num_kv_heads, head_dim, num_layers
+        )
+
+    def prefill(self, pid, model_kv_cache):
+        self.vm_paged.prefill(pid, model_kv_cache)
+        self.vm_sdpa.prefill(pid, model_kv_cache)
+
+    def get_decode_closures(self):
+        paged_cache_updater, paged_attn = self.vm_paged.get_decode_closures()
+        sdpa_cache_updater, sdpa_attn = self.vm_sdpa.get_decode_closures()
+
+        def _cache_updater(layer_id, append_kv):
+            paged_cache_updater(layer_id, append_kv)
+            sdpa_cache_updater(layer_id, append_kv)
+
+        def _attn(layer_id, q):
+            out_paged = paged_attn(layer_id, q)
+            out_sdpa = sdpa_attn(layer_id, q)
+
+            diff = (out_paged - out_sdpa).float()
+            max_abs = diff.abs().max()
+
+            if max_abs > 1e-2:
+                print(f"max_abs={max_abs:.6g}")
+            return out_paged
+
+        return _cache_updater, _attn
+
+    def free(self, pid):
+        self.vm_paged.free(pid)
+        self.vm_sdpa.free(pid)
 
 
 def VirtualMemory(
@@ -366,5 +416,9 @@ def VirtualMemory(
         )
     elif type == "sdpa":
         return VirtualMemorySDPA(
+            max_num_pages, page_size, num_kv_heads, head_dim, num_layers
+        )
+    elif type == "compare":
+        return VirtualMemoryCompare(
             max_num_pages, page_size, num_kv_heads, head_dim, num_layers
         )

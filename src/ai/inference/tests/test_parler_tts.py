@@ -11,9 +11,9 @@ here = os.path.dirname(__file__)
 @torch.no_grad()
 def test_model_run():
     model = ParlerTTS(os.path.join(here, "checkpoints")).eval().to(device)
-    prompts = ["अरे, तुम आज कैसे हो?"]
+    prompts = ["अरे, तुम आज कैसे अरे, तुम आज कैसे अरे, तुम आज कैसे अरे, तुम आज कैसे अरे, तुम आज कैसे"]
     descriptions = [
-        "Divya's voice is monotone yet slightly fast in delivery, with a very close recording that almost has no background noise."
+        "Divya's voice is monotone yet slightly fast in delivery, swith a very close recording that almost has no background noise."
     ]
     ref = torch.load(
         os.path.join(here, "checkpoints/model_prefill_ref.pt"),
@@ -155,7 +155,7 @@ def test_model_run():
 @torch.no_grad()
 def test_runner_obj():
     model_runner = ParlerTTSModelRunner(os.path.join(here, "checkpoints"))
-    bs = 16
+    bs = 8
     requests = [
         TTSRequest(
             prompt="भारत की राजधानी दिल्ली है।",
@@ -173,16 +173,17 @@ def test_runner_obj():
         model_runner.prefill(req)
 
     import time
-
+    idx = 0
     while len(model_runner.running_requests) > 0:
         start = time.time()
         model_runner.step()
         model_runner.check_stopping_criteria()
         print(
-            "model runner step",
+            f"model runner step {idx}",
             len(model_runner.running_requests),
             1000 * (time.time() - start),
         )
+        idx += 1
 
     from scipy.io import wavfile
 
