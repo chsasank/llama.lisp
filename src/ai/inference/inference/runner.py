@@ -33,18 +33,20 @@ class ParlerTTSModelRunner:
         head_dim = self.model.config["decoder"]["hidden_size"] // num_kv_heads
         num_layers = self.model.config["decoder"]["num_hidden_layers"]
         self.self_attn_vmem = VirtualMemory(
-            max_num_pages=1024,
+            max_num_pages=2048,
             num_kv_heads=num_kv_heads,
             page_size=16,
             head_dim=head_dim,
             num_layers=num_layers,
+            type="paged",
         )
         self.cross_attn_vmem = VirtualMemory(
-            max_num_pages=1024,
+            max_num_pages=2048,
             num_kv_heads=num_kv_heads,
             page_size=16,
             head_dim=head_dim,
             num_layers=num_layers,
+            type="paged",
         )
         self.topk_processor = transformers.TopKLogitsWarper(top_k=50)
         self.num_codebooks = self.model.config["decoder"]["num_codebooks"]
@@ -191,5 +193,5 @@ class ParlerTTSModelRunner:
 
     def evict(self, request):
         del self.running_requests[request.pid]
-        self.self_attn_vmem.page_table.free(request.pid)
-        self.cross_attn_vmem.page_table.free(request.pid)
+        self.self_attn_vmem.free(request.pid)
+        self.cross_attn_vmem.free(request.pid)

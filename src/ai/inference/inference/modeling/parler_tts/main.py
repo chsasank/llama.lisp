@@ -67,8 +67,8 @@ class ParlerTTS(torch.nn.Module):
             )
         )
         self.eval()
-        self.half()
         self._load_weights()
+        self.half()
 
     def _load_weights(self):
         def _sub_state_dict(prefix, model_weights):

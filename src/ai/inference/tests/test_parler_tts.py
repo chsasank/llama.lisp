@@ -39,7 +39,9 @@ def test_model_run():
     )
 
     decoder_input_ids = ref["decoder_input_ids"]
-    decoder_position_ids = torch.arange(prompt_hidden_states.shape[1] + 1).unsqueeze(0).to(device)
+    decoder_position_ids = (
+        torch.arange(prompt_hidden_states.shape[1] + 1).unsqueeze(0).to(device)
+    )
     expected_logits = ref["logits"].unsqueeze(0)
     expected_past_key_values = ref["past_key_values"]
 
@@ -124,7 +126,9 @@ def test_model_run():
     )
 
     step_expected_logits = step_ref["logits"]
-    assert torch.allclose(torch.argmax(step_logits, dim=-1), torch.argmax(step_expected_logits, dim=-1))
+    assert torch.allclose(
+        torch.argmax(step_logits, dim=-1), torch.argmax(step_expected_logits, dim=-1)
+    )
     step_expected_past_key_values = step_ref["past_key_values"]
 
     max_size = vmem.page_table.pid_mem_sizes[0]
@@ -132,8 +136,9 @@ def test_model_run():
     for layer_id in range(model.config["decoder"]["num_hidden_layers"]):
         assert torch.allclose(
             vmem.paged_model_kv_cache[layer_id][0, 0, :max_size],
-            step_expected_past_key_values.self_attention_cache.key_cache[layer_id][0, :, :max_size]
-            .transpose(0, 1),
+            step_expected_past_key_values.self_attention_cache.key_cache[layer_id][
+                0, :, :max_size
+            ].transpose(0, 1),
             atol=1e-1,
         )
         assert torch.allclose(
@@ -150,11 +155,17 @@ def test_model_run():
 @torch.no_grad()
 def test_runner_obj():
     model_runner = ParlerTTSModelRunner(os.path.join(here, "checkpoints"))
-    bs = 1
+    bs = 16
     requests = [
         TTSRequest(
-            prompt="अरे, तुम आज कैसे हो? कैसे हो? कैसे हो? कैसे हो?",
+            prompt="भारत की राजधानी दिल्ली है।",
             description="Vidya's voice is monotone.",
+        )
+        for _ in range(bs)
+    ] + [
+        TTSRequest(
+            prompt="आजकल आप क्या कर रहे हैं? मैं तो बहुत बढ़िया हूँ।",
+            description="Vidya's voice is monotone and a bit fast.",
         )
         for _ in range(bs)
     ]
@@ -175,36 +186,37 @@ def test_runner_obj():
 
     from scipy.io import wavfile
 
-    start = time.time()
-    audio_tokens = torch.cat(requests[0].decoder_input_ids, dim=-1)
-    num_codebooks = audio_tokens.shape[0]
-    audio_tokens_fixed = []
-    for codebook in range(num_codebooks):
-        audo_code = audio_tokens[codebook, codebook + 1 : -num_codebooks + codebook]
-        audio_tokens_fixed.append(audo_code)
-
-    audio_tokens_fixed = torch.stack(audio_tokens_fixed).unsqueeze(0)
-    print(
-        "undelay audio",
-        1000 * (time.time() - start),
-    )
-
-    for _ in range(10):
+    for i in range(len(requests)):
         start = time.time()
-        audio = model_runner.model.dac.decode(audio_codes=audio_tokens_fixed)[0]
-        torch.cuda.synchronize()
+        audio_tokens = torch.cat(requests[i].decoder_input_ids, dim=-1)
+        num_codebooks = audio_tokens.shape[0]
+        audio_tokens_fixed = []
+        for codebook in range(num_codebooks):
+            audo_code = audio_tokens[codebook, codebook + 1 : -num_codebooks + codebook]
+            audio_tokens_fixed.append(audo_code)
+
+        audio_tokens_fixed = torch.stack(audio_tokens_fixed).unsqueeze(0)
         print(
-            "dac audio",
+            "undelay audio",
             1000 * (time.time() - start),
         )
+
+        for _ in range(1):
+            start = time.time()
+            audio = model_runner.model.dac.decode(audio_codes=audio_tokens_fixed)[0]
+            torch.cuda.synchronize()
+            print(
+                "dac audio",
+                1000 * (time.time() - start),
+            )
+            start = time.time()
+
+        audio_arr = audio[0].detach().cpu().numpy().astype("float")
+        wavfile.write(f"lol_{i}.wav", 44100, audio_arr)
+
+        print("save audio", 1000 * (time.time() - start))
         start = time.time()
 
-    audio_arr = audio[0].detach().cpu().numpy().astype("float")
-    wavfile.write("lol.wav", 44100, audio_arr)
 
-    print("save audio", 1000 * (time.time() - start))
-    start = time.time()
-
-
-test_model_run()
+# test_model_run()
 test_runner_obj()
