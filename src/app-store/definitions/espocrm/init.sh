@@ -15,7 +15,7 @@ echo "Installing EspoCRM..."
 
 php command.php install \
   --db-host="$ESPOCRM_DATABASE_HOST" \
-  --db-name="espocrm" \
+  --db-name="$ESPOCRM_DATABASE_NAME" \
   --db-user="$ESPOCRM_DATABASE_USER" \
   --db-password="$ESPOCRM_DATABASE_PASSWORD" \
   --admin-username="$ESPOCRM_ADMIN_USERNAME" \
