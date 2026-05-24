@@ -1,0 +1,22 @@
+FROM ghcr.io/openclaw/openclaw:2026.3.24
+
+USER root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo \
+    python3-pip \
+    jq \
+    pandoc \
+    ffmpeg \
+    sqlite3 \
+    ripgrep \
+    fd-find \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-latex-recommended \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo 'node ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/node \
+    && chmod 440 /etc/sudoers.d/node
+
+USER node
