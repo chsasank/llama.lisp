@@ -14,12 +14,12 @@
                 (command "node server.js")
                 (environment
                     ("CPAD_MAIN_DOMAIN" ,main-domain)
-		    ("CPAD_SANDBOX_DOMAIN" ,main-domain)
+		            ("CPAD_SANDBOX_DOMAIN" ,main-domain)
                     ("CPAD_CONF" "/cryptpad/config/config.js")
                     ("CPAD_CONFIG" "/cryptpad/config/config.js")
                     ("CPAD_INSTALL_ONLYOFFICE" "yes")
                     ("CPAD_ADMIN_EMAIL" ,admin-email)
-		    ("CPAD_OFFICE_URL" ,(format "{}/onlyoffice/" ,main-domain))
+		            ("CPAD_OFFICE_URL" ,(format "{}/onlyoffice/" ,main-domain))
                     ("CPAD_OFFICE_SECRET" ,jwt-secret))
                 (volumes
                     ("blob" "/cryptpad/blob")
@@ -58,4 +58,5 @@
                     ("customize" "/cryptpad/customize")
                     ("onlyoffice-dist" "/cryptpad/www/common/onlyoffice/dist")
                     ("onlyoffice-conf" "/cryptpad/onlyoffice-conf")
-                    ("init.sh" "/mnt/init.sh"))))))
+                    ("init.sh" "/mnt/init.sh")
+                    ("post-install.sh" "/mnt/post-install.sh"))))))
