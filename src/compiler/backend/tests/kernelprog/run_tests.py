@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run all kernelprog GPU tests and optionally update snapshot expectations."""
+"""Run all kernelprog GPU tests."""
 
 import argparse
 import glob
@@ -8,9 +8,8 @@ import subprocess
 import sys
 
 
-def run_test(test_dir, update=False):
+def run_test(test_dir):
     test_py = os.path.join(test_dir, "test.py")
-    expected = os.path.join(test_dir, "test.expected")
     if not os.path.exists(test_py):
         return None
 
@@ -25,45 +24,19 @@ def run_test(test_dir, update=False):
     err = proc.stderr
 
     if proc.returncode != 0:
-        print(f"{name}: FAILED (runner exited {proc.returncode})")
+        print(f"{name}: FAILED")
         if out:
-            print(out)
-        if err:
-            print(err, file=sys.stderr)
-        return False
-
-    if update:
-        with open(expected, "w") as f:
-            f.write(out)
-        print(f"{name}: updated snapshot")
-        return True
-
-    if os.path.exists(expected):
-        with open(expected) as f:
-            exp = f.read()
-        if out == exp:
-            print(f"{name}: PASSED (snapshot)")
-            return True
-        else:
-            print(f"{name}: FAILED (snapshot mismatch)")
-            print("--- expected ---")
-            print(exp, end="")
-            print("--- actual ---")
             print(out, end="")
-            return False
+        if err:
+            print(err, file=sys.stderr, end="")
+        return False
 
     print(out, end="")
     return True
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Run kernelprog GPU tests."
-    )
-    parser.add_argument(
-        "--snapshot", action="store_true",
-        help="Update test.expected snapshot files instead of comparing."
-    )
+    parser = argparse.ArgumentParser(description="Run kernelprog GPU tests.")
     parser.add_argument(
         "tests", nargs="*",
         help="Specific test directories to run (default: all with test.py)."
@@ -81,7 +54,7 @@ def main():
 
     results = []
     for d in dirs:
-        result = run_test(d, args.snapshot)
+        result = run_test(d)
         if result is not None:
             results.append(result)
 
