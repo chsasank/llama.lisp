@@ -82,7 +82,7 @@ int main()
     std::cout << "Number of Elements Per Batch: " << num_elements_per_batch<< std::endl;
 
     // Kernel results verification:
-    CHECK_CU(cuCtxCreate(&context, 0, device));
+    CHECK_CU(cuCtxCreate(&context, NULL, 0, device));
     CHECK_CU(cuModuleLoad(&module, "kernel.ptx"));
     CHECK_CU(cuModuleGetFunction(&kernel, module, "kernel"));
 

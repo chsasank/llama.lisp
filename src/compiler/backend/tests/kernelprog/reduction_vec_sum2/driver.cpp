@@ -29,7 +29,7 @@ int main()
     CHECK_CU(cuDeviceGet(&device, 0));
 
     CUcontext context;
-    CHECK_CU(cuCtxCreate(&context, 0, device));
+    CHECK_CU(cuCtxCreate(&context, NULL, 0, device));
 
     CUmodule module;
     CHECK_CU(cuModuleLoad(&module, "kernel.ptx"));
