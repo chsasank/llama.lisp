@@ -6,8 +6,8 @@ TRIPLE = target triple = \"nvptx64-nvidia-cuda\"
 	guile ../../../utils/sexp-json.scm < $< | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py > $@
 	sed -e "s/^target datalayout.*/$(DATALAYOUT)/" -i $@
 	sed -e "s/^target triple.*/$(TRIPLE)/" -i $@
-	echo '!nvvm.annotations = !{!0}' >> $@
-	echo '!0 = !{void (float addrspace(1)*, float addrspace(1)*, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
+	echo '!nvvm.annotations = !{!1}' >> $@
+	echo '!1 = !{void (float addrspace(1)*, float addrspace(1)*, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
 
 # C-Lisp driver to LLVM
 %.driver.ll: %.driver.sexp cuda_macros.py

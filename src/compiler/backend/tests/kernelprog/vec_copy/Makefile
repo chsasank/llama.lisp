@@ -9,16 +9,16 @@ DRIVER_EXEC = exec
 all: $(DRIVER_EXEC) $(KERNEL_FILE).ptx $(KERNEL_FILE).ll
 
 %.ll: %.sexp
-	guile ../../../utils/sexp-json.scm < $< | python ../../../cuda-lisp.py | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | opt-18 -p 'strip,mem2reg,simplifycfg,always-inline' -S | opt-18 -O3 -S > $@
+	guile ../../../utils/sexp-json.scm < $< | python ../../../cuda-lisp.py | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | opt -p 'strip,mem2reg,simplifycfg,always-inline' -S | opt -O3 -S > $@
 	sed -e "s/^target datalayout.*/target datalayout = $(DATALAYOUT)/" -i $@
 	sed -e "s/^target triple.*/target triple = $(TRIPLE)/" -i $@
-	echo '!nvvm.annotations = !{!0}' >> $@
-	echo '!0 = !{void (float addrspace(1)*, float addrspace(1)*, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
+	echo '!nvvm.annotations = !{!1}' >> $@
+	echo '!1 = !{void (float addrspace(1)*, float addrspace(1)*, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
 
 
 
 %.ptx: %.ll
-	llc-18 -mcpu=sm_86 -O0 -o $@ $<
+	llc -mcpu=sm_86 -O0 -o $@ $<
 
 $(DRIVER_EXEC): driver.c
 	clang -o $@ -lcuda -lm -I/usr/local/cuda/include $<

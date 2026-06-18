@@ -42,18 +42,18 @@ int main (int argc, char ** argv) {
     CUdevice device;
     CUcontext context;
     CUmodule module;
-    char kernel_ptx[5000];
+    char kernel_ptx[20000];
     CUfunction kernel_func;
 
     // CUDA initialization and context creation
     ERR_CHECK(cuInit(0));
     ERR_CHECK(cuDeviceGetCount(&devCount));
     ERR_CHECK(cuDeviceGet(&device, 0));
-    ERR_CHECK(cuCtxCreate(&context, 0, device));
+    ERR_CHECK(cuCtxCreate(&context, NULL, 0, device));
 
     // Load the kernel image and get a handle to the kernel function
     read_module(kernel_ptx);
-    ERR_CHECK(cuModuleLoadData(&module, kernel_ptx));
+    ERR_CHECK(cuModuleLoadDataEx(&module, kernel_ptx, 0, NULL, NULL));
     ERR_CHECK(cuModuleGetFunction(&kernel_func, module, "kernel"));
 
     // Allocate input and result

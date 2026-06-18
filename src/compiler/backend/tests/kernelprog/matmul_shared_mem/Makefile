@@ -12,8 +12,8 @@ all: $(DRIVER_EXEC) $(KERNEL_FILE).ptx
 	guile ../../../utils/sexp-json.scm < $< | python ../../../c-lisp.py | python ../../../brilisp.py | python ../../../llvm.py | opt -p 'strip,mem2reg,simplifycfg' -S > $@
 	sed -e "s/^target datalayout.*/target datalayout = $(DATALAYOUT)/" -i $@
 	sed -e "s/^target triple.*/target triple = $(TRIPLE)/" -i $@
-	echo '!nvvm.annotations = !{!0}' >> $@
-	echo '!0 = !{void (i32, i32, i32, float, float addrspace(1)*, float addrspace(1)*, float, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
+	echo '!nvvm.annotations = !{!1}' >> $@
+	echo '!1 = !{void (i32, i32, i32, float, float addrspace(1)*, float addrspace(1)*, float, float addrspace(1)*)* @kernel, !"kernel", i32 1}' >> $@
 	
 %.ptx: %.ll
 	llc -mcpu=sm_86 -O3 -o $@ $<

@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
 
     CU_CHECK(cuInit(0));
     CU_CHECK(cuDeviceGet(&device,0));
-    CU_CHECK(cuCtxCreate(&context,0,device));
+    CU_CHECK(cuCtxCreate(&context, NULL, 0, device));
 
     FILE* f = fopen(ptx_filename,"rb");
     if (f == NULL) {

@@ -45,7 +45,7 @@ int main (int argc, char ** argv) {
     ERR_CHECK(cuInit(0));
     ERR_CHECK(cuDeviceGetCount(&devCount));
     ERR_CHECK(cuDeviceGet(&device, 0));
-    ERR_CHECK(cuCtxCreate(&context, 0, device));
+    ERR_CHECK(cuCtxCreate(&context, NULL, 0, device));
 
     // Load the kernel image and get a handle to the kernel function
     read_module(kernel_ptx);
