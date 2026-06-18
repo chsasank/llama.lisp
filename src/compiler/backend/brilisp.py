@@ -156,6 +156,7 @@ def gen_instr(instr):
             "string-ref",
             "addrspacecast",
             "asm",
+            "extractvalue",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 

@@ -33,6 +33,12 @@ class LLVMCodeGenerator(object):
         self.module = ir.Module()
         self.builder = None
 
+        # Empty metadata node used to mark global loads as invariant, which the
+        # NVPTX backend lowers to ld.global.nc.  On recent architectures (e.g.
+        # sm_120) this avoids descriptor/bounds issues that make regular
+        # ld.global return zero for non-zero offsets.
+        self._invariant_load_md = self.module.add_metadata([])
+
         # Table of struct types, maintained throughout the program
         self.struct_types = {}  # struct type name -> ir.StructType instance
 
@@ -254,7 +260,18 @@ class LLVMCodeGenerator(object):
         def gen_load(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             ptr = self.gen_symbol_load(instr.args[0])
-            self.gen_symbol_store(instr.dest, self.builder.load(ptr))
+            load_instr = self.builder.load(ptr)
+            # Mark loads from the global address space as invariant so that
+            # NVPTX emits ld.global.nc.  This is required for correct offset
+            # loads on architectures like sm_120.
+            if (
+                isinstance(ptr.type, ir.PointerType)
+                and ptr.type.addrspace == 1
+            ):
+                load_instr.set_metadata(
+                    "invariant.load", self._invariant_load_md
+                )
+            self.gen_symbol_store(instr.dest, load_instr)
 
         def gen_ptradd(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
@@ -334,6 +351,20 @@ class LLVMCodeGenerator(object):
                     side_effect=True,
                     name=instr.dest,
                 )
+            elif isinstance(out_type, ir.BaseStructType):
+                # Multi-output inline asm: return an aggregate and store it.
+                self.declare_var(out_type, instr.dest)
+                self.gen_symbol_store(
+                    instr.dest,
+                    self.builder.asm(
+                        ftype,
+                        asm_template,
+                        asm_constraint,
+                        args,
+                        side_effect=True,
+                        name=instr.dest,
+                    ),
+                )
             else:
                 self.declare_var(out_type, instr.dest)
                 self.gen_symbol_store(
@@ -382,6 +413,15 @@ class LLVMCodeGenerator(object):
                     gen_string_ref(instr)
                 elif instr.op == "asm":
                     gen_asm(instr)
+                elif instr.op == "extractvalue":
+                    struct_val = self.gen_symbol_load(instr.args[0])
+                    index = instr.args[1]
+                    out_type = struct_val.type.elements[index]
+                    self.declare_var(out_type, instr.dest)
+                    self.gen_symbol_store(
+                        instr.dest,
+                        self.builder.extract_value(struct_val, [index]),
+                    )
                 elif instr.op in value_ops:
                     gen_value(instr)
                 elif instr.op in cmp_ops:
@@ -451,7 +491,7 @@ class LLVMCodeGenerator(object):
         elif isinstance(name, int):
             return ir.Constant(ir.IntType(32), name)
         elif isinstance(name, float):
-            return ir.Constant(ir.FloatType, name)
+            return ir.Constant(ir.FloatType(), name)
         else:
             raise CodegenError(f"Unknown variable: {name}")
 
@@ -533,6 +573,8 @@ class LLVMCodeGenerator(object):
             module=self.module, typ=typ, name=glob.name, addrspace=addrspace
         )
         global_var.initializer = initializer
+        if addrspace == 3:
+            global_var.align = 16
         self.global_variables[glob.name] = global_var
 
     def gen_string_defn(self, string):

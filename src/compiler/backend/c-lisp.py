@@ -429,13 +429,78 @@ class SetExpression(Expression):
     def is_valid_expr(cls, expr):
         return expr[0] == "set"
 
+    def _compile_asm(self, asm_expr, dest_type):
+        """Compile an inline-asm value expression using the known destination type."""
+        if len(asm_expr) < 3:
+            raise CodegenError(f"Bad asm expression: {asm_expr}")
+
+        template_expr = asm_expr[1]
+        constraint_expr = asm_expr[2]
+        if not (
+            isinstance(template_expr, list)
+            and template_expr[0] == "string"
+            and isinstance(constraint_expr, list)
+            and constraint_expr[0] == "string"
+        ):
+            raise CodegenError(
+                f"asm template and constraints must be string literals: {asm_expr}"
+            )
+
+        arg_results = []
+        arg_syms = []
+        instructions = []
+        for a in asm_expr[3:]:
+            compiled = super().compile(a)
+            arg_results.append(compiled)
+            arg_syms.append(compiled.symbol)
+            instructions.extend(compiled.instructions)
+
+        res_sym = random_label(CLISP_PREFIX)
+        instructions.append(
+            [
+                "set",
+                [res_sym, dest_type],
+                ["asm", template_expr, constraint_expr, *arg_syms],
+            ]
+        )
+        return ExpressionResult(instructions, res_sym, dest_type)
+
     def compile(self, expr):
-        if not verify_shape(expr, [str, str, None]):
+        if len(expr) != 3:
             raise CodegenError(f"Bad set expression: {expr}")
 
-        name = expr[1]
-        scoped_name = self.ctx.scoped_lookup(name)
-        res = super().compile(expr[2])
+        # Support both (set name value) and (set (name type) value).
+        if isinstance(expr[1], list):
+            if len(expr[1]) != 2:
+                raise CodegenError(f"Bad set expression: {expr}")
+            name, dest_type = expr[1]
+            scoped_name = self.ctx.construct_scoped_name(name, self.ctx.scopes)
+            is_new_decl = scoped_name not in self.ctx.variable_types
+            if is_new_decl and dest_type != "void":
+                self.ctx.variable_types[scoped_name] = dest_type
+        elif isinstance(expr[1], str):
+            name = expr[1]
+            scoped_name = self.ctx.scoped_lookup(name)
+            dest_type = self.ctx.variable_types.get(scoped_name)
+            is_new_decl = False
+            if dest_type is None:
+                if scoped_name in self.ctx.global_variables:
+                    # Storing to a global is only valid for non-asm values below;
+                    # the type is the pointee type.
+                    dest_type = self.ctx.global_variables[scoped_name][1]
+                else:
+                    raise CodegenError(f"Unknown symbol {scoped_name}")
+        else:
+            raise CodegenError(f"Bad set expression: {expr}")
+
+        # Inline asm needs the destination type to build the value instruction.
+        if isinstance(expr[2], list) and expr[2] and expr[2][0] == "asm":
+            res = self._compile_asm(expr[2], dest_type)
+            # Void inline asm has no destination variable; emit it directly.
+            if dest_type == "void":
+                return ExpressionResult(res.instructions, scoped_name, "void")
+        else:
+            res = super().compile(expr[2])
 
         if scoped_name in self.ctx.variable_types:
             new_instrs = [
@@ -857,6 +922,44 @@ class CastExpression(Expression):
             ["set", [res_sym, res_type], [opcode, operand.symbol, res_type]],
         ]
         return ExpressionResult(instrs, res_sym, res_type)
+
+
+class ExtractValueExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "extractvalue"
+
+    def compile(self, expr):
+        if len(expr) != 3:
+            raise CodegenError(f"Bad extractvalue expression: {expr}")
+
+        struct_expr = super().compile(expr[1])
+        typ = struct_expr.typ
+        if not (isinstance(typ, list) and typ[0] == "struct"):
+            raise CodegenError(f"extractvalue requires a struct value, got {typ}")
+
+        struct_name = typ[1]
+        if struct_name not in self.ctx.struct_types:
+            raise CodegenError(f"Unknown struct type: {struct_name}")
+
+        index = expr[2]
+        if not isinstance(index, int):
+            raise CodegenError(f"extractvalue index must be an integer, got {index}")
+
+        field_type = None
+        for field_name, (field_idx, ft) in self.ctx.struct_types[struct_name].items():
+            if field_idx == index:
+                field_type = ft
+                break
+        if field_type is None:
+            raise CodegenError(f"Struct {struct_name} has no field at index {index}")
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = [
+            *struct_expr.instructions,
+            ["set", [res_sym, field_type], ["extractvalue", struct_expr.symbol, index]],
+        ]
+        return ExpressionResult(instrs, res_sym, field_type)
 
 
 class PtrToExpression(Expression):
