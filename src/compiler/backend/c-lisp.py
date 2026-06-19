@@ -435,6 +435,11 @@ class AsmExpression(Expression):
 
         Output constraints are prefixed with '=' (write-only) or '+' (read-write).
         Clobbers look like '~{memory}'.
+
+        Note: read-write ('+') constraints are parsed only so we can reject them
+        early. LLVM IR does not accept GCC-style '+' constraints; c-lisp asm is
+        intentionally a thin wrapper around a single LLVM inline-asm call, so we
+        keep the mapping direct and do not support '+'.
         """
         tokens = [t.strip() for t in constraint_str.split(",") if t.strip()]
         outputs = []
@@ -455,7 +460,10 @@ class AsmExpression(Expression):
         We deliberately do not validate constraint letters (e.g. `r`, `l`, `b`)
         because their interpretation is target-specific. LLVM is the authority;
         we only check target-independent structure: output count and argument
-        count. Read-write operands (`+`) are not supported yet.
+        count. Read-write operands (`+`) are intentionally unsupported because
+        LLVM IR requires them to be lowered to matching input/output constraints,
+        which would break the "one c-lisp asm expression = one LLVM inline-asm
+        call" rule.
 
         Raises CodegenError on mismatch.
         """
@@ -464,7 +472,8 @@ class AsmExpression(Expression):
         for out in outputs:
             if out.startswith("+"):
                 raise CodegenError(
-                    f'read-write asm operands ({out}) are not yet supported in "{constraints}"'
+                    f'read-write asm operands ({out}) are not supported in "{constraints}" '
+                    f'(LLVM IR does not accept "+" constraints; use separate input/output registers instead)'
                 )
 
         num_outputs = len(outputs)

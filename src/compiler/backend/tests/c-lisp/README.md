@@ -137,6 +137,9 @@ turnt --save vector_copy.sexp
 - `addrspace_shared_mem.sexp` — CUDA shared-memory pattern (`addrspace 3`, NVVM intrinsics).
 
 ### Inline assembly
+
+Syntax: `(asm <type> <template-string> <constraint-string> <args>...)`.
+
 - `asm-one-output.sexp` — Single `=r` output.
 - `asm-zero-outputs.sexp` — Side-effect asm with a pointer input.
 - `asm-multi-output.sexp` — Multi-output asm returning a struct.
@@ -145,6 +148,11 @@ turnt --save vector_copy.sexp
 - `asm-intrinsic-add.sexp` — `define-inline` wrapper around an asm add.
 - `asm-intrinsic-pair.sexp` — `define-inline` returning a struct from asm.
 - `asm-intrinsic-mem.sexp` — `define-inline` wrappers for asm load/store.
+
+**Limitation:** GCC-style read-write constraints (`+r`, `+f`, etc.) are not
+supported. LLVM IR does not accept `+` constraints, and c-lisp asm is intended
+to map directly to a single LLVM inline-asm call. Use separate input/output
+registers (or a temporary variable) instead.
 
 ### Memory / LLVM intrinsics
 - `vector_copy.sexp` — `llvm.memcpy` intrinsic wrapped in `define-inline`.
