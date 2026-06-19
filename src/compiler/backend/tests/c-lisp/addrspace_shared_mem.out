@@ -2,7 +2,7 @@
 target triple = "unknown-unknown-unknown"
 target datalayout = ""
 
-@"shared" = addrspace(3) global [64 x i32] zeroinitializer
+@"shared" = addrspace(3) global [64 x i32] zeroinitializer, align 16
 declare i32 @"llvm.nvvm.read.ptx.sreg.tid.x"()
 
 declare void @"llvm.nvvm.barrier0"()
@@ -67,7 +67,7 @@ entry-sbnpsago:
   %".33" = load i32 addrspace(1)*, i32 addrspace(1)** %"tmp_clisp-msltedyy"
   store i32 addrspace(1)* %".33", i32 addrspace(1)** %"d_t.1"
   %".35" = load i32 addrspace(1)*, i32 addrspace(1)** %"d_t.1"
-  %".36" = load i32, i32 addrspace(1)* %".35"
+  %".36" = load i32, i32 addrspace(1)* %".35", !invariant.load !0
   store i32 %".36", i32* %"tmp_clisp-dofzglnn"
   %".38" = load i32*, i32** %"s_t"
   %".39" = load i32, i32* %"tmp_clisp-dofzglnn"
@@ -93,3 +93,4 @@ tmp_clisp.ret_lbl-piuzfbqp:
   ret void
 }
 
+!0 = !{  }

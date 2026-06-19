@@ -1,0 +1,5 @@
+Error in statement: ['set', 'p', ['asm', ['struct', 'pair'], ['string', 'movl $$42, $$0'], ['string', '=r']]]
+CodegenError: asm output count 1 does not match struct pair field count 2 in "=r"
+
+
+CodegenError: asm("movl $$42, $$0", "=r"): asm output count 1 does not match struct pair field count 2 in "=r"

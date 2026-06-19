@@ -73,9 +73,9 @@ def gen_type(typ):
             return retval
         elif typ[0] == "arr":
             retval = {"arr": gen_type(typ[2]), "size": typ[1]}
-            if len(typ) > 2 and is_list(typ[2]):
-                assert typ[2][0] == "addrspace"
-                retval["addrspace"] = typ[2][1]
+            if len(typ) > 3 and is_list(typ[3]):
+                assert typ[3][0] == "addrspace"
+                retval["addrspace"] = typ[3][1]
             return retval
         elif typ[0] == "struct":
             return {"struct": gen_type(typ[1])}
@@ -110,6 +110,13 @@ def gen_instr(instr):
             "sub",
             "div",
             "rem",
+            "udiv",
+            "urem",
+            # Bitwise binary operations
+            "shl",
+            "lshr",
+            "ashr",
+            "xor",
             # Integer comparison
             "eq",
             "ne",
@@ -132,6 +139,7 @@ def gen_instr(instr):
             "fsub",
             "fmul",
             "fdiv",
+            "fneg",
             # Floating-point comparison
             "feq",
             "fne",
@@ -156,6 +164,9 @@ def gen_instr(instr):
             "string-ref",
             "addrspacecast",
             "asm",
+            "extractvalue",
+            "insertvalue",
+            "select",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 

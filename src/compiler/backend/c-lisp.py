@@ -424,6 +424,141 @@ class StringExpression(Expression):
         return ExpressionResult(instrs, res_sym, res_typ)
 
 
+class AsmExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "asm"
+
+    @staticmethod
+    def _parse_constraints(constraint_str):
+        """Parse an inline-asm constraint string into outputs, inputs, and clobbers.
+
+        Output constraints are prefixed with '=' (write-only) or '+' (read-write).
+        Clobbers look like '~{memory}'.
+
+        Note: read-write ('+') constraints are parsed only so we can reject them
+        early. LLVM IR does not accept GCC-style '+' constraints; c-lisp asm is
+        intentionally a thin wrapper around a single LLVM inline-asm call, so we
+        keep the mapping direct and do not support '+'.
+        """
+        tokens = [t.strip() for t in constraint_str.split(",") if t.strip()]
+        outputs = []
+        inputs = []
+        clobbers = []
+        for token in tokens:
+            if token.startswith("~{") and token.endswith("}"):
+                clobbers.append(token)
+            elif token.startswith("=") or token.startswith("+"):
+                outputs.append(token)
+            else:
+                inputs.append(token)
+        return outputs, inputs, clobbers
+
+    def _validate_constraints(self, template, constraints, dest_type, arg_types):
+        """Validate the structure of an inline-asm constraint string.
+
+        We deliberately do not validate constraint letters (e.g. `r`, `l`, `b`)
+        because their interpretation is target-specific. LLVM is the authority;
+        we only check target-independent structure: output count and argument
+        count. Read-write operands (`+`) are intentionally unsupported because
+        LLVM IR requires them to be lowered to matching input/output constraints,
+        which would break the "one c-lisp asm expression = one LLVM inline-asm
+        call" rule.
+
+        Raises CodegenError on mismatch.
+        """
+        outputs, inputs, clobbers = self._parse_constraints(constraints)
+
+        for out in outputs:
+            if out.startswith("+"):
+                raise CodegenError(
+                    f'read-write asm operands ({out}) are not supported in "{constraints}" '
+                    f'(LLVM IR does not accept "+" constraints; use separate input/output registers instead)'
+                )
+
+        num_outputs = len(outputs)
+        expected_arg_count = len(inputs)
+
+        if len(arg_types) != expected_arg_count:
+            raise CodegenError(
+                f'asm argument count {len(arg_types)} does not match input constraint count {len(inputs)} in "{constraints}"'
+            )
+
+        if dest_type == "void":
+            if num_outputs != 0:
+                raise CodegenError(
+                    f'asm with void destination must have no output constraints, got {num_outputs} in "{constraints}"'
+                )
+        elif isinstance(dest_type, list) and dest_type[0] == "struct":
+            struct_name = dest_type[1]
+            if struct_name not in self.ctx.struct_types:
+                raise CodegenError(f"Unknown struct type: {struct_name}")
+            field_items = sorted(
+                self.ctx.struct_types[struct_name].items(), key=lambda kv: kv[1][0]
+            )
+            field_types = [ft for _, (_, ft) in field_items]
+            if num_outputs != len(field_types):
+                raise CodegenError(
+                    f'asm output count {num_outputs} does not match struct {struct_name} field count {len(field_types)} in "{constraints}"'
+                )
+        else:
+            if num_outputs != 1:
+                raise CodegenError(
+                    f'asm with non-struct destination must have exactly one output constraint, got {num_outputs} in "{constraints}"'
+                )
+
+    def compile(self, expr):
+        """Compile an inline-asm expression with an explicit return type.
+
+        Syntax: (asm <type> <template-string> <constraint-string> <args>...)
+        """
+        if len(expr) < 4:
+            raise CodegenError(f"Bad asm expression: {expr}")
+
+        dest_type = expr[1]
+        template_expr = expr[2]
+        constraint_expr = expr[3]
+        args = expr[4:]
+
+        if not (
+            isinstance(template_expr, list)
+            and template_expr[0] == "string"
+            and isinstance(constraint_expr, list)
+            and constraint_expr[0] == "string"
+        ):
+            raise CodegenError(
+                f"asm template and constraints must be string literals: {expr}"
+            )
+
+        template = template_expr[1]
+        constraints = constraint_expr[1]
+
+        arg_results = []
+        arg_syms = []
+        instructions = []
+        for a in args:
+            compiled = super().compile(a)
+            arg_results.append(compiled)
+            arg_syms.append(compiled.symbol)
+            instructions.extend(compiled.instructions)
+
+        arg_types = [r.typ for r in arg_results]
+        try:
+            self._validate_constraints(template, constraints, dest_type, arg_types)
+        except CodegenError as e:
+            raise CodegenError(f'asm("{template}", "{constraints}"): {e}') from e
+
+        res_sym = random_label(CLISP_PREFIX)
+        instructions.append(
+            [
+                "set",
+                [res_sym, dest_type],
+                ["asm", template_expr, constraint_expr, *arg_syms],
+            ]
+        )
+        return ExpressionResult(instructions, res_sym, dest_type)
+
+
 class SetExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
@@ -529,6 +664,13 @@ class BinOpExpression(Expression):
         "mul": ("_int", None),
         "div": ("_int", None),
         "rem": ("_int", None),
+        "udiv": ("_int", None),
+        "urem": ("_int", None),
+        # Bitwise binary operations
+        "shl": ("_int", None),
+        "lshr": ("_int", None),
+        "ashr": ("_int", None),
+        "xor": ("_int", None),
         # Floating-point arithmetic
         "fadd": ("_float", None),
         "fsub": ("_float", None),
@@ -604,6 +746,25 @@ class NotExpression(Expression):
             ["set", [res_sym, "bool"], ["not", input_expr.symbol]]
         ]
         return ExpressionResult(instrs, res_sym, "bool")
+
+
+class FNegExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "fneg"
+
+    def compile(self, expr):
+        if len(expr) != 2:
+            raise CodegenError(f"`fneg` takes only 1 operand")
+        input_expr = super().compile(expr[1])
+        if input_expr.typ not in {"float", "double"}:
+            raise CodegenError(f"Operand to `fneg` must be float or double")
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = input_expr.instructions + [
+            ["set", [res_sym, input_expr.typ], ["fneg", input_expr.symbol]]
+        ]
+        return ExpressionResult(instrs, res_sym, input_expr.typ)
 
 
 class PtrAddExpression(Expression):
@@ -857,6 +1018,127 @@ class CastExpression(Expression):
             ["set", [res_sym, res_type], [opcode, operand.symbol, res_type]],
         ]
         return ExpressionResult(instrs, res_sym, res_type)
+
+
+class ExtractValueExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "extractvalue"
+
+    def compile(self, expr):
+        if len(expr) != 3:
+            raise CodegenError(f"Bad extractvalue expression: {expr}")
+
+        struct_expr = super().compile(expr[1])
+        typ = struct_expr.typ
+        if not (isinstance(typ, list) and typ[0] == "struct"):
+            raise CodegenError(f"extractvalue requires a struct value, got {typ}")
+
+        struct_name = typ[1]
+        if struct_name not in self.ctx.struct_types:
+            raise CodegenError(f"Unknown struct type: {struct_name}")
+
+        index = expr[2]
+        if not isinstance(index, int):
+            raise CodegenError(f"extractvalue index must be an integer, got {index}")
+
+        field_type = None
+        for field_name, (field_idx, ft) in self.ctx.struct_types[struct_name].items():
+            if field_idx == index:
+                field_type = ft
+                break
+        if field_type is None:
+            raise CodegenError(f"Struct {struct_name} has no field at index {index}")
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = [
+            *struct_expr.instructions,
+            ["set", [res_sym, field_type], ["extractvalue", struct_expr.symbol, index]],
+        ]
+        return ExpressionResult(instrs, res_sym, field_type)
+
+
+class InsertValueExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "insertvalue"
+
+    def compile(self, expr):
+        if len(expr) != 4:
+            raise CodegenError(f"Bad insertvalue expression: {expr}")
+
+        struct_expr = super().compile(expr[1])
+        field_expr = super().compile(expr[2])
+        typ = struct_expr.typ
+        if not (isinstance(typ, list) and typ[0] == "struct"):
+            raise CodegenError(f"insertvalue requires a struct value, got {typ}")
+
+        struct_name = typ[1]
+        if struct_name not in self.ctx.struct_types:
+            raise CodegenError(f"Unknown struct type: {struct_name}")
+
+        index = expr[3]
+        if not isinstance(index, int):
+            raise CodegenError(f"insertvalue index must be an integer, got {index}")
+
+        field_type = None
+        for field_name, (field_idx, ft) in self.ctx.struct_types[struct_name].items():
+            if field_idx == index:
+                field_type = ft
+                break
+        if field_type is None:
+            raise CodegenError(f"Struct {struct_name} has no field at index {index}")
+
+        if field_type != field_expr.typ:
+            raise CodegenError(
+                f"insertvalue field type mismatch: expected {field_type}, got {field_expr.typ}"
+            )
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = [
+            *struct_expr.instructions,
+            *field_expr.instructions,
+            [
+                "set",
+                [res_sym, typ],
+                ["insertvalue", struct_expr.symbol, field_expr.symbol, index],
+            ],
+        ]
+        return ExpressionResult(instrs, res_sym, typ)
+
+
+class SelectExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "select"
+
+    def compile(self, expr):
+        if len(expr) != 4:
+            raise CodegenError(f"Bad select expression: {expr}")
+
+        cond_expr = super().compile(expr[1])
+        if cond_expr.typ != "bool":
+            raise CodegenError(f"select condition must be bool, got {cond_expr.typ}")
+
+        true_expr = super().compile(expr[2])
+        false_expr = super().compile(expr[3])
+        if true_expr.typ != false_expr.typ:
+            raise CodegenError(
+                f"select branches must have same type: {true_expr.typ} vs {false_expr.typ}"
+            )
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = [
+            *cond_expr.instructions,
+            *true_expr.instructions,
+            *false_expr.instructions,
+            [
+                "set",
+                [res_sym, true_expr.typ],
+                ["select", cond_expr.symbol, true_expr.symbol, false_expr.symbol],
+            ],
+        ]
+        return ExpressionResult(instrs, res_sym, true_expr.typ)
 
 
 class PtrToExpression(Expression):
