@@ -16,3 +16,4 @@ entry:
   ret void
 }
 
+!0 = !{  }

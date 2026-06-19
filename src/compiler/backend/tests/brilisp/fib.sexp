@@ -26,7 +26,7 @@
         (set (i_m_1 int) (add i_m_1 one))
         (set (i_m_2 int) (add i_m_2 one))
         (set (i int) (add i one))
-        (set (loop bool) (le i n))
+        (set (loop bool) (lt i n))
         (br loop calc_i out)
 
         (label out)

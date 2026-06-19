@@ -1,7 +1,7 @@
 (c-lisp
     (define ((fprint float) (n float)))
     (define ((llvm.memcpy.p0i8.p0i8.i64 void) (dest (ptr int8)) (src (ptr int8)) (len int64) (isvolatile bool)))
-    (define-inline-brilisp ((memcpy void) (dst (ptr int8)) (src (ptr int8)) (n int))
+    (define-inline-brilisp ((my_memcpy void) (dst (ptr int8)) (src (ptr int8)) (n int))
         (set (n_64 int64) (sext n int64))
         (set (tmp void) (call llvm.memcpy.p0i8.p0i8.i64 dst src n_64 #f))
         (ret))
@@ -21,13 +21,13 @@
             (store (aptradd dst idx) 0.0))
 
         ; copy first 4 values
-        (call memcpy
+        (call my_memcpy
             (bitcast (aptradd dst 0) (ptr int8))
             (bitcast src (ptr int8))
             16)
 
         ; copy next 4 values
-        (call memcpy
+        (call my_memcpy
             (bitcast (aptradd dst 4) (ptr int8))
             (bitcast (ptradd src 4) (ptr int8))
             16)
