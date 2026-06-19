@@ -114,13 +114,20 @@ class LLVMCodeGenerator(object):
             "sub": "sub",
             "div": "sdiv",
             "rem": "srem",
+            "udiv": "udiv",
+            "urem": "urem",
             "not": "not_",
             "and": "and_",
             "or": "or_",
+            "xor": "xor",
+            "shl": "shl",
+            "lshr": "lshr",
+            "ashr": "ashr",
             "fadd": "fadd",
             "fsub": "fsub",
             "fmul": "fmul",
             "fdiv": "fdiv",
+            "fneg": "fneg",
         }
 
         cmp_ops = {
@@ -264,13 +271,8 @@ class LLVMCodeGenerator(object):
             # Mark loads from the global address space as invariant so that
             # NVPTX emits ld.global.nc.  This is required for correct offset
             # loads on architectures like sm_120.
-            if (
-                isinstance(ptr.type, ir.PointerType)
-                and ptr.type.addrspace == 1
-            ):
-                load_instr.set_metadata(
-                    "invariant.load", self._invariant_load_md
-                )
+            if isinstance(ptr.type, ir.PointerType) and ptr.type.addrspace == 1:
+                load_instr.set_metadata("invariant.load", self._invariant_load_md)
             self.gen_symbol_store(instr.dest, load_instr)
 
         def gen_ptradd(instr):
@@ -294,9 +296,9 @@ class LLVMCodeGenerator(object):
             self.declare_var(self.gen_type(instr.type), instr.dest)
             # if instr.args[0] not in self.global_variables:
             self.gen_symbol_store(
-                    instr.dest,
-                    self.func_alloca_symtab[instr.args[0]],
-                )
+                instr.dest,
+                self.func_alloca_symtab[instr.args[0]],
+            )
 
         def gen_castop(instr):
             """this function creates an IR for casting types"""
@@ -379,6 +381,37 @@ class LLVMCodeGenerator(object):
                     ),
                 )
 
+        def gen_extractvalue(instr):
+            struct_val = self.gen_symbol_load(instr.args[0])
+            index = instr.args[1]
+            out_type = struct_val.type.elements[index]
+            self.declare_var(out_type, instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.extract_value(struct_val, [index]),
+            )
+
+        def gen_insertvalue(instr):
+            struct_val = self.gen_symbol_load(instr.args[0])
+            elem_val = self.gen_var(instr.args[1])
+            index = instr.args[2]
+            out_type = struct_val.type
+            self.declare_var(out_type, instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.insert_value(struct_val, elem_val, [index]),
+            )
+
+        def gen_select(instr):
+            cond = self.gen_var(instr.args[0])
+            true_val = self.gen_var(instr.args[1])
+            false_val = self.gen_var(instr.args[2])
+            self.declare_var(self.gen_type(instr.type), instr.dest)
+            self.gen_symbol_store(
+                instr.dest,
+                self.builder.select(cond, true_val, false_val, name=instr.dest),
+            )
+
         for instr in instrs:
             try:
                 if "label" in instr:
@@ -414,14 +447,11 @@ class LLVMCodeGenerator(object):
                 elif instr.op == "asm":
                     gen_asm(instr)
                 elif instr.op == "extractvalue":
-                    struct_val = self.gen_symbol_load(instr.args[0])
-                    index = instr.args[1]
-                    out_type = struct_val.type.elements[index]
-                    self.declare_var(out_type, instr.dest)
-                    self.gen_symbol_store(
-                        instr.dest,
-                        self.builder.extract_value(struct_val, [index]),
-                    )
+                    gen_extractvalue(instr)
+                elif instr.op == "insertvalue":
+                    gen_insertvalue(instr)
+                elif instr.op == "select":
+                    gen_select(instr)
                 elif instr.op in value_ops:
                     gen_value(instr)
                 elif instr.op in cmp_ops:

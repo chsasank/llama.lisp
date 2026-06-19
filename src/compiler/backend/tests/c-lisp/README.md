@@ -70,6 +70,8 @@ turnt --save vector_copy.sexp
 ### Floating-point operations
 - `float-arith.sexp` — Native `fadd`, `fsub`, `fmul`, `fdiv`.
 - `float-compare.sexp` — Native `feq`, `fne`, `flt`, `fgt`, `fle`, `fge`.
+- `fneg-basic.sexp` — Floating-point negation (`fneg`) on `float` values.
+- `fneg-double.sexp` — Floating-point negation on `double` values.
 
 ### Arrays
 - `array-sum.sexp` — Heap-allocated arrays via `(ptr int)`.
@@ -95,6 +97,9 @@ turnt --save vector_copy.sexp
 - `struct-return.sexp` — C-Lisp function returning a struct by value.
 - `struct-assign.sexp` — Copying a struct value from one variable to another.
 - `struct-asm-extractvalue.sexp` — Struct returned from inline asm plus `extractvalue`.
+- `insertvalue-basic.sexp` — Building a struct value with `insertvalue`.
+- `insertvalue-return.sexp` — Function returning a struct built with `insertvalue`.
+- `insertvalue-mixed.sexp` — Building a struct with mixed field types.
 
 ### Strings
 - `string.sexp` — String literals, `strcmp`, `puts`.
@@ -103,6 +108,20 @@ turnt --save vector_copy.sexp
 ### Type casts and conversions
 - `casts.sexp` — `bitcast`, `fpext`/`fptrunc`, `sext`/`zext`/`trunc`, `sitofp`/`uitofp`, `fptosi`/`fptoui`, `ptrtoint`/`inttoptr`.
 - `bitcast-float-int.sexp` — `bitcast` between `float` and `int`.
+
+### Bitwise operations
+- `bitwise-shifts.sexp` — Shift left/right (`shl`, `lshr`, `ashr`).
+- `bitwise-xor.sexp` — Bitwise XOR (`xor`).
+- `bitwise-mixed.sexp` — Combined shifts and XOR (hash-mix pattern).
+
+### Unsigned integer arithmetic
+- `udiv-urem.sexp` — Unsigned division and remainder (`udiv`, `urem`).
+- `udiv-vs-div.sexp` — Unsigned vs signed division on negative operands.
+
+### Select
+- `select-int.sexp` — Branchless integer selection (`select`).
+- `select-float.sexp` — Branchless float selection.
+- `select-struct.sexp` — Branchless struct selection.
 
 ### Scope
 - `scope.sexp` — Variable shadowing inside nested blocks and loops.

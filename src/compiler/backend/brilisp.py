@@ -110,6 +110,13 @@ def gen_instr(instr):
             "sub",
             "div",
             "rem",
+            "udiv",
+            "urem",
+            # Bitwise binary operations
+            "shl",
+            "lshr",
+            "ashr",
+            "xor",
             # Integer comparison
             "eq",
             "ne",
@@ -132,6 +139,7 @@ def gen_instr(instr):
             "fsub",
             "fmul",
             "fdiv",
+            "fneg",
             # Floating-point comparison
             "feq",
             "fne",
@@ -157,6 +165,8 @@ def gen_instr(instr):
             "addrspacecast",
             "asm",
             "extractvalue",
+            "insertvalue",
+            "select",
         }
         return (instr[0] == "set") and (instr[2][0] in value_op)
 

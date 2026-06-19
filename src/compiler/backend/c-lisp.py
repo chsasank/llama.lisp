@@ -594,6 +594,13 @@ class BinOpExpression(Expression):
         "mul": ("_int", None),
         "div": ("_int", None),
         "rem": ("_int", None),
+        "udiv": ("_int", None),
+        "urem": ("_int", None),
+        # Bitwise binary operations
+        "shl": ("_int", None),
+        "lshr": ("_int", None),
+        "ashr": ("_int", None),
+        "xor": ("_int", None),
         # Floating-point arithmetic
         "fadd": ("_float", None),
         "fsub": ("_float", None),
@@ -669,6 +676,25 @@ class NotExpression(Expression):
             ["set", [res_sym, "bool"], ["not", input_expr.symbol]]
         ]
         return ExpressionResult(instrs, res_sym, "bool")
+
+
+class FNegExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "fneg"
+
+    def compile(self, expr):
+        if len(expr) != 2:
+            raise CodegenError(f"`fneg` takes only 1 operand")
+        input_expr = super().compile(expr[1])
+        if input_expr.typ not in {"float", "double"}:
+            raise CodegenError(f"Operand to `fneg` must be float or double")
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = input_expr.instructions + [
+            ["set", [res_sym, input_expr.typ], ["fneg", input_expr.symbol]]
+        ]
+        return ExpressionResult(instrs, res_sym, input_expr.typ)
 
 
 class PtrAddExpression(Expression):
@@ -960,6 +986,89 @@ class ExtractValueExpression(Expression):
             ["set", [res_sym, field_type], ["extractvalue", struct_expr.symbol, index]],
         ]
         return ExpressionResult(instrs, res_sym, field_type)
+
+
+class InsertValueExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "insertvalue"
+
+    def compile(self, expr):
+        if len(expr) != 4:
+            raise CodegenError(f"Bad insertvalue expression: {expr}")
+
+        struct_expr = super().compile(expr[1])
+        field_expr = super().compile(expr[2])
+        typ = struct_expr.typ
+        if not (isinstance(typ, list) and typ[0] == "struct"):
+            raise CodegenError(f"insertvalue requires a struct value, got {typ}")
+
+        struct_name = typ[1]
+        if struct_name not in self.ctx.struct_types:
+            raise CodegenError(f"Unknown struct type: {struct_name}")
+
+        index = expr[3]
+        if not isinstance(index, int):
+            raise CodegenError(f"insertvalue index must be an integer, got {index}")
+
+        field_type = None
+        for field_name, (field_idx, ft) in self.ctx.struct_types[struct_name].items():
+            if field_idx == index:
+                field_type = ft
+                break
+        if field_type is None:
+            raise CodegenError(f"Struct {struct_name} has no field at index {index}")
+
+        if field_type != field_expr.typ:
+            raise CodegenError(
+                f"insertvalue field type mismatch: expected {field_type}, got {field_expr.typ}"
+            )
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = [
+            *struct_expr.instructions,
+            *field_expr.instructions,
+            [
+                "set",
+                [res_sym, typ],
+                ["insertvalue", struct_expr.symbol, field_expr.symbol, index],
+            ],
+        ]
+        return ExpressionResult(instrs, res_sym, typ)
+
+
+class SelectExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "select"
+
+    def compile(self, expr):
+        if len(expr) != 4:
+            raise CodegenError(f"Bad select expression: {expr}")
+
+        cond_expr = super().compile(expr[1])
+        if cond_expr.typ != "bool":
+            raise CodegenError(f"select condition must be bool, got {cond_expr.typ}")
+
+        true_expr = super().compile(expr[2])
+        false_expr = super().compile(expr[3])
+        if true_expr.typ != false_expr.typ:
+            raise CodegenError(
+                f"select branches must have same type: {true_expr.typ} vs {false_expr.typ}"
+            )
+
+        res_sym = random_label(CLISP_PREFIX)
+        instrs = [
+            *cond_expr.instructions,
+            *true_expr.instructions,
+            *false_expr.instructions,
+            [
+                "set",
+                [res_sym, true_expr.typ],
+                ["select", cond_expr.symbol, true_expr.symbol, false_expr.symbol],
+            ],
+        ]
+        return ExpressionResult(instrs, res_sym, true_expr.typ)
 
 
 class PtrToExpression(Expression):
