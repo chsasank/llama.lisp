@@ -5,7 +5,7 @@
 
     (define-inline ((make-pair (struct pair)) (a int) (b int))
         (declare p (struct pair))
-        (set p (asm "movl $2, $0; movl $3, $1;" "=r,=r,r,r" a b))
+        (set p (asm (struct pair) "movl $2, $0; movl $3, $1;" "=r,=r,r,r" a b))
         (ret p))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))

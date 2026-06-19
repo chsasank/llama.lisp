@@ -4,7 +4,7 @@
 
     (define-inline ((iadd int) (a int) (b int))
         (declare res int)
-        (set res (asm "movl $1, $0; addl $2, $0;" "=r,r,r" a b))
+        (set res (asm int "movl $1, $0; addl $2, $0;" "=r,r,r" a b))
         (ret res))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))

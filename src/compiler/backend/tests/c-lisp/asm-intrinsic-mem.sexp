@@ -3,12 +3,12 @@
     (define ((print int) (n int)))
 
     (define-inline ((istore void) (p (ptr int)) (v int))
-        (set (tmp void) (asm "movl $1, ($0)" "r,r" p v))
+        (set (tmp void) (asm void "movl $1, ($0)" "r,r" p v))
         (ret))
 
     (define-inline ((iload int) (p (ptr int)))
         (declare v int)
-        (set v (asm "movl ($1), $0" "=r,r" p))
+        (set v (asm int "movl ($1), $0" "=r,r" p))
         (ret v))
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))

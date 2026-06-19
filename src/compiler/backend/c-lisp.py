@@ -424,18 +424,93 @@ class StringExpression(Expression):
         return ExpressionResult(instrs, res_sym, res_typ)
 
 
-class SetExpression(Expression):
+class AsmExpression(Expression):
     @classmethod
     def is_valid_expr(cls, expr):
-        return expr[0] == "set"
+        return expr[0] == "asm"
 
-    def _compile_asm(self, asm_expr, dest_type):
-        """Compile an inline-asm value expression using the known destination type."""
-        if len(asm_expr) < 3:
-            raise CodegenError(f"Bad asm expression: {asm_expr}")
+    @staticmethod
+    def _parse_constraints(constraint_str):
+        """Parse an inline-asm constraint string into outputs, inputs, and clobbers.
 
-        template_expr = asm_expr[1]
-        constraint_expr = asm_expr[2]
+        Output constraints are prefixed with '=' (write-only) or '+' (read-write).
+        Clobbers look like '~{memory}'.
+        """
+        tokens = [t.strip() for t in constraint_str.split(",") if t.strip()]
+        outputs = []
+        inputs = []
+        clobbers = []
+        for token in tokens:
+            if token.startswith("~{") and token.endswith("}"):
+                clobbers.append(token)
+            elif token.startswith("=") or token.startswith("+"):
+                outputs.append(token)
+            else:
+                inputs.append(token)
+        return outputs, inputs, clobbers
+
+    def _validate_constraints(self, template, constraints, dest_type, arg_types):
+        """Validate the structure of an inline-asm constraint string.
+
+        We deliberately do not validate constraint letters (e.g. `r`, `l`, `b`)
+        because their interpretation is target-specific. LLVM is the authority;
+        we only check target-independent structure: output count and argument
+        count. Read-write operands (`+`) are not supported yet.
+
+        Raises CodegenError on mismatch.
+        """
+        outputs, inputs, clobbers = self._parse_constraints(constraints)
+
+        for out in outputs:
+            if out.startswith("+"):
+                raise CodegenError(
+                    f'read-write asm operands ({out}) are not yet supported in "{constraints}"'
+                )
+
+        num_outputs = len(outputs)
+        expected_arg_count = len(inputs)
+
+        if len(arg_types) != expected_arg_count:
+            raise CodegenError(
+                f'asm argument count {len(arg_types)} does not match input constraint count {len(inputs)} in "{constraints}"'
+            )
+
+        if dest_type == "void":
+            if num_outputs != 0:
+                raise CodegenError(
+                    f'asm with void destination must have no output constraints, got {num_outputs} in "{constraints}"'
+                )
+        elif isinstance(dest_type, list) and dest_type[0] == "struct":
+            struct_name = dest_type[1]
+            if struct_name not in self.ctx.struct_types:
+                raise CodegenError(f"Unknown struct type: {struct_name}")
+            field_items = sorted(
+                self.ctx.struct_types[struct_name].items(), key=lambda kv: kv[1][0]
+            )
+            field_types = [ft for _, (_, ft) in field_items]
+            if num_outputs != len(field_types):
+                raise CodegenError(
+                    f'asm output count {num_outputs} does not match struct {struct_name} field count {len(field_types)} in "{constraints}"'
+                )
+        else:
+            if num_outputs != 1:
+                raise CodegenError(
+                    f'asm with non-struct destination must have exactly one output constraint, got {num_outputs} in "{constraints}"'
+                )
+
+    def compile(self, expr):
+        """Compile an inline-asm expression with an explicit return type.
+
+        Syntax: (asm <type> <template-string> <constraint-string> <args>...)
+        """
+        if len(expr) < 4:
+            raise CodegenError(f"Bad asm expression: {expr}")
+
+        dest_type = expr[1]
+        template_expr = expr[2]
+        constraint_expr = expr[3]
+        args = expr[4:]
+
         if not (
             isinstance(template_expr, list)
             and template_expr[0] == "string"
@@ -443,17 +518,26 @@ class SetExpression(Expression):
             and constraint_expr[0] == "string"
         ):
             raise CodegenError(
-                f"asm template and constraints must be string literals: {asm_expr}"
+                f"asm template and constraints must be string literals: {expr}"
             )
+
+        template = template_expr[1]
+        constraints = constraint_expr[1]
 
         arg_results = []
         arg_syms = []
         instructions = []
-        for a in asm_expr[3:]:
+        for a in args:
             compiled = super().compile(a)
             arg_results.append(compiled)
             arg_syms.append(compiled.symbol)
             instructions.extend(compiled.instructions)
+
+        arg_types = [r.typ for r in arg_results]
+        try:
+            self._validate_constraints(template, constraints, dest_type, arg_types)
+        except CodegenError as e:
+            raise CodegenError(f'asm("{template}", "{constraints}"): {e}') from e
 
         res_sym = random_label(CLISP_PREFIX)
         instructions.append(
@@ -464,6 +548,12 @@ class SetExpression(Expression):
             ]
         )
         return ExpressionResult(instructions, res_sym, dest_type)
+
+
+class SetExpression(Expression):
+    @classmethod
+    def is_valid_expr(cls, expr):
+        return expr[0] == "set"
 
     def compile(self, expr):
         if len(expr) != 3:
@@ -485,22 +575,24 @@ class SetExpression(Expression):
             is_new_decl = False
             if dest_type is None:
                 if scoped_name in self.ctx.global_variables:
-                    # Storing to a global is only valid for non-asm values below;
-                    # the type is the pointee type.
+                    # Storing to a global: the type is the pointee type.
                     dest_type = self.ctx.global_variables[scoped_name][1]
                 else:
                     raise CodegenError(f"Unknown symbol {scoped_name}")
         else:
             raise CodegenError(f"Bad set expression: {expr}")
 
-        # Inline asm needs the destination type to build the value instruction.
-        if isinstance(expr[2], list) and expr[2] and expr[2][0] == "asm":
-            res = self._compile_asm(expr[2], dest_type)
-            # Void inline asm has no destination variable; emit it directly.
-            if dest_type == "void":
-                return ExpressionResult(res.instructions, scoped_name, "void")
-        else:
-            res = super().compile(expr[2])
+        res = super().compile(expr[2])
+
+        if res.typ == "void":
+            if dest_type is not None and dest_type != "void":
+                raise CodegenError(
+                    f"Cannot assign void expression to {name} of type {dest_type}"
+                )
+            return ExpressionResult(res.instructions, scoped_name, "void")
+
+        if dest_type is not None and res.typ != dest_type:
+            raise CodegenError(f"Cannot assign {res.typ} to {name} of type {dest_type}")
 
         if scoped_name in self.ctx.variable_types:
             new_instrs = [

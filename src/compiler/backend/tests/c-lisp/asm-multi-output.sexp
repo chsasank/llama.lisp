@@ -5,7 +5,7 @@
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
         (declare p (struct pair))
-        (set p (asm "movl $$11, $0; movl $$22, $1;" "=r,=r"))
+        (set p (asm (struct pair) "movl $$11, $0; movl $$22, $1;" "=r,=r"))
         (call print (extractvalue p 0))
         (call print (extractvalue p 1))
         (ret)))

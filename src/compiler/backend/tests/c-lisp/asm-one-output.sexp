@@ -4,6 +4,6 @@
 
     (define ((main void) (argc int) (argv (ptr (ptr int))))
         (declare x int)
-        (set x (asm "movl $$42, $0" "=r"))
+        (set x (asm int "movl $$42, $0" "=r"))
         (call print x)
         (ret)))
