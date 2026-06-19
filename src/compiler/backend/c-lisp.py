@@ -556,43 +556,12 @@ class SetExpression(Expression):
         return expr[0] == "set"
 
     def compile(self, expr):
-        if len(expr) != 3:
+        if not verify_shape(expr, [str, str, None]):
             raise CodegenError(f"Bad set expression: {expr}")
 
-        # Support both (set name value) and (set (name type) value).
-        if isinstance(expr[1], list):
-            if len(expr[1]) != 2:
-                raise CodegenError(f"Bad set expression: {expr}")
-            name, dest_type = expr[1]
-            scoped_name = self.ctx.construct_scoped_name(name, self.ctx.scopes)
-            is_new_decl = scoped_name not in self.ctx.variable_types
-            if is_new_decl and dest_type != "void":
-                self.ctx.variable_types[scoped_name] = dest_type
-        elif isinstance(expr[1], str):
-            name = expr[1]
-            scoped_name = self.ctx.scoped_lookup(name)
-            dest_type = self.ctx.variable_types.get(scoped_name)
-            is_new_decl = False
-            if dest_type is None:
-                if scoped_name in self.ctx.global_variables:
-                    # Storing to a global: the type is the pointee type.
-                    dest_type = self.ctx.global_variables[scoped_name][1]
-                else:
-                    raise CodegenError(f"Unknown symbol {scoped_name}")
-        else:
-            raise CodegenError(f"Bad set expression: {expr}")
-
+        name = expr[1]
+        scoped_name = self.ctx.scoped_lookup(name)
         res = super().compile(expr[2])
-
-        if res.typ == "void":
-            if dest_type is not None and dest_type != "void":
-                raise CodegenError(
-                    f"Cannot assign void expression to {name} of type {dest_type}"
-                )
-            return ExpressionResult(res.instructions, scoped_name, "void")
-
-        if dest_type is not None and res.typ != dest_type:
-            raise CodegenError(f"Cannot assign {res.typ} to {name} of type {dest_type}")
 
         if scoped_name in self.ctx.variable_types:
             new_instrs = [

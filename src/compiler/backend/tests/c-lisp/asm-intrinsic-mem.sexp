@@ -3,7 +3,7 @@
     (define ((print int) (n int)))
 
     (define-inline ((istore void) (p (ptr int)) (v int))
-        (set (tmp void) (asm void "movl $1, ($0)" "r,r" p v))
+        (asm void "movl $1, ($0)" "r,r" p v)
         (ret))
 
     (define-inline ((iload int) (p (ptr int)))
