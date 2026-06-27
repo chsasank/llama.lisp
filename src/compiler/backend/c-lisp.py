@@ -832,6 +832,9 @@ class StructPtrAddExpression(Expression):
         field_idx, field_type = self.ctx.struct_types[struct_name][field]
         res_sym = random_label(CLISP_PREFIX)
         res_type = ["ptr", field_type]
+        # Preserve address space from the source struct pointer.
+        if len(struct_ptr.typ) > 2 and struct_ptr.typ[2][0] == "addrspace":
+            res_type = [*res_type, struct_ptr.typ[2]]
 
         instrs = struct_ptr.instructions + [
             [
