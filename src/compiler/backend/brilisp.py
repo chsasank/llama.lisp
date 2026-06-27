@@ -23,8 +23,16 @@ def gen_struct(expr):
 
 def gen_globals(expr):
     out = {"name": expr[1][0], "type": gen_type(expr[1][1])}
-    if len(expr) == 3:
-        out["init"] = expr[2]
+    if len(expr) >= 3:
+        inits = expr[2:]
+        # Pull out linkage markers so the LLVM backend can set the right
+        # linkage attribute without treating them as initializers.
+        non_linkage = [init for init in inits if not (is_list(init) and init and init[0] == "linkage")]
+        linkage = [init for init in inits if is_list(init) and init and init[0] == "linkage"]
+        if linkage:
+            out["linkage"] = linkage[-1][1]
+        if non_linkage:
+            out["init"] = non_linkage if len(non_linkage) > 1 else non_linkage[0]
 
     return out
 

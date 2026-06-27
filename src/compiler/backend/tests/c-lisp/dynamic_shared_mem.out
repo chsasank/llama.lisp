@@ -1,0 +1,78 @@
+; ModuleID = ""
+target triple = "unknown-unknown-unknown"
+target datalayout = ""
+
+@"sdata" = external addrspace(3) global [0 x float], align 16
+declare i32 @"llvm.nvvm.read.ptx.sreg.tid.x"()
+
+declare void @"llvm.nvvm.barrier0"()
+
+define void @"dynSharedCopy"(float addrspace(1)* %"out", float addrspace(1)* %"in", i32 %"n")
+{
+alloca-piuzfbqp:
+  %"out.1" = alloca float addrspace(1)*
+  %"in.1" = alloca float addrspace(1)*
+  %"n.1" = alloca i32
+  %"i" = alloca i32
+  %"tmp_clisp-fvjvleoy" = alloca i32
+  %"s_i" = alloca float*
+  %"tmp_clisp-egjrlyhk" = alloca [0 x float]*
+  %"tmp_clisp-hotmbsah" = alloca float*
+  %"in_i" = alloca float addrspace(1)*
+  %"tmp_clisp-vronpcus" = alloca float addrspace(1)*
+  %"out_i" = alloca float addrspace(1)*
+  %"tmp_clisp-kqfhnhbb" = alloca float addrspace(1)*
+  %"tmp_clisp-pjtvcrce" = alloca float
+  %"tmp_clisp-dofzglnn" = alloca float
+  br label %"entry-sbnpsago"
+entry-sbnpsago:
+  store float addrspace(1)* %"out", float addrspace(1)** %"out.1"
+  store float addrspace(1)* %"in", float addrspace(1)** %"in.1"
+  store i32 %"n", i32* %"n.1"
+  store i32 undef, i32* %"i"
+  %"tmp_clisp-fvjvleoy.1" = call i32 @"llvm.nvvm.read.ptx.sreg.tid.x"()
+  store i32 %"tmp_clisp-fvjvleoy.1", i32* %"tmp_clisp-fvjvleoy"
+  %".10" = load i32, i32* %"tmp_clisp-fvjvleoy"
+  store i32 %".10", i32* %"i"
+  store float* undef, float** %"s_i"
+  %"tmp_clisp-egjrlyhk.1" = addrspacecast [0 x float] addrspace(3)* @"sdata" to [0 x float]*
+  store [0 x float]* %"tmp_clisp-egjrlyhk.1", [0 x float]** %"tmp_clisp-egjrlyhk"
+  %".14" = load i32, i32* %"i"
+  %".15" = load [0 x float]*, [0 x float]** %"tmp_clisp-egjrlyhk"
+  %".16" = getelementptr [0 x float], [0 x float]* %".15", i32 0, i32 %".14"
+  store float* %".16", float** %"tmp_clisp-hotmbsah"
+  %".18" = load float*, float** %"tmp_clisp-hotmbsah"
+  store float* %".18", float** %"s_i"
+  store float addrspace(1)* undef, float addrspace(1)** %"in_i"
+  %".21" = load i32, i32* %"i"
+  %".22" = load float addrspace(1)*, float addrspace(1)** %"in.1"
+  %".23" = getelementptr float, float addrspace(1)* %".22", i32 %".21"
+  store float addrspace(1)* %".23", float addrspace(1)** %"tmp_clisp-vronpcus"
+  %".25" = load float addrspace(1)*, float addrspace(1)** %"tmp_clisp-vronpcus"
+  store float addrspace(1)* %".25", float addrspace(1)** %"in_i"
+  store float addrspace(1)* undef, float addrspace(1)** %"out_i"
+  %".28" = load i32, i32* %"i"
+  %".29" = load float addrspace(1)*, float addrspace(1)** %"out.1"
+  %".30" = getelementptr float, float addrspace(1)* %".29", i32 %".28"
+  store float addrspace(1)* %".30", float addrspace(1)** %"tmp_clisp-kqfhnhbb"
+  %".32" = load float addrspace(1)*, float addrspace(1)** %"tmp_clisp-kqfhnhbb"
+  store float addrspace(1)* %".32", float addrspace(1)** %"out_i"
+  %".34" = load float addrspace(1)*, float addrspace(1)** %"in_i"
+  %".35" = load float, float addrspace(1)* %".34", !invariant.load !0
+  store float %".35", float* %"tmp_clisp-pjtvcrce"
+  %".37" = load float*, float** %"s_i"
+  %".38" = load float, float* %"tmp_clisp-pjtvcrce"
+  store float %".38", float* %".37"
+  call void @"llvm.nvvm.barrier0"()
+  %".40" = load float*, float** %"s_i"
+  %".41" = load float, float* %".40"
+  store float %".41", float* %"tmp_clisp-dofzglnn"
+  %".43" = load float addrspace(1)*, float addrspace(1)** %"out_i"
+  %".44" = load float, float* %"tmp_clisp-dofzglnn"
+  store float %".44", float addrspace(1)* %".43"
+  br label %"tmp_clisp.ret_lbl-piuzfbqp"
+tmp_clisp.ret_lbl-piuzfbqp:
+  ret void
+}
+
+!0 = !{  }

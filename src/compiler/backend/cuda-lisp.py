@@ -16,7 +16,19 @@ class CudaLisp:
     def compile_shared(self, expr):
         arr_name = expr[1]
         arr_type = expr[2]
-        return ["define-global", [arr_name, ["arr", *arr_type]], ["addrspace", 3]]
+        # Normalize bracket syntax [N T] to (arr N T).
+        if isinstance(arr_type, list) and len(arr_type) == 2 and arr_type[0] != "arr":
+            arr_type = ["arr", *arr_type]
+        # A zero-length shared array requests dynamic shared memory and must be
+        # emitted with external linkage so NVPTX produces .extern .shared.
+        if self.is_arr_type(arr_type) and arr_type[1] == 0:
+            return [
+                "define-global",
+                [arr_name, arr_type],
+                ["addrspace", 3],
+                ["linkage", "external"],
+            ]
+        return ["define-global", [arr_name, arr_type], ["addrspace", 3]]
 
     def is_symbol(self, expr):
         return isinstance(expr, str)

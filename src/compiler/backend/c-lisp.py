@@ -173,8 +173,9 @@ class BrilispCodeGenerator:
         save_typ = ["ptr", typ]
         self.global_variables[name] = save_typ
 
-        if len(glob) == 3:
-            init = glob[2]
+        inits = glob[2:]
+        processed = []
+        for init in inits:
             if init[0] == "const":
                 pass
             elif init[0] == "ptr-to":
@@ -182,13 +183,21 @@ class BrilispCodeGenerator:
                 if target not in self.global_variables:
                     raise CodegenError("ptr-to must refer to a global variable")
             elif init[0] == "addrspace":
-                self.global_variables[name] = [*save_typ, ["addrspace", init[1]]]
+                save_typ = [*save_typ, ["addrspace", init[1]]]
+            elif init[0] == "linkage":
+                if init[1] != "external":
+                    raise CodegenError(f"unsupported linkage: {init[1]}")
             else:
-                raise CodegenError("init should be one of const, ptr-to, addrspace")
+                raise CodegenError(
+                    "init should be one of const, ptr-to, addrspace, linkage"
+                )
+            processed.append(init)
 
-            return ["define-global", [name, typ], init]
-        else:
-            return ["define-global", [name, typ]]
+        self.global_variables[name] = save_typ
+
+        if processed:
+            return ["define-global", [name, typ], *processed]
+        return ["define-global", [name, typ]]
 
     def gen_stmt(self, stmt):
         try:
@@ -671,6 +680,9 @@ class BinOpExpression(Expression):
         "lshr": ("_int", None),
         "ashr": ("_int", None),
         "xor": ("_int", None),
+        # Boolean / bitwise logic (operands and result share the same type)
+        "and": ("_int_or_bool", None),
+        "or": ("_int_or_bool", None),
         # Floating-point arithmetic
         "fadd": ("_float", None),
         "fsub": ("_float", None),
@@ -690,9 +702,6 @@ class BinOpExpression(Expression):
         "fgt": ("_float", "bool"),
         "fle": ("_float", "bool"),
         "fge": ("_float", "bool"),
-        # Boolean logic
-        "and": ("bool", "bool"),
-        "or": ("bool", "bool"),
     }
 
     @classmethod
@@ -730,22 +739,24 @@ class BinOpExpression(Expression):
 
 
 class NotExpression(Expression):
+    int_types = {"int8", "int16", "int", "int32", "int64"}
+
     @classmethod
     def is_valid_expr(cls, expr):
         return expr[0] == "not"
 
     def compile(self, expr):
         if len(expr) != 2:
-            raise CodegenError(f"`not` takes only 1 operands")
+            raise CodegenError(f"`not` takes only 1 operand")
         input_expr = super().compile(expr[1])
-        if input_expr.typ != "bool":
-            raise CodegenError(f"Operand to `not` must be bool")
+        if input_expr.typ != "bool" and input_expr.typ not in self.int_types:
+            raise CodegenError(f"Operand to `not` must be bool or an integer type")
 
         res_sym = random_label(CLISP_PREFIX)
         instrs = input_expr.instructions + [
-            ["set", [res_sym, "bool"], ["not", input_expr.symbol]]
+            ["set", [res_sym, input_expr.typ], ["not", input_expr.symbol]]
         ]
-        return ExpressionResult(instrs, res_sym, "bool")
+        return ExpressionResult(instrs, res_sym, input_expr.typ)
 
 
 class FNegExpression(Expression):
@@ -1151,13 +1162,21 @@ class PtrToExpression(Expression):
             raise CodegenError(f"Bad ptr-to expression: {expr}")
 
         pointee_sym = self.ctx.scoped_lookup(expr[1])
-        pointee_type = self.ctx.variable_types[pointee_sym]
+        if pointee_sym in self.ctx.variable_types:
+            pointee_type = self.ctx.variable_types[pointee_sym]
+            result_type = ["ptr", pointee_type]
+        elif pointee_sym in self.ctx.global_variables:
+            # global_variables stores the pointer type of the global, including
+            # any addrspace qualifier.  A ptr-to that global has that type.
+            result_type = self.ctx.global_variables[pointee_sym]
+        else:
+            raise CodegenError(f"ptr-to target not found: {pointee_sym}")
         res_sym = random_label(CLISP_PREFIX)
         instr_list = []
         instr_list.append(
-            ["set", [res_sym, ["ptr", pointee_type]], ["ptr-to", pointee_sym]]
+            ["set", [res_sym, result_type], ["ptr-to", pointee_sym]]
         )
-        return ExpressionResult(instr_list, res_sym, ["ptr", pointee_type])
+        return ExpressionResult(instr_list, res_sym, result_type)
 
 
 def type_match(typ, pattern):
@@ -1174,11 +1193,17 @@ def type_match(typ, pattern):
     - None: any type
     """
     int_types = {"int8", "int16", "int", "int32", "int64"}
+    int_or_bool_types = int_types | {"bool"}
     float_types = {"float", "double"}
     if pattern is None:
         return True, ""
     elif pattern == "_int":
         return isinstance(typ, str) and typ in int_types, f"one of {int_types}"
+    elif pattern == "_int_or_bool":
+        return (
+            isinstance(typ, str) and typ in int_or_bool_types,
+            f"one of {int_or_bool_types}",
+        )
     elif pattern == "_float":
         return isinstance(typ, str) and typ in float_types, f"one of {float_types}"
     elif pattern == "_ptr":

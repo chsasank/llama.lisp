@@ -294,10 +294,16 @@ class LLVMCodeGenerator(object):
 
         def gen_ptr_to(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
-            # if instr.args[0] not in self.global_variables:
+            src_name = instr.args[0]
+            if src_name in self.func_alloca_symtab:
+                ptr_val = self.func_alloca_symtab[src_name]
+            elif src_name in self.global_variables:
+                ptr_val = self.global_variables[src_name]
+            else:
+                raise CodegenError(f"ptr-to source not found: {src_name}")
             self.gen_symbol_store(
                 instr.dest,
-                self.func_alloca_symtab[instr.args[0]],
+                ptr_val,
             )
 
         def gen_castop(instr):
@@ -585,24 +591,33 @@ class LLVMCodeGenerator(object):
         # zeroinitializer: https://llvmlite.readthedocs.io/en/latest/user-guide/ir/values.html?highlight=zeroinitializer#llvmlite.ir.Constant
         initializer = ir.Constant(typ, None)
         addrspace = 0
+        linkage = glob.get("linkage")
 
         if "init" in glob:
-            init = glob.init
-            if init[0] == "const":
-                initializer = ir.Constant(typ, init[1])
-            elif init[0] == "ptr-to":
-                target = self.module.get_global(init[1])
-                initializer = target
-            elif init[0] == "addrspace":
-                # addrspace has to be in the init
-                addrspace = init[1]
-            else:
-                raise CodegenError(f"Illegal global initializer in LLVM: {init}")
+            init_list = glob.init
+            if not (isinstance(init_list, list) and init_list and isinstance(init_list[0], list)):
+                init_list = [init_list]
+            for init in init_list:
+                if init[0] == "const":
+                    initializer = ir.Constant(typ, init[1])
+                elif init[0] == "ptr-to":
+                    target = self.module.get_global(init[1])
+                    initializer = target
+                elif init[0] == "addrspace":
+                    # addrspace has to be in the init
+                    addrspace = init[1]
+                else:
+                    raise CodegenError(f"Illegal global initializer in LLVM: {init}")
 
         global_var = ir.GlobalVariable(
             module=self.module, typ=typ, name=glob.name, addrspace=addrspace
         )
-        global_var.initializer = initializer
+        if linkage == "external":
+            global_var.linkage = "external"
+            # External globals are declarations, not definitions; do not emit an
+            # initializer.  This is what NVPTX expects for dynamic shared memory.
+        else:
+            global_var.initializer = initializer
         if addrspace == 3:
             global_var.align = 16
         self.global_variables[glob.name] = global_var
