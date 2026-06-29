@@ -695,6 +695,10 @@ class BinOpExpression(Expression):
         "gt": ("_int", "bool"),
         "le": ("_int", "bool"),
         "ge": ("_int", "bool"),
+        "ult": ("_int", "bool"),
+        "ugt": ("_int", "bool"),
+        "ule": ("_int", "bool"),
+        "uge": ("_int", "bool"),
         # Floating-point comparison
         "feq": ("_float", "bool"),
         "fne": ("_float", "bool"),

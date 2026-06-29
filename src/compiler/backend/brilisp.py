@@ -132,6 +132,10 @@ def gen_instr(instr):
             "gt",
             "le",
             "ge",
+            "ult",
+            "ugt",
+            "ule",
+            "uge",
             # Boolean arithmetic
             "not",
             "and",

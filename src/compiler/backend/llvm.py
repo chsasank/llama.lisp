@@ -137,7 +137,13 @@ class LLVMCodeGenerator(object):
             "le": "<=",
             "ge": ">=",
             "ne": "!=",
+            "ult": "<",
+            "ugt": ">",
+            "ule": "<=",
+            "uge": ">=",
         }
+
+        ucmp_ops = {"ult", "ugt", "ule", "uge"}
 
         fcmp_ops = {
             "feq": "==",
@@ -240,9 +246,14 @@ class LLVMCodeGenerator(object):
 
         def gen_comp(instr):
             self.declare_var(self.gen_type(instr.type), instr.dest)
+            cmp_builder = (
+                self.builder.icmp_unsigned
+                if instr.op in ucmp_ops
+                else self.builder.icmp_signed
+            )
             self.gen_symbol_store(
                 instr.dest,
-                self.builder.icmp_signed(
+                cmp_builder(
                     cmpop=cmp_ops[instr.op],
                     lhs=self.gen_var(instr.args[0]),
                     rhs=self.gen_var(instr.args[1]),
