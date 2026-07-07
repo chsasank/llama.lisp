@@ -84,14 +84,14 @@ class BrilispCodeGenerator:
         raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
-        if func[0].startswith("define") or func[0].startswith("define-spir-kernel"):
+        if func[0].startswith("define"):
             pass
         else:
             raise CodegenError(f"Not a function: {func}")
 
         func_attrs = func[0].split("-")[1:]
         for attr in func_attrs:
-            allowed_attrs = {"brilisp", "inline", "spirv", "kernel"}
+            allowed_attrs = {"brilisp", "inline"}
             if attr not in allowed_attrs:
                 raise CodegenError(f"Unknown function attr: {func[0]})")
 
