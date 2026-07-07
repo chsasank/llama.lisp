@@ -30,7 +30,7 @@ def gen_globals(expr):
 
 
 def is_function(expr):
-    return isinstance(expr, list) and (expr[0].startswith("define"))
+    return isinstance(expr, list) and ((expr[0].startswith("define") ))
 
 
 def is_string(expr):
