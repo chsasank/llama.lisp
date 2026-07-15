@@ -199,8 +199,23 @@ bash download_wiki.sh https://dumps.wikimedia.org/knwiki/20250620/knwiki-2025062
 
 Here /tmp/tts_data is the directory where the text wikipedia data is downloaded and extracted to. 
 
-Prepare the data
+Prepare the data 
 
 ```
 python3 /synthetic_data/text_cleaning/clean.py /tmp/tts_data/
 ```
+Following which we shall have a clean and final dataset called data_set_list_kannada_wiki_final_dataset.json which shall be used as an input to synthesize audio. 
+
+
+On the bash shell. Input the path of the .json credential file for accessing google tts API as shown below
+
+```
+export GOOGLE_APPLICATION_CREDENTIALS="/home/to/wherever/tts_gcp.json"
+```
+
+Now we synthesize audio and push to hugging face hub(guide to hugging face login https://huggingface.co/docs/huggingface_hub/en/guides/cli)
+
+```
+:~/llama.lisp/src/ai/tts$ python synthetic_data/google_tts/generate.py /tmp/tts_data
+```
+
