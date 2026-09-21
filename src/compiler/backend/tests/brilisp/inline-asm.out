@@ -21,3 +21,4 @@ entry-sbnpsago:
   ret %"int4" %".9"
 }
 
+!0 = !{  }

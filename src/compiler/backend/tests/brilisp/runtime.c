@@ -7,12 +7,20 @@ int print(int x){
 }
 
 float fprint(float x) {
-    printf("%f\n", x);
+    if (x != x) {
+        printf("nan\n");
+    } else {
+        printf("%f\n", x);
+    }
     return x;
 }
 
 double dprint(double x){
-    printf("%lf\n",x);
+    if (x != x) {
+        printf("nan\n");
+    } else {
+        printf("%lf\n", x);
+    }
     return x;
 }
 
