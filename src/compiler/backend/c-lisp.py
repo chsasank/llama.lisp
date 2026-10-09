@@ -84,7 +84,9 @@ class BrilispCodeGenerator:
         raise CodegenError(f"Undeclared symbol: {name}")
 
     def gen_function(self, func):
-        if not func[0].startswith("define"):
+        if func[0].startswith("define"):
+            pass
+        else:
             raise CodegenError(f"Not a function: {func}")
 
         func_attrs = func[0].split("-")[1:]
