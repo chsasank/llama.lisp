@@ -368,6 +368,12 @@ class ParlerTTSSinusoidalPositionalEmbedding(nn.Module):
             self.make_weights(seq_len + self.offset, self.embedding_dim)
         return self.weights.index_select(0, position_ids.view(-1)).detach()
 
+    @torch.no_grad()
+    def from_position_ids(self, position_ids):
+        bs, seq_len = position_ids.shape
+        flat_embs = self.weights.index_select(0, position_ids.view(-1))
+        return flat_embs.reshape(bs, seq_len, -1)
+
 
 # Copied from transformers.models.llama.modeling_llama.LlamaRotaryEmbedding with Llama->ParlerTTS
 class ParlerTTSRotaryEmbedding(nn.Module):
@@ -1464,9 +1470,6 @@ class ParlerTTSDecoder(ParlerTTSPreTrainedModel):
                 past_key_values_length, past_key_values_length + input_shape[1] + prepended_sequence_length, device=inputs_embeds.device
             )
 
-        if position_ids is None:
-            position_ids = cache_position.unsqueeze(0)
-
         # NOTE: 1. As it is, the masked ids from the prompt will still count in the positions embeddings
         # NOTE: 2. we want to concatenate the prompt attention mask and the decoder attention mask
         # i.i.f `prompt_cross_attention=False`. ParlerTTSForConditionalGeneration's taking care of setting
@@ -1534,6 +1537,8 @@ class ParlerTTSDecoder(ParlerTTSPreTrainedModel):
             cos, sin = cos.to(hidden_states.dtype), sin.to(hidden_states.dtype)
 
         hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        if position_ids is None:
+            position_ids = cache_position.unsqueeze(0)
 
         causal_mask = self._update_causal_mask(
             attention_mask,
@@ -1550,11 +1555,12 @@ class ParlerTTSDecoder(ParlerTTSPreTrainedModel):
                 # output_attentions=True & cross_attn_head_mask can not be supported when using SDPA, and we fall back on
                 # the manual implementation that requires a 4D causal mask in all cases.
                 # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-                encoder_attention_mask = _prepare_4d_attention_mask_for_sdpa(
-                    encoder_attention_mask,
-                    inputs_embeds.dtype,
-                    tgt_len=input_shape[-1],
-                )
+                if encoder_attention_mask.ndim != 4:
+                    encoder_attention_mask = _prepare_4d_attention_mask_for_sdpa(
+                        encoder_attention_mask,
+                        inputs_embeds.dtype,
+                        tgt_len=input_shape[-1],
+                    )
             else:
                 # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
                 encoder_attention_mask = _prepare_4d_attention_mask(
